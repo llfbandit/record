@@ -37,6 +37,7 @@ class AudioPlayerState extends State<AudioPlayer> {
     _audioPlayer.onPlayerStateChanged.listen(_onPlayerStateChanged);
     _audioPlayer.onDurationChanged.listen(_onDurationChanged);
     _audioPlayer.onAudioPositionChanged.listen(_onAudioPositionChanged);
+    _audioPlayer.onPlayerError.listen((error) => print(error));
 
     super.initState();
   }

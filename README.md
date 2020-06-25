@@ -55,7 +55,7 @@ await AudioRecorder.start(
     outputFormat: AudioOutputFormat.MPEG_4, // by default
     encoder: AudioEncoder.AAC, // by default (does nothing on iOs)
     bitRate: 128000, // by default
-    sampleRate: 44000, // by default
+    sampleRate: 44100, // by default
     );
 
 // Stop recording

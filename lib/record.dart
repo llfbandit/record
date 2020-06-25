@@ -13,7 +13,7 @@ class Record {
     AudioOutputFormat outputFormat = AudioOutputFormat.MPEG_4,
     AudioEncoder encoder = AudioEncoder.AAC,
     int bitRate = 128000,
-    int samplingRate = 44000,
+    double samplingRate = 44100.0,
   }) {
     return _channel.invokeMethod('start', {
       "path": path,
@@ -38,8 +38,11 @@ class Record {
 }
 
 enum AudioOutputFormat {
+  /// sampling rate from 8 to 96kHz
   AAC,
+  /// sampling rate should be set to 8kHz
   AMR_NB,
+  /// sampling rate should be set to 16kHz
   AMR_WB,
   MPEG_4,
 }

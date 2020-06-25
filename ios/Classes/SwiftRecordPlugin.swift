@@ -10,19 +10,19 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
   }
 
   var isRecording = false
-  var hasPermissions = false
-  var audioRecorder: AVAudioRecorder!
+  var hasPermission = false
+  var audioRecorder: AVAudioRecorder?
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
       case "start":
         let args = call.arguments as! [String : Any]
         start(
-          args["path"] as? String,
-          args["outputFormat"] as? int,
-          args["bitRate"] as? int,
-          args["samplingRate"] as? int,
-          result);
+          path: args["path"] as? String ?? "",
+          outputFormat: args["outputFormat"] as? Int ?? 0,
+          bitRate: args["bitRate"] as? Int ?? 128000,
+          samplingRate: args["samplingRate"] as? Float ?? 44100.0,
+          result: result);
         break
       case "stop":
         stop(result)
@@ -38,22 +38,18 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     }
   }
 
-  func hasPermission(result: @escaping FlutterResult) {
-    switch AVAudioSession.sharedInstance().recordPermission() {
+  func hasPermission(_ result: @escaping FlutterResult) {
+    switch AVAudioSession.sharedInstance().recordPermission {
       case AVAudioSession.RecordPermission.granted:
-        hasPermissions = true
+        hasPermission = true
         break
       case AVAudioSession.RecordPermission.denied:
-        hasPermissions = false
+        hasPermission = false
         break
       case AVAudioSession.RecordPermission.undetermined:
         AVAudioSession.sharedInstance().requestRecordPermission() { [unowned self] allowed in
           DispatchQueue.main.async {
-            if allowed {
-              self.hasPermissions = true
-            } else {
-              self.hasPermissions = false
-            }
+            self.hasPermission = allowed
           }
         }
         break
@@ -61,27 +57,27 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         break
     }
 
-    result(hasPermissions)
+    result(hasPermission)
   }
 
-  func start(path: String, outputFormat: int, bitRate: int, samplingRate: int, result: @escaping FlutterResult) {
+  func start(path: String, outputFormat: Int, bitRate: Int, samplingRate: Float, result: @escaping FlutterResult) {
     stopRecording()
 
     let settings = [
       AVFormatIDKey: getOutputFormat(outputFormat),
-      AVEncoderBitRateKey: bitRate,
+      //AVEncoderBitRateKey: bitRate, // does not work at all, messing the record without error
       AVSampleRateKey: samplingRate,
-      AVNumberOfChannelsKey: 1,
+      AVNumberOfChannelsKey: 2,
       AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-    ]
+    ] as [String : Any]
 
     do {
-      try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayAndRecord, with: AVAudioSessionCategoryOptions.defaultToSpeaker)
+      try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playAndRecord, options: AVAudioSession.CategoryOptions.defaultToSpeaker)
       try AVAudioSession.sharedInstance().setActive(true)
 
       audioRecorder = try AVAudioRecorder(url: URL(string: path)!, settings: settings)
-      audioRecorder.delegate = self
-      audioRecorder.record()
+      audioRecorder!.delegate = self
+      audioRecorder!.record()
 
       isRecording = true
       result(nil)
@@ -90,25 +86,25 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     }
   }
 
-  func stop(result: @escaping FlutterResult) {
+  func stop(_ result: @escaping FlutterResult) {
     stopRecording()
-    result(null)
+    result(nil)
   }
 
   func stopRecording() {
-    audioRecorder.stop()
+    audioRecorder?.stop()
     audioRecorder = nil
+    isRecording = false
   }
 
-  func getOutputFormat(int outputFormat): AudioFormatID {
+  func getOutputFormat(_ outputFormat: Int) -> Int {
     switch(outputFormat) {
-      case 1:
-        return kAudioFormatAMR;
-      case 2:
-        return kAudioFormatAMR_WB;
-      case 0:
-      default:
-        return kAudioFormatMPEG4AAC_HE;
+    case 1:
+      return Int(kAudioFormatAMR);
+    case 2:
+      return Int(kAudioFormatAMR_WB);
+    default:
+      return Int(kAudioFormatMPEG4AAC_HE);
     }
   }
 }

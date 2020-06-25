@@ -69,7 +69,7 @@ class _MyAppState extends State<MyApp> {
       path = dir.path +
           '/' +
           DateTime.now().millisecondsSinceEpoch.toString() +
-          'm4a';
+          '.m4a';
     }
     return path;
   }
