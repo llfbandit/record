@@ -1,7 +1,6 @@
 name: record
-description: Record audio to file with codec, bit rate and sampling rate options.
-version: 0.0.1
-author: llfbandit
+description: Record audio to file with multiple codecs, bit rate and sampling rate options.
+version: 0.1.0
 homepage: https://github.com/llfbandit/record
 
 environment:

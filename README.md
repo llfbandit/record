@@ -1,9 +1,10 @@
 Record audio with a given file path.
+MediaRecorder for Android an AVAudioRecorder for iOS.
 
 ## Options
-- bit rate
+- bit rate (Android only, not working on iOs - quality is set to high for now)
 - sampling rate
-- encoder (does nothing on iOs, quality is always set to high for now)
+- encoder (Android only)
 - output format
 
 ## Platforms
