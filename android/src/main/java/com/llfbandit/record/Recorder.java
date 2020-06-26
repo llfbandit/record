@@ -15,7 +15,7 @@ class Recorder {
 
   private MediaRecorder recorder = null;
 
-  void start(@NonNull String path, int outputFormat, int encoder, int bitRate, int samplingRate, @NonNull Result result) {
+  void start(@NonNull String path, int outputFormat, int encoder, int bitRate, double samplingRate, @NonNull Result result) {
     stopRecording();
 
     Log.d(LOG_TAG, "Start recording");
@@ -23,7 +23,7 @@ class Recorder {
     recorder = new MediaRecorder();
     recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
     recorder.setAudioEncodingBitRate(bitRate);
-    recorder.setAudioSamplingRate(samplingRate);
+    recorder.setAudioSamplingRate((int) samplingRate);
     recorder.setOutputFormat(getOutputFormat(outputFormat));
     // must be set after output format
     recorder.setAudioEncoder(getEncoder(encoder));
