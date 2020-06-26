@@ -1,3 +1,7 @@
+## 0.2.0
+
+* Fix broken build on Android.
+
 ## 0.1.0
 
 * Initial release.
