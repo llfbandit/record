@@ -38,7 +38,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler {
           (int) call.argument("outputFormat"),
           (int) call.argument("encoder"),
           (int) call.argument("bitRate"),
-          (float) call.argument("samplingRate"),
+          (int) call.argument("samplingRate"),
           result);
         break;
       case "stop":
