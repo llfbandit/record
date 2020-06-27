@@ -1,11 +1,10 @@
-Audio recorder from microphone with a given file path.
+Audio recorder from microphone to a given file path.
 No external dependencies, MediaRecorder is used for Android an AVAudioRecorder for iOS.
 
 ## Options
-- bit rate (Android only, not working on iOs - quality is set to high for now)
+- bit rate (be careful with this one on iOs)
 - sampling rate
 - encoder
-- output format
 
 ## Platforms
 
