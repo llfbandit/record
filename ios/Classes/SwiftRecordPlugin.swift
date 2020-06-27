@@ -7,6 +7,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     let channel = FlutterMethodChannel(name: "com.llfbandit.record", binaryMessenger: registrar.messenger())
     let instance = SwiftRecordPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
+    registrar.addApplicationDelegate(instance)
   }
 
   var isRecording = false
@@ -37,8 +38,16 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         break
     }
   }
+    
+  public func applicationWillTerminate(_ application: UIApplication) {
+    stopRecording()
+  }
+    
+  public func applicationDidEnterBackground(_ application: UIApplication) {
+    stopRecording()
+  }
 
-  func hasPermission(_ result: @escaping FlutterResult) {
+  fileprivate func hasPermission(_ result: @escaping FlutterResult) {
     switch AVAudioSession.sharedInstance().recordPermission {
       case AVAudioSession.RecordPermission.granted:
         hasPermission = true
@@ -60,12 +69,12 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     result(hasPermission)
   }
 
-  func start(path: String, encoder: Int, bitRate: Int, samplingRate: Float, result: @escaping FlutterResult) {
+  fileprivate func start(path: String, encoder: Int, bitRate: Int, samplingRate: Float, result: @escaping FlutterResult) {
     stopRecording()
 
     let settings = [
       AVFormatIDKey: getEncoder(encoder),
-      //AVEncoderBitRateKey: bitRate, // does not work at all, messing the record without error
+      AVEncoderBitRateKey: bitRate,
       AVSampleRateKey: samplingRate,
       AVNumberOfChannelsKey: 2,
       AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
@@ -86,19 +95,19 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     }
   }
 
-  func stop(_ result: @escaping FlutterResult) {
+  fileprivate func stop(_ result: @escaping FlutterResult) {
     stopRecording()
     result(nil)
   }
 
-  func stopRecording() {
+  fileprivate func stopRecording() {
     audioRecorder?.stop()
     audioRecorder = nil
     isRecording = false
   }
 
   // https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers
-  func getEncoder(_ encoder: Int) -> Int {    
+  fileprivate func getEncoder(_ encoder: Int) -> Int {    
     switch(encoder) {
     case 1:
       return Int(kAudioFormatMPEG4AAC_ELD)
