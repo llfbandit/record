@@ -10,7 +10,6 @@ environment:
 
 dependencies:
   path_provider: ^1.6.11
-  permission_handler: ^5.0.1+1
   audioplayers: ^0.15.1
 
   flutter:

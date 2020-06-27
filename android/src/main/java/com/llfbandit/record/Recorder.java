@@ -15,7 +15,7 @@ class Recorder {
 
   private MediaRecorder recorder = null;
 
-  void start(@NonNull String path, int outputFormat, int encoder, int bitRate, double samplingRate, @NonNull Result result) {
+  void start(@NonNull String path, int encoder, int bitRate, double samplingRate, @NonNull Result result) {
     stopRecording();
 
     Log.d(LOG_TAG, "Start recording");
@@ -24,7 +24,7 @@ class Recorder {
     recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
     recorder.setAudioEncodingBitRate(bitRate);
     recorder.setAudioSamplingRate((int) samplingRate);
-    recorder.setOutputFormat(getOutputFormat(outputFormat));
+    recorder.setOutputFormat(getOutputFormat(encoder));
     // must be set after output format
     recorder.setAudioEncoder(getEncoder(encoder));
     recorder.setOutputFile(path);
@@ -64,29 +64,29 @@ class Recorder {
     }
   }
 
-  private int getOutputFormat(int outputFormat) {
-    switch(outputFormat) {
-      case 1:
-        return MediaRecorder.OutputFormat.AMR_NB;
-      case 2:
-        return MediaRecorder.OutputFormat.AMR_WB;
-      case 3:
-        return MediaRecorder.OutputFormat.MPEG_4;
-      case 0:
-      default:
-        return MediaRecorder.OutputFormat.AAC_ADTS;
+  private int getOutputFormat(int encoder) {
+    if (encoder == 3 || encoder == 4) {
+      return MediaRecorder.OutputFormat.THREE_GPP;
     }
+
+    return MediaRecorder.OutputFormat.MPEG_4;
   }
 
+  // https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder
   private int getEncoder(int encoder) {
     switch(encoder) {
-      case 1:
-        return MediaRecorder.AudioEncoder.AMR_NB;
-      case 2:
-        return MediaRecorder.AudioEncoder.AMR_WB;
-      case 0:
-      default:
-        return MediaRecorder.AudioEncoder.AAC;
+    case 1:
+      return MediaRecorder.AudioEncoder.AAC_ELD;
+    case 2:
+      return MediaRecorder.AudioEncoder.HE_AAC;
+    case 3:
+      return MediaRecorder.AudioEncoder.AMR_NB;
+    case 4:
+      return MediaRecorder.AudioEncoder.AMR_WB;
+    case 5:
+      return MediaRecorder.AudioEncoder.OPUS;
+    default:
+      return MediaRecorder.AudioEncoder.AAC;
     }
   }
 }

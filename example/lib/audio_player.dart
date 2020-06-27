@@ -122,7 +122,7 @@ class AudioPlayerState extends State<AudioPlayer> {
         inactiveColor: Theme.of(context).accentColor,
         onChanged: (v) {
           if (_position != null) {
-            final position = v * _position.inMilliseconds;
+            final position = v * _duration.inMilliseconds;
             _audioPlayer.seek(Duration(milliseconds: position.round()));
           }
         },

@@ -19,7 +19,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         let args = call.arguments as! [String : Any]
         start(
           path: args["path"] as? String ?? "",
-          outputFormat: args["outputFormat"] as? Int ?? 0,
+          encoder: args["encoder"] as? Int ?? 0,
           bitRate: args["bitRate"] as? Int ?? 128000,
           samplingRate: args["samplingRate"] as? Float ?? 44100.0,
           result: result);
@@ -60,11 +60,11 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     result(hasPermission)
   }
 
-  func start(path: String, outputFormat: Int, bitRate: Int, samplingRate: Float, result: @escaping FlutterResult) {
+  func start(path: String, encoder: Int, bitRate: Int, samplingRate: Float, result: @escaping FlutterResult) {
     stopRecording()
 
     let settings = [
-      AVFormatIDKey: getOutputFormat(outputFormat),
+      AVFormatIDKey: getEncoder(encoder),
       //AVEncoderBitRateKey: bitRate, // does not work at all, messing the record without error
       AVSampleRateKey: samplingRate,
       AVNumberOfChannelsKey: 2,
@@ -97,14 +97,21 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     isRecording = false
   }
 
-  func getOutputFormat(_ outputFormat: Int) -> Int {
-    switch(outputFormat) {
+  // https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers
+  func getEncoder(_ encoder: Int) -> Int {    
+    switch(encoder) {
     case 1:
-      return Int(kAudioFormatAMR);
+      return Int(kAudioFormatMPEG4AAC_ELD)
     case 2:
-      return Int(kAudioFormatAMR_WB);
+      return Int(kAudioFormatMPEG4AAC_HE)
+    case 3:
+      return Int(kAudioFormatAMR)
+    case 4:
+      return Int(kAudioFormatAMR_WB)
+    case 5:
+      return Int(kAudioFormatOpus)
     default:
-      return Int(kAudioFormatMPEG4AAC_HE);
+      return Int(kAudioFormatMPEG4AAC)
     }
   }
 }

@@ -1,47 +1,59 @@
-Record audio with a given file path.
-MediaRecorder for Android an AVAudioRecorder for iOS.
+Audio recorder from microphone with a given file path.
+No external dependencies, MediaRecorder is used for Android an AVAudioRecorder for iOS.
 
 ## Options
 - bit rate (Android only, not working on iOs - quality is set to high for now)
 - sampling rate
-- encoder (Android only)
+- encoder
 - output format
 
 ## Platforms
+
 ### Android
-Permissions
 ```xml
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
+<!-- Optional, you'll have to check this permission by yourself. -->
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 ```
-min SDK: 16
-
-If your path is on external storage, you'll have to check the permission by yourself.
+min SDK: 16 (29 if you use OPUS)
 
 ### iOs
 ```xml
 <key>NSMicrophoneUsageDescription</key>
-<string>We need to access to the microphone to record</string>
+<string>We need to access to the microphone to record audio file</string>
 ```
-min SDK: 8.0
+min SDK: 8.0 (11 if you use OPUS)
 
-## Supported formats & encoders
+## Supported encoders
 ```dart
-enum AudioOutputFormat {
-  AAC,
-  AMR_NB,
-  AMR_WB,
-  MPEG_4,
-}
 
 enum AudioEncoder {
+  /// Will output to MPEG_4 format container
   AAC,
+
+  /// Will output to MPEG_4 format container
+  AAC_LD,
+
+  /// Will output to MPEG_4 format container
+  AAC_HE,
+
+  /// sampling rate should be set to 8kHz
+  /// Will output to 3GP format container on Android
   AMR_NB,
+
+  /// sampling rate should be set to 16kHz
+  /// Will output to 3GP format container on Android
   AMR_WB,
+
+  /// Will output to MPEG_4 format container
+  /// /!\ SDK 29 on Android /!\
+  /// /!\ SDK 11 on iOs /!\
+  OPUS,
 }
 ```
 
 ### Android
-https://developer.android.com/guide/topics/media/media-formats
+https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder
 ### iOs
 https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers
 
@@ -50,24 +62,31 @@ https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants
 // Import package
 import 'package:record/record.dart';
 
+// Check and request permission
+bool result = await Record.hasPermission();
+
 // Start recording
-await AudioRecorder.start(
-    path: 'aFullPath', // required
-    outputFormat: AudioOutputFormat.MPEG_4, // by default
-    encoder: AudioEncoder.AAC, // by default (does nothing on iOs)
-    bitRate: 128000, // by default
-    sampleRate: 44100, // by default
-    );
+await Record.start(
+  path: 'aFullPath/myFile.m4a', // required
+  encoder: AudioEncoder.AAC, // by default
+  bitRate: 128000, // by default
+  sampleRate: 44100, // by default
+);
 
 // Stop recording
-await AudioRecorder.stop();
+await Record.stop();
 
 // Get the state of the recorder
 bool isRecording = await Record.isRecording();
 
-// There's nothing to dispose, this done internally.
+// There's nothing to dispose, this done internally each time you call stop method.
+// The plugin is aware of activity lifecycle.
+// So exiting, your app or activity will stop the recording (but won't delete the 
+// output file).
 ```
 
 ## Warnings
-Not all formats and/or rates are available for each platform.  
 Be sure to check supported values from the given links above.
+
+## Known issues
+None.

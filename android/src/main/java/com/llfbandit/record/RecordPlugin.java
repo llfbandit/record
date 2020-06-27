@@ -1,43 +1,84 @@
 package com.llfbandit.record;
 
 import android.content.Context;
+
 import androidx.annotation.NonNull;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.BinaryMessenger;
-import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
-import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
 /** RecordPlugin */
-public class RecordPlugin implements FlutterPlugin {
-  // Supports the old pre-Flutter-1.12 Android projects.
-  public static void registerWith(Registrar registrar) {
-    final RecordPlugin plugin = new RecordPlugin();
-    plugin.start(registrar.context(), registrar.messenger());
-  }
-
+public class RecordPlugin implements FlutterPlugin, ActivityAware {
   /// The MethodChannel that will the communication between Flutter and native Android
   private MethodChannel channel;
   /// Our call handler
   private MethodCallHandlerImpl handler;
+  private FlutterPluginBinding pluginBinding;
+  private ActivityPluginBinding activityBinding;
 
+  /////////////////////////////////////////////////////////////////////////////
+  /// FlutterPlugin
+  /////////////////////////////////////////////////////////////////////////////
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
-    start(binding.getApplicationContext(), binding.getBinaryMessenger());
+    pluginBinding = binding;
   }
 
   @Override
   public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
-    handler.close();
-    channel.setMethodCallHandler(null);
+    pluginBinding = null;
+  }
+  /// END FlutterPlugin
+  /////////////////////////////////////////////////////////////////////////////
+
+
+  /////////////////////////////////////////////////////////////////////////////
+  /// ActivityAware
+  /////////////////////////////////////////////////////////////////////////////
+  @Override
+  public void onAttachedToActivity(ActivityPluginBinding binding) {
+    activityBinding = binding;
+
+    startPlugin(pluginBinding.getBinaryMessenger(), binding);
   }
 
-  private void start(Context applicationContext, BinaryMessenger messenger) {
-    handler = new MethodCallHandlerImpl(applicationContext);
+  @Override
+  public void onDetachedFromActivityForConfigChanges() {
+    onDetachedFromActivity();
+  }
+
+  @Override
+  public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
+    onAttachedToActivity(binding);
+  }
+
+  @Override
+  public void onDetachedFromActivity() {
+    stopPlugin();
+  }
+
+  private void startPlugin(BinaryMessenger messenger,
+                           ActivityPluginBinding binding) {
+
+    handler = new MethodCallHandlerImpl(binding.getActivity());
     channel = new MethodChannel(messenger, "com.llfbandit.record");
     channel.setMethodCallHandler(handler);
+
+    binding.addRequestPermissionsResultListener(handler);
   }
+
+  private void stopPlugin() {
+    activityBinding.removeRequestPermissionsResultListener(handler);
+    activityBinding = null;
+    channel.setMethodCallHandler(null);
+    handler.close();
+    handler = null;
+    channel = null;
+  }
+  /// END ActivityAware
+  /////////////////////////////////////////////////////////////////////////////
 }

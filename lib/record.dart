@@ -10,14 +10,12 @@ class Record {
 
   static Future<void> start({
     @required String path,
-    AudioOutputFormat outputFormat = AudioOutputFormat.MPEG_4,
     AudioEncoder encoder = AudioEncoder.AAC,
     int bitRate = 128000,
     double samplingRate = 44100.0,
   }) {
     return _channel.invokeMethod('start', {
       "path": path,
-      "outputFormat": outputFormat.index,
       "encoder": encoder.index,
       "bitRate": bitRate,
       "samplingRate": samplingRate,
@@ -37,18 +35,26 @@ class Record {
   }
 }
 
-enum AudioOutputFormat {
-  /// sampling rate from 8 to 96kHz
-  AAC,
-  /// sampling rate should be set to 8kHz
-  AMR_NB,
-  /// sampling rate should be set to 16kHz
-  AMR_WB,
-  MPEG_4,
-}
-
 enum AudioEncoder {
+  /// Will output to MPEG_4 format container
   AAC,
+
+  /// Will output to MPEG_4 format container
+  AAC_LD,
+
+  /// Will output to MPEG_4 format container
+  AAC_HE,
+
+  /// sampling rate should be set to 8kHz
+  /// Will output to 3GP format container on Android
   AMR_NB,
+
+  /// sampling rate should be set to 16kHz
+  /// Will output to 3GP format container on Android
   AMR_WB,
+
+  /// Will output to MPEG_4 format container
+  /// /!\ SDK 29 on Android /!\
+  /// /!\ SDK 11 on iOs /!\
+  OPUS,
 }
