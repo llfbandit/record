@@ -1,6 +1,6 @@
 name: record
-description: Record audio to file with multiple codecs, bit rate and sampling rate options.
-version: 0.2.1
+description: Audio recorder from microphone to a given file path with multiple codecs, bit rate and sampling rate options.
+version: 1.0.0
 homepage: https://github.com/llfbandit/record
 
 environment:

@@ -1,4 +1,4 @@
-## 0.3.0
+## 1.0.0
 
 * Flutter 1.12.0 is now minimum version (Flutter plugin API v2).
 * Finalize Record API.
