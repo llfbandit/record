@@ -56,9 +56,13 @@ class Recorder {
     if (recorder != null) {
       Log.d(LOG_TAG, "Stop recording");
 
-      recorder.stop();
-      recorder.reset();
-      recorder.release();
+      try {
+        recorder.stop();
+        recorder.reset();
+        recorder.release();
+      } catch (Exception e) {
+        Log.d(LOG_TAG, "Stop failed");
+      }
       recorder = null;
       isRecording = false;
     }
