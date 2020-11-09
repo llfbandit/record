@@ -1,3 +1,8 @@
+## 1.0.1
+* Fix potential exception when closing beofre recorder is actually started (Android).
+* Fix potential NPE on permission result (Android).
+* Updade dependencies.
+
 ## 1.0.0
 
 * Flutter 1.12.0 is now minimum version (Flutter plugin API v2).

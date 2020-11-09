@@ -27,6 +27,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, PluginRegistry.
 
   void close() {
     recorder.close();
+    pendingPermResult = null;
   }
 
   @Override
@@ -34,11 +35,11 @@ public class MethodCallHandlerImpl implements MethodCallHandler, PluginRegistry.
     switch (call.method) {
       case "start":
         recorder.start(
-          (String) call.argument("path"),
-          (int) call.argument("encoder"),
-          (int) call.argument("bitRate"),
-          (double) call.argument("samplingRate"),
-          result);
+                (String) call.argument("path"),
+                (int) call.argument("encoder"),
+                (int) call.argument("bitRate"),
+                (double) call.argument("samplingRate"),
+                result);
         break;
       case "stop":
         recorder.stop(result);
@@ -58,13 +59,15 @@ public class MethodCallHandlerImpl implements MethodCallHandler, PluginRegistry.
   @Override
   public boolean onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
     if (requestCode == RECORD_AUDIO_REQUEST_CODE) {
-      if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-        pendingPermResult.success(true);
-      } else {
-        pendingPermResult.error("-2", "Permission denied", null);          
+      if (pendingPermResult != null) {
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+          pendingPermResult.success(true);
+        } else {
+          pendingPermResult.error("-2", "Permission denied", null);
+        }
+        pendingPermResult = null;
+        return true;
       }
-      pendingPermResult = null;
-      return true;
     }
 
     return false;
@@ -74,7 +77,6 @@ public class MethodCallHandlerImpl implements MethodCallHandler, PluginRegistry.
     if (!isPermissionGranted(Manifest.permission.RECORD_AUDIO)) {
       pendingPermResult = result;
       askForPermission(Manifest.permission.RECORD_AUDIO, RECORD_AUDIO_REQUEST_CODE);
-      return;
     } else {
       result.success(true);
     }

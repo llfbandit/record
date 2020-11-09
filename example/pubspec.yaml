@@ -9,8 +9,8 @@ environment:
   sdk: ">=2.7.0 <3.0.0"
 
 dependencies:
-  path_provider: ^1.6.11
-  audioplayers: ^0.15.1
+  path_provider: ^1.6.24
+  audioplayers: ^0.16.2
 
   flutter:
     sdk: flutter

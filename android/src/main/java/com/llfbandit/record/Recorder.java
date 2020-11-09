@@ -1,6 +1,7 @@
 package com.llfbandit.record;
 
 import androidx.annotation.NonNull;
+
 import android.media.MediaRecorder;
 import android.util.Log;
 
@@ -30,12 +31,14 @@ class Recorder {
     recorder.setOutputFile(path);
 
     try {
-        recorder.prepare();
-        recorder.start();
-        isRecording = true;
-        result.success(null);
+      recorder.prepare();
+      recorder.start();
+      isRecording = true;
+      result.success(null);
     } catch (Exception e) {
-        result.error("-1", "Start failed", e.getMessage());
+      recorder.release();
+      recorder = null;
+      result.error("-1", "Start recording failure", e.getMessage());
     }
   }
 
@@ -54,14 +57,15 @@ class Recorder {
 
   private void stopRecording() {
     if (recorder != null) {
-      Log.d(LOG_TAG, "Stop recording");
-
-      recorder.stop();
-      recorder.reset();
+      if (isRecording) {
+        Log.d(LOG_TAG, "Stop recording");
+        recorder.stop();
+      }
       recorder.release();
       recorder = null;
-      isRecording = false;
     }
+
+    isRecording = false;
   }
 
   private int getOutputFormat(int encoder) {
@@ -74,19 +78,19 @@ class Recorder {
 
   // https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder
   private int getEncoder(int encoder) {
-    switch(encoder) {
-    case 1:
-      return MediaRecorder.AudioEncoder.AAC_ELD;
-    case 2:
-      return MediaRecorder.AudioEncoder.HE_AAC;
-    case 3:
-      return MediaRecorder.AudioEncoder.AMR_NB;
-    case 4:
-      return MediaRecorder.AudioEncoder.AMR_WB;
-    case 5:
-      return MediaRecorder.AudioEncoder.OPUS;
-    default:
-      return MediaRecorder.AudioEncoder.AAC;
+    switch (encoder) {
+      case 1:
+        return MediaRecorder.AudioEncoder.AAC_ELD;
+      case 2:
+        return MediaRecorder.AudioEncoder.HE_AAC;
+      case 3:
+        return MediaRecorder.AudioEncoder.AMR_NB;
+      case 4:
+        return MediaRecorder.AudioEncoder.AMR_WB;
+      case 5:
+        return MediaRecorder.AudioEncoder.OPUS;
+      default:
+        return MediaRecorder.AudioEncoder.AAC;
     }
   }
 }
