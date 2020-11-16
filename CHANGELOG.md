@@ -1,3 +1,6 @@
+## 1.0.2
+* Fix (for good) potential exception when closing beofre recorder is actually started (Android).
+
 ## 1.0.1
 * Fix potential exception when closing beofre recorder is actually started (Android).
 * Fix potential NPE on permission result (Android).

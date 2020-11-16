@@ -57,12 +57,17 @@ class Recorder {
 
   private void stopRecording() {
     if (recorder != null) {
-      if (isRecording) {
-        Log.d(LOG_TAG, "Stop recording");
-        recorder.stop();
+      try {
+        if (isRecording) {
+          Log.d(LOG_TAG, "Stop recording");
+          recorder.stop();
+        }
+      } catch (IllegalStateException ex) {
+        // Mute this exception since 'isRecording' can't be 100% sure
+      } finally {
+        recorder.release();
+        recorder = null;
       }
-      recorder.release();
-      recorder = null;
     }
 
     isRecording = false;

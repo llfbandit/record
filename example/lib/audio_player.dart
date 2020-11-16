@@ -30,21 +30,30 @@ class AudioPlayerState extends State<AudioPlayer> {
   Duration _duration;
   Duration _position;
 
+  StreamSubscription<ap.AudioPlayerState> _stateChangedSubscription;
+  StreamSubscription<Duration> _durationChangedSubscription;
+  StreamSubscription<Duration> _positionChangedSubscription;
+  StreamSubscription<String> _playerErrorSubscription;
+
   @override
   void initState() {
     _status = ap.AudioPlayerState.STOPPED;
 
-    _audioPlayer.onPlayerStateChanged.listen(_onPlayerStateChanged);
-    _audioPlayer.onDurationChanged.listen(_onDurationChanged);
-    _audioPlayer.onAudioPositionChanged.listen(_onAudioPositionChanged);
-    _audioPlayer.onPlayerError.listen((error) => print(error));
+    _stateChangedSubscription = _audioPlayer.onPlayerStateChanged.listen(_onPlayerStateChanged);
+    _durationChangedSubscription = _audioPlayer.onDurationChanged.listen(_onDurationChanged);
+    _positionChangedSubscription = _audioPlayer.onAudioPositionChanged.listen(_onAudioPositionChanged);
+    _playerErrorSubscription = _audioPlayer.onPlayerError.listen((error) => print(error));
 
     super.initState();
   }
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
+    _stateChangedSubscription?.cancel();
+    _durationChangedSubscription?.cancel();
+    _positionChangedSubscription?.cancel();
+    _playerErrorSubscription?.cancel();
+    _audioPlayer?.dispose();
     super.dispose();
   }
 
