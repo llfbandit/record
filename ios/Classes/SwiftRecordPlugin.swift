@@ -84,7 +84,8 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playAndRecord, options: AVAudioSession.CategoryOptions.defaultToSpeaker)
       try AVAudioSession.sharedInstance().setActive(true)
 
-      audioRecorder = try AVAudioRecorder(url: URL(string: path)!, settings: settings)
+      let url = URL(string: path) ?? URL(fileURLWithPath: path)
+      audioRecorder = try AVAudioRecorder(url: url, settings: settings)
       audioRecorder!.delegate = self
       audioRecorder!.record()
 
