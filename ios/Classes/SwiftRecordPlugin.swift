@@ -81,7 +81,11 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     ] as [String : Any]
 
     do {
-      try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playAndRecord, options: AVAudioSession.CategoryOptions.defaultToSpeaker)
+      var options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth]
+      if #available(iOS 10.0, *) {
+        options.insert(.allowBluetoothA2DP)
+      }
+      try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playAndRecord, options: options)
       try AVAudioSession.sharedInstance().setActive(true)
 
       audioRecorder = try AVAudioRecorder(url: URL(string: path)!, settings: settings)
