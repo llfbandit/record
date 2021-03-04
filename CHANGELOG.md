@@ -1,3 +1,6 @@
+## 1.0.3
+* Allow recording from bluetooth device on iOS.
+
 ## 1.0.2
 * Fix (for good) potential exception when closing beofre recorder is actually started (Android).
 
