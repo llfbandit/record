@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart' as ap;
 
 class AudioPlayer extends StatefulWidget {
   /// Path from where to play recorded audio
@@ -12,10 +12,9 @@ class AudioPlayer extends StatefulWidget {
   final VoidCallback onDelete;
 
   const AudioPlayer({
-    Key key,
-    @required this.path,
-    this.onDelete,
-  }) : super(key: key);
+    required this.path,
+    required this.onDelete,
+  });
 
   @override
   AudioPlayerState createState() => AudioPlayerState();
@@ -26,34 +25,38 @@ class AudioPlayerState extends State<AudioPlayer> {
   static const double _deleteBtnSize = 24;
 
   final _audioPlayer = ap.AudioPlayer();
-  ap.AudioPlayerState _status;
-  Duration _duration;
-  Duration _position;
-
-  StreamSubscription<ap.AudioPlayerState> _stateChangedSubscription;
-  StreamSubscription<Duration> _durationChangedSubscription;
-  StreamSubscription<Duration> _positionChangedSubscription;
-  StreamSubscription<String> _playerErrorSubscription;
+  late StreamSubscription<ap.PlayerState> _playerStateChangedSubscription;
+  late StreamSubscription<Duration?> _durationChangedSubscription;
+  late StreamSubscription<Duration> _positionChangedSubscription;
 
   @override
   void initState() {
-    _status = ap.AudioPlayerState.STOPPED;
-
-    _stateChangedSubscription = _audioPlayer.onPlayerStateChanged.listen(_onPlayerStateChanged);
-    _durationChangedSubscription = _audioPlayer.onDurationChanged.listen(_onDurationChanged);
-    _positionChangedSubscription = _audioPlayer.onAudioPositionChanged.listen(_onAudioPositionChanged);
-    _playerErrorSubscription = _audioPlayer.onPlayerError.listen((error) => print(error));
+    _playerStateChangedSubscription =
+        _audioPlayer.playerStateStream.listen((state) async {
+      if (state.processingState == ap.ProcessingState.completed) {
+        await stop();
+      }
+      setState(() {});
+    });
+    _positionChangedSubscription =
+        _audioPlayer.positionStream.listen((position) => setState(() {}));
+    _durationChangedSubscription =
+        _audioPlayer.durationStream.listen((duration) => setState(() {}));
+    _init();
 
     super.initState();
   }
 
+  Future<void> _init() async {
+    await _audioPlayer.setFilePath(widget.path);
+  }
+
   @override
   void dispose() {
-    _stateChangedSubscription?.cancel();
-    _durationChangedSubscription?.cancel();
-    _positionChangedSubscription?.cancel();
-    _playerErrorSubscription?.cancel();
-    _audioPlayer?.dispose();
+    _playerStateChangedSubscription.cancel();
+    _positionChangedSubscription.cancel();
+    _durationChangedSubscription.cancel();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -67,12 +70,13 @@ class AudioPlayerState extends State<AudioPlayer> {
           children: <Widget>[
             _buildControl(),
             _buildSlider(constraints.maxWidth),
-            if (widget.onDelete != null)
-              IconButton(
-                icon: Icon(Icons.delete,
-                    color: const Color(0xFF73748D), size: _deleteBtnSize),
-                onPressed: () => widget.onDelete(),
-              ),
+            IconButton(
+              icon: Icon(Icons.delete,
+                  color: const Color(0xFF73748D), size: _deleteBtnSize),
+              onPressed: () {
+                _audioPlayer.stop().then((value) => widget.onDelete());
+              },
+            ),
           ],
         );
       },
@@ -83,8 +87,8 @@ class AudioPlayerState extends State<AudioPlayer> {
     Icon icon;
     Color color;
 
-    if (_status == ap.AudioPlayerState.PLAYING) {
-      icon = Icon(Icons.stop, color: Colors.red, size: 30);
+    if (_audioPlayer.playerState.playing) {
+      icon = Icon(Icons.pause, color: Colors.red, size: 30);
       color = Colors.red.withOpacity(0.1);
     } else {
       final theme = Theme.of(context);
@@ -99,10 +103,8 @@ class AudioPlayerState extends State<AudioPlayer> {
           child:
               SizedBox(width: _controlSize, height: _controlSize, child: icon),
           onTap: () {
-            if (_status == ap.AudioPlayerState.PLAYING) {
+            if (_audioPlayer.playerState.playing) {
               pause();
-            } else if (_status == ap.AudioPlayerState.PAUSED) {
-              resume();
             } else {
               play();
             }
@@ -113,16 +115,16 @@ class AudioPlayerState extends State<AudioPlayer> {
   }
 
   Widget _buildSlider(double widgetWidth) {
+    final position = _audioPlayer.position;
+    final duration = _audioPlayer.duration;
     bool canSetValue = false;
-    if (_position != null && _duration != null) {
-      canSetValue = _position.inMilliseconds > 0;
-      canSetValue &= _position.inMilliseconds < _duration.inMilliseconds;
+    if (duration != null) {
+      canSetValue = position.inMilliseconds > 0;
+      canSetValue &= position.inMilliseconds < duration.inMilliseconds;
     }
 
     double width = widgetWidth - _controlSize - _deleteBtnSize;
-    if (widget.onDelete != null) {
-      width -= _deleteBtnSize;
-    }
+    width -= _deleteBtnSize;
 
     return SizedBox(
       width: width,
@@ -130,39 +132,28 @@ class AudioPlayerState extends State<AudioPlayer> {
         activeColor: Theme.of(context).primaryColor,
         inactiveColor: Theme.of(context).accentColor,
         onChanged: (v) {
-          if (_position != null) {
-            final position = v * _duration.inMilliseconds;
+          if (duration != null) {
+            final position = v * duration.inMilliseconds;
             _audioPlayer.seek(Duration(milliseconds: position.round()));
           }
         },
-        value: canSetValue
-            ? _position.inMilliseconds / _duration.inMilliseconds
+        value: canSetValue && duration != null
+            ? position.inMilliseconds / duration.inMilliseconds
             : 0.0,
       ),
     );
   }
 
-  Future<int> play() {
-    return _audioPlayer.play(widget.path, isLocal: true);
+  Future<void> play() {
+    return _audioPlayer.play();
   }
 
-  Future<int> resume() {
-    return _audioPlayer.resume();
-  }
-
-  Future<int> pause() {
+  Future<void> pause() {
     return _audioPlayer.pause();
   }
 
-  void _onPlayerStateChanged(ap.AudioPlayerState status) {
-    setState(() => _status = status);
-  }
-
-  void _onDurationChanged(Duration duration) {
-    setState(() => _duration = duration);
-  }
-
-  void _onAudioPositionChanged(Duration position) {
-    setState(() => _position = position);
+  Future<void> stop() async {
+    await _audioPlayer.stop();
+    return _audioPlayer.seek(const Duration(milliseconds: 0));
   }
 }

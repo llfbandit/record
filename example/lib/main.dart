@@ -9,7 +9,7 @@ class AudioRecorder extends StatefulWidget {
   final String path;
   final VoidCallback onStop;
 
-  const AudioRecorder({Key key, this.path, this.onStop}) : super(key: key);
+  const AudioRecorder({required this.path, required this.onStop});
 
   @override
   _AudioRecorderState createState() => _AudioRecorderState();
@@ -18,9 +18,9 @@ class AudioRecorder extends StatefulWidget {
 class _AudioRecorderState extends State<AudioRecorder> {
   static const int maxDuration = 120;
 
-  bool _isRecording;
-  int _remainingDuration;
-  Timer _timer;
+  bool _isRecording = false;
+  int _remainingDuration = 0;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -171,8 +171,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool showPlayer;
-  String path;
+  bool showPlayer = false;
+  String? path;
 
   @override
   void initState() {
@@ -193,21 +193,17 @@ class _MyAppState extends State<MyApp> {
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 25),
                     child: AudioPlayer(
-                      path: snapshot.data,
+                      path: snapshot.data!,
                       onDelete: () {
-                        setState(() {
-                          showPlayer = false;
-                        });
+                        setState(() => showPlayer = false);
                       },
                     ),
                   );
                 } else {
                   return AudioRecorder(
-                    path: snapshot.data,
+                    path: snapshot.data!,
                     onStop: () {
-                      setState(() {
-                        showPlayer = true;
-                      });
+                      setState(() => showPlayer = true);
                     },
                   );
                 }
@@ -229,6 +225,6 @@ class _MyAppState extends State<MyApp> {
           DateTime.now().millisecondsSinceEpoch.toString() +
           '.m4a';
     }
-    return path;
+    return path!;
   }
 }

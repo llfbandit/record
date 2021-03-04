@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class Record {
@@ -9,7 +8,7 @@ class Record {
   );
 
   static Future<void> start({
-    @required String path,
+    required String path,
     AudioEncoder encoder = AudioEncoder.AAC,
     int bitRate = 128000,
     double samplingRate = 44100.0,
@@ -26,12 +25,14 @@ class Record {
     return _channel.invokeMethod('stop');
   }
 
-  static Future<bool> isRecording() {
-    return _channel.invokeMethod('isRecording');
+  static Future<bool> isRecording() async {
+    final result = await _channel.invokeMethod<bool>('isRecording');
+    return result ?? false;
   }
 
-  static Future<bool> hasPermission() {
-    return _channel.invokeMethod('hasPermission');
+  static Future<bool> hasPermission() async {
+    final result = await _channel.invokeMethod<bool>('hasPermission');
+    return result ?? false;
   }
 }
 

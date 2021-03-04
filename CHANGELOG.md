@@ -1,3 +1,7 @@
+## 2.0.0
+* Add null safety support (based on v1.0.3).
+* Updated example. Moved from 'audioplayers' to 'just_audio'.
+
 ## 1.0.3
 * Allow recording from bluetooth device on iOS.
 
