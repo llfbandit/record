@@ -2,8 +2,8 @@ package com.llfbandit.record;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.Context;
 import android.content.pm.PackageManager;
+import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
@@ -13,13 +13,14 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
 
-public class MethodCallHandlerImpl implements MethodCallHandler, PluginRegistry.RequestPermissionsResultListener {
-  private static final String LOG_TAG = "Record";
+public class MethodCallHandlerImpl
+        implements MethodCallHandler, PluginRegistry.RequestPermissionsResultListener {
+
   private static final int RECORD_AUDIO_REQUEST_CODE = MethodCallHandlerImpl.class.hashCode() + 43;
 
   private final Activity activity;
-  private Result pendingPermResult;
   private final Recorder recorder = new Recorder();
+  private Result pendingPermResult;
 
   MethodCallHandlerImpl(Activity activity) {
     this.activity = activity;
@@ -44,6 +45,19 @@ public class MethodCallHandlerImpl implements MethodCallHandler, PluginRegistry.
       case "stop":
         recorder.stop(result);
         break;
+      case "pause":
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+          recorder.pause(result);
+        }
+        break;
+      case "resume":
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+          recorder.resume(result);
+        }
+        break;
+      case "isPaused":
+        recorder.isPaused(result);
+        break;
       case "isRecording":
         recorder.isRecording(result);
         break;
@@ -57,7 +71,11 @@ public class MethodCallHandlerImpl implements MethodCallHandler, PluginRegistry.
   }
 
   @Override
-  public boolean onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+  public boolean onRequestPermissionsResult(
+          int requestCode,
+          String[] permissions,
+          int[] grantResults
+  ) {
     if (requestCode == RECORD_AUDIO_REQUEST_CODE) {
       if (pendingPermResult != null) {
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -74,20 +92,24 @@ public class MethodCallHandlerImpl implements MethodCallHandler, PluginRegistry.
   }
 
   private void hasPermission(@NonNull Result result) {
-    if (!isPermissionGranted(Manifest.permission.RECORD_AUDIO)) {
+    if (!isPermissionGranted()) {
       pendingPermResult = result;
-      askForPermission(Manifest.permission.RECORD_AUDIO, RECORD_AUDIO_REQUEST_CODE);
+      askForPermission();
     } else {
       result.success(true);
     }
   }
 
-  private boolean isPermissionGranted(String permissionName) {
-    int result = ActivityCompat.checkSelfPermission(activity, permissionName);
+  private boolean isPermissionGranted() {
+    int result = ActivityCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO);
     return result == PackageManager.PERMISSION_GRANTED;
   }
 
-  private void askForPermission(String permissionName, int requestCode) {
-    ActivityCompat.requestPermissions(activity, new String[]{permissionName}, requestCode);
+  private void askForPermission() {
+    ActivityCompat.requestPermissions(
+            activity,
+            new String[]{Manifest.permission.RECORD_AUDIO},
+            MethodCallHandlerImpl.RECORD_AUDIO_REQUEST_CODE
+    );
   }
 }

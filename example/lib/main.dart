@@ -16,16 +16,14 @@ class AudioRecorder extends StatefulWidget {
 }
 
 class _AudioRecorderState extends State<AudioRecorder> {
-  static const int maxDuration = 120;
-
   bool _isRecording = false;
-  int _remainingDuration = 0;
+  bool _isPaused = false;
+  int _recordDuration = 0;
   Timer? _timer;
 
   @override
   void initState() {
     _isRecording = false;
-    _remainingDuration = maxDuration;
     super.initState();
   }
 
@@ -43,8 +41,10 @@ class _AudioRecorderState extends State<AudioRecorder> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              _buildControl(),
-              SizedBox(width: 20),
+              _buildRecordStopControl(),
+              const SizedBox(width: 20),
+              _buildPauseResumeControl(),
+              const SizedBox(width: 20),
               _buildText(),
             ],
           ),
@@ -53,11 +53,11 @@ class _AudioRecorderState extends State<AudioRecorder> {
     );
   }
 
-  Widget _buildControl() {
-    Icon icon;
-    Color color;
+  Widget _buildRecordStopControl() {
+    late Icon icon;
+    late Color color;
 
-    if (_isRecording) {
+    if (_isRecording || _isPaused) {
       icon = Icon(Icons.stop, color: Colors.red, size: 30);
       color = Colors.red.withOpacity(0.1);
     } else {
@@ -72,11 +72,37 @@ class _AudioRecorderState extends State<AudioRecorder> {
         child: InkWell(
           child: SizedBox(width: 56, height: 56, child: icon),
           onTap: () {
-            if (_isRecording) {
-              _stop();
-            } else {
-              _start();
-            }
+            _isRecording ? _stop() : _start();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPauseResumeControl() {
+    if (!_isRecording && !_isPaused) {
+      return const SizedBox.shrink();
+    }
+
+    late Icon icon;
+    late Color color;
+
+    if (!_isPaused) {
+      icon = Icon(Icons.pause, color: Colors.red, size: 30);
+      color = Colors.red.withOpacity(0.1);
+    } else {
+      final theme = Theme.of(context);
+      icon = Icon(Icons.play_arrow, color: Colors.red, size: 30);
+      color = theme.primaryColor.withOpacity(0.1);
+    }
+
+    return ClipOval(
+      child: Material(
+        color: color,
+        child: InkWell(
+          child: SizedBox(width: 56, height: 56, child: icon),
+          onTap: () {
+            _isPaused ? _resume() : _pause();
           },
         ),
       ),
@@ -84,7 +110,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
   }
 
   Widget _buildText() {
-    if (_isRecording) {
+    if (_isRecording || _isPaused) {
       return _buildTimer();
     }
 
@@ -92,8 +118,8 @@ class _AudioRecorderState extends State<AudioRecorder> {
   }
 
   Widget _buildTimer() {
-    final String minutes = _formatNumber(_remainingDuration ~/ 60);
-    final String seconds = _formatNumber(_remainingDuration % 60);
+    final String minutes = _formatNumber(_recordDuration ~/ 60);
+    final String seconds = _formatNumber(_recordDuration % 60);
 
     return Text(
       '$minutes : $seconds',
@@ -118,7 +144,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
         bool isRecording = await Record.isRecording();
         setState(() {
           _isRecording = isRecording;
-          _remainingDuration = maxDuration;
+          _recordDuration = 0;
         });
 
         _startTimer();
@@ -132,31 +158,32 @@ class _AudioRecorderState extends State<AudioRecorder> {
     _timer?.cancel();
     await Record.stop();
 
-    setState(() {
-      _isRecording = false;
-      _remainingDuration = maxDuration;
-    });
+    setState(() => _isRecording = false);
 
     widget.onStop();
   }
 
+  Future<void> _pause() async {
+    _timer?.cancel();
+    await Record.pause();
+
+    setState(() => _isPaused = true);
+  }
+
+  Future<void> _resume() async {
+    _startTimer();
+    await Record.resume();
+
+    setState(() => _isPaused = false);
+  }
+
   void _startTimer() {
-    const tick = const Duration(milliseconds: 500);
+    const tick = const Duration(seconds: 1);
 
     _timer?.cancel();
 
-    _timer = Timer.periodic(tick, (Timer t) async {
-      if (!_isRecording) {
-        t.cancel();
-      } else {
-        setState(() {
-          _remainingDuration = maxDuration - (t.tick / 2).floor();
-        });
-
-        if (_remainingDuration <= 0) {
-          _stop();
-        }
-      }
+    _timer = Timer.periodic(tick, (Timer t) {
+      setState(() => _recordDuration++);
     });
   }
 }

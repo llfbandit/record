@@ -1,22 +1,29 @@
 package com.llfbandit.record;
 
-import androidx.annotation.NonNull;
-
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.util.Log;
 
-import io.flutter.plugin.common.MethodChannel.Result;
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 
-import java.lang.Exception;
+import io.flutter.plugin.common.MethodChannel.Result;
 
 class Recorder {
   private static final String LOG_TAG = "Record";
 
   private boolean isRecording = false;
+  private boolean isPaused = false;
 
   private MediaRecorder recorder = null;
 
-  void start(@NonNull String path, int encoder, int bitRate, double samplingRate, @NonNull Result result) {
+  void start(
+          @NonNull String path,
+          int encoder,
+          int bitRate,
+          double samplingRate,
+          @NonNull Result result
+  ) {
     stopRecording();
 
     Log.d(LOG_TAG, "Start recording");
@@ -34,6 +41,7 @@ class Recorder {
       recorder.prepare();
       recorder.start();
       isRecording = true;
+      isPaused = false;
       result.success(null);
     } catch (Exception e) {
       recorder.release();
@@ -47,8 +55,24 @@ class Recorder {
     result.success(null);
   }
 
+  @RequiresApi(api = Build.VERSION_CODES.N)
+  void pause(@NonNull Result result) {
+    pauseRecording();
+    result.success(null);
+  }
+
+  @RequiresApi(api = Build.VERSION_CODES.N)
+  void resume(@NonNull Result result) {
+    resumeRecording();
+    result.success(null);
+  }
+
   void isRecording(@NonNull Result result) {
     result.success(isRecording);
+  }
+
+  void isPaused(@NonNull Result result) {
+    result.success(isPaused);
   }
 
   void close() {
@@ -58,7 +82,7 @@ class Recorder {
   private void stopRecording() {
     if (recorder != null) {
       try {
-        if (isRecording) {
+        if (isRecording || isPaused) {
           Log.d(LOG_TAG, "Stop recording");
           recorder.stop();
         }
@@ -71,6 +95,37 @@ class Recorder {
     }
 
     isRecording = false;
+    isPaused = false;
+  }
+
+  @RequiresApi(api = Build.VERSION_CODES.N)
+  private void pauseRecording() {
+    if (recorder != null) {
+      try {
+        if (isRecording) {
+          Log.d(LOG_TAG, "Pause recording");
+          recorder.pause();
+          isPaused = true;
+        }
+      } catch (IllegalStateException ex) {
+        Log.d(LOG_TAG, "Did you call pause() before before start() or after stop()?\n" + ex.getMessage());
+      }
+    }
+  }
+
+  @RequiresApi(api = Build.VERSION_CODES.N)
+  private void resumeRecording() {
+    if (recorder != null) {
+      try {
+        if (isPaused) {
+          Log.d(LOG_TAG, "Resume recording");
+          recorder.resume();
+          isPaused = false;
+        }
+      } catch (IllegalStateException ex) {
+        Log.d(LOG_TAG, "Did you call resume() before before start() or after stop()?\n" + ex.getMessage());
+      }
+    }
   }
 
   private int getOutputFormat(int encoder) {
@@ -93,7 +148,11 @@ class Recorder {
       case 4:
         return MediaRecorder.AudioEncoder.AMR_WB;
       case 5:
-        return MediaRecorder.AudioEncoder.OPUS;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          return MediaRecorder.AudioEncoder.OPUS;
+        } else {
+          Log.d(LOG_TAG, "OPUS codec is available starting from API 29.\nFalling back to AAC");
+        }
       default:
         return MediaRecorder.AudioEncoder.AAC;
     }

@@ -1,7 +1,5 @@
 package com.llfbandit.record;
 
-import android.content.Context;
-
 import androidx.annotation.NonNull;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -9,9 +7,10 @@ import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
 
-/** RecordPlugin */
+/**
+ * RecordPlugin
+ */
 public class RecordPlugin implements FlutterPlugin, ActivityAware {
   /// The MethodChannel that will the communication between Flutter and native Android
   private MethodChannel channel;
@@ -40,7 +39,7 @@ public class RecordPlugin implements FlutterPlugin, ActivityAware {
   /// ActivityAware
   /////////////////////////////////////////////////////////////////////////////
   @Override
-  public void onAttachedToActivity(ActivityPluginBinding binding) {
+  public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
     activityBinding = binding;
 
     startPlugin(pluginBinding.getBinaryMessenger(), binding);
@@ -52,7 +51,7 @@ public class RecordPlugin implements FlutterPlugin, ActivityAware {
   }
 
   @Override
-  public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
+  public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
     onAttachedToActivity(binding);
   }
 
@@ -61,8 +60,7 @@ public class RecordPlugin implements FlutterPlugin, ActivityAware {
     stopPlugin();
   }
 
-  private void startPlugin(BinaryMessenger messenger,
-                           ActivityPluginBinding binding) {
+  private void startPlugin(BinaryMessenger messenger, ActivityPluginBinding binding) {
 
     handler = new MethodCallHandlerImpl(binding.getActivity());
     channel = new MethodChannel(messenger, "com.llfbandit.record");
