@@ -11,6 +11,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
   }
 
   var isRecording = false
+  var isPaused = false
   var hasPermission = false
   var audioRecorder: AVAudioRecorder?
 
@@ -28,6 +29,12 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       case "stop":
         stop(result)
         break
+    case "pause":
+        pause(result)
+    case "resume":
+        resume(result)
+    case "isPaused":
+        result(isPaused)
       case "isRecording":
         result(isRecording)
         break
@@ -92,6 +99,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       audioRecorder!.record()
 
       isRecording = true
+      isPaused = false
       result(nil)
     } catch {
       result(FlutterError(code: "", message: "Failed to start recording", details: nil))
@@ -102,11 +110,27 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     stopRecording()
     result(nil)
   }
+    
+  fileprivate func pause(_ result: @escaping FlutterResult) {
+    audioRecorder?.pause()
+    isPaused = true
+    result(nil)
+  }
+    
+  fileprivate func resume(_ result: @escaping FlutterResult) {
+    if isPaused {
+      audioRecorder?.record()
+      isPaused = false
+    }
+    
+    result(nil)
+  }
 
   fileprivate func stopRecording() {
     audioRecorder?.stop()
     audioRecorder = nil
     isRecording = false
+    isPaused = false
   }
 
   // https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers
