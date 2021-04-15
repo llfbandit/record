@@ -1,3 +1,10 @@
+## 2.1.0+1
+* Relaxing dart/flutter constraints for pub.dev analysis.
+
+## 2.1.0
+* Add pause/resume/isPaused features.
+* Updated example to include pause.
+
 ## 2.0.0
 * Add null safety support (based on v1.0.3).
 * Updated example. Moved from 'audioplayers' to 'just_audio'.
