@@ -89,6 +89,7 @@ class Recorder {
       } catch (IllegalStateException ex) {
         // Mute this exception since 'isRecording' can't be 100% sure
       } finally {
+        recorder.reset();
         recorder.release();
         recorder = null;
       }

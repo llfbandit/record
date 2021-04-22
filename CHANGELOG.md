@@ -1,3 +1,6 @@
+## 2.1.1
+* fix: Android warning "mediarecorder went away with unhandled events".
+
 ## 2.1.0+1
 * Relaxing dart/flutter constraints for pub.dev analysis.
 
