@@ -103,16 +103,16 @@ packages:
   record_platform_interface:
     dependency: "direct main"
     description:
-      path: "../record_platform_interface"
-      relative: true
-    source: path
+      name: record_platform_interface
+      url: "https://pub.dartlang.org"
+    source: hosted
     version: "0.1.0"
   record_web:
     dependency: "direct main"
     description:
-      path: "../record_web"
-      relative: true
-    source: path
+      name: record_web
+      url: "https://pub.dartlang.org"
+    source: hosted
     version: "0.1.0"
   sky_engine:
     dependency: transitive
