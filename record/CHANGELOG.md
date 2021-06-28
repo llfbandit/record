@@ -1,7 +1,7 @@
 ## 3.0.0
 * feat: Add web support.
 * feat: Add `getAmplitude()` to get current and max dBFS.
-* core: static methods are no more!
+* core: static methods are no more! (but api is pretty much the same)
 * core: path param is now optional in `start` method to align behaviour with web platform.  
 If null is given, a temp file is generated for you.
 * core: `stop` method now returns the output path.
