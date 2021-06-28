@@ -15,7 +15,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
   var hasPermission = false
   var audioRecorder: AVAudioRecorder?
   var path: String?
-  var maxAmplitude = -160.0;
+  var maxAmplitude:Float = -160.0;
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
@@ -27,11 +27,11 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
           let directory = NSTemporaryDirectory()
           let fileName = UUID().uuidString + ".m4a"
 
-          path = URL.fileURL(withPathComponents: [directory, fileName])
+            path = NSURL.fileURL(withPathComponents: [directory, fileName])?.absoluteString
         }
 
         start(
-          path: path,
+          path: path!,
           encoder: args["encoder"] as? Int ?? 0,
           bitRate: args["bitRate"] as? Int ?? 128000,
           samplingRate: args["samplingRate"] as? Float ?? 44100.0,
@@ -155,8 +155,8 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       
       let current = audioRecorder?.peakPower(forChannel: 0)
 
-      if (current > maxAmplitude) {
-        maxAmplitude = current;
+      if (current! > maxAmplitude) {
+        maxAmplitude = current!;
       }
 
       amp["current"] = current
