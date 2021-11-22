@@ -1,3 +1,6 @@
+## 3.0.2
+* fix: web `pubspec.yaml` file.
+
 ## 3.0.1
 * fix: Android request code is now frozen.
 * core: Update dependencies.
