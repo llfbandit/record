@@ -1,3 +1,7 @@
+## 3.0.1
+* fix: Android request code is now frozen.
+* core: Update dependencies.
+
 ## 3.0.0
 * feat: Add web support.
 * feat: Add `getAmplitude()` to get current and max dBFS.

@@ -1,6 +1,6 @@
 name: record
 description: Audio recorder from microphone to a given file path with multiple codecs, bit rate and sampling rate options.
-version: 3.0.0
+version: 3.0.1
 homepage: https://github.com/llfbandit/record/tree/master/record
 
 environment:
