@@ -19,7 +19,7 @@ import io.flutter.plugin.common.PluginRegistry;
 public class MethodCallHandlerImpl
         implements MethodCallHandler, PluginRegistry.RequestPermissionsResultListener {
 
-  private static final int RECORD_AUDIO_REQUEST_CODE = MethodCallHandlerImpl.class.hashCode() + 43;
+  private static final int RECORD_AUDIO_REQUEST_CODE = 1001;
 
   private final Activity activity;
   private final Recorder recorder = new Recorder();
