@@ -130,7 +130,7 @@ class AudioPlayerState extends State<AudioPlayer> {
       width: width,
       child: Slider(
         activeColor: Theme.of(context).primaryColor,
-        inactiveColor: Theme.of(context).accentColor,
+        inactiveColor: Theme.of(context).colorScheme.secondary,
         onChanged: (v) {
           if (duration != null) {
             final position = v * duration.inMilliseconds;
