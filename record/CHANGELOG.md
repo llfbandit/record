@@ -1,3 +1,6 @@
+## 3.0.3
+* core: Moved from jcenter to mavenCentral (Android).
+
 ## 3.0.2
 * fix: web `pubspec.yaml` file.
 
