@@ -153,7 +153,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     if isRecording {
       audioRecorder?.updateMeters()
       
-      let current = audioRecorder?.peakPower(forChannel: 0)
+      let current = audioRecorder?.averagePower(forChannel: 0)
 
       if (current! > maxAmplitude) {
         maxAmplitude = current!;
