@@ -1,5 +1,6 @@
 ## 3.0.3
 * core: Moved from jcenter to mavenCentral (Android).
+* feat: Use average instead of peak power (iOS).
 
 ## 3.0.2
 * fix: web `pubspec.yaml` file.

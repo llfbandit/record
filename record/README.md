@@ -61,27 +61,24 @@ https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants
 // Import package
 import 'package:record/record.dart';
 
+final record = Record();
+
 // Check and request permission
-bool result = await Record.hasPermission();
+bool result = await record.hasPermission();
 
 // Start recording
-await Record.start(
+await record.start(
   path: 'aFullPath/myFile.m4a', // required
   encoder: AudioEncoder.AAC, // by default
   bitRate: 128000, // by default
   sampleRate: 44100, // by default
 );
 
-// Stop recording
-await Record.stop();
-
 // Get the state of the recorder
-bool isRecording = await Record.isRecording();
+bool isRecording = await record.isRecording();
 
-// There's nothing to dispose, this done internally each time you call stop method.
-// The plugin is aware of activity lifecycle.
-// So exiting, your app or activity will stop the recording (but won't delete the 
-// output file).
+// Stop recording
+await record.stop();
 ```
 
 ## Warnings
