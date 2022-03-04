@@ -16,6 +16,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  
+  # https://pub.dev/packages/lints
+  lints: ^1.0.1
 
 # The following section is specific to Flutter.
 flutter:
