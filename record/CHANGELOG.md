@@ -1,3 +1,6 @@
+## 3.0.4
+* fix: iOS - hasPermission double check was needed when permission was undeterminated.
+
 ## 3.0.3
 * core: Moved from jcenter to mavenCentral (Android).
 * feat: Use average instead of peak power (iOS).
