@@ -12,7 +12,6 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
 
   var isRecording = false
   var isPaused = false
-  var hasPermission = false
   var audioRecorder: AVAudioRecorder?
   var path: String?
   var maxAmplitude:Float = -160.0;
@@ -74,24 +73,22 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
 
   fileprivate func hasPermission(_ result: @escaping FlutterResult) {
     switch AVAudioSession.sharedInstance().recordPermission {
-      case AVAudioSession.RecordPermission.granted:
-        hasPermission = true
+      case .granted:
+        result(true)
         break
-      case AVAudioSession.RecordPermission.denied:
-        hasPermission = false
+      case .denied:
+        result(false)
         break
-      case AVAudioSession.RecordPermission.undetermined:
-        AVAudioSession.sharedInstance().requestRecordPermission() { [unowned self] allowed in
+      case .undetermined:
+        AVAudioSession.sharedInstance().requestRecordPermission() { allowed in
           DispatchQueue.main.async {
-            self.hasPermission = allowed
+            result(allowed)
           }
         }
         break
       default:
         break
     }
-
-    result(hasPermission)
   }
 
   fileprivate func start(path: String, encoder: Int, bitRate: Int, samplingRate: Float, result: @escaping FlutterResult) {
@@ -108,7 +105,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth]
 
     do {
-      try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playAndRecord, options: options)
+      try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: options)
       try AVAudioSession.sharedInstance().setActive(true)
 
       let url = URL(string: path) ?? URL(fileURLWithPath: path)
