@@ -59,9 +59,9 @@ Feature           | Android        | iOS      | web     | Windows   | macOS
 For every encoder, you should be really careful with given sampling rates.
 For example, opus can not be recorded at 44100Hz.
 
-If a given encoder is not supported when starting recording on platform, the fallbakcs are:
+If a given encoder is not supported when starting recording on platform, the fallbacks are:
  Plaform | encoder
- ---     | ---
+ --------|----------
  Android | AAC LC
  iOS     | AAC LC
  web     | OPUS OGG (not guaranteed => choice is made by the browser)
