@@ -1,3 +1,20 @@
+## 4.0.0
+This contains very small breaking changes. See below.
+* core: BREAK: `AudioEncoder` values are now in lowerCamelCase.
+* core: BREAK? or fix: `start#samplingRate` is now an integer.
+* core: BREAK: `AudioEncoder.aac` is now `AudioEncoder.aacLc`.
+* core: Android minimum API level is now 19.
+* core: dart minimum version is now 2.15.
+* core: Update dependencies.
+* core: README.md updates.
+* core: License changed from Apache 2.0 to BSD-3-Clause.
+
+* feat: Add Windows platform support.
+* feat: Add macOS platform support.
+* feat: Codec is now applied in web platform (if available).
+* feat: Add vorbisOgg, WAV, FLAC, PCM 8 bits, PCM 16 bits.
+* feat: Add `isEncoderSupported` to check if the encoder is available on the platform.
+
 ## 3.0.4
 * fix: iOS - hasPermission double check was needed when permission was undeterminated.
 

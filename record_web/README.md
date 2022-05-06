@@ -1,3 +1,3 @@
 # record web
 
-Web implementation for record package.
+Web specific implementation for record package called by record_platform_interface.

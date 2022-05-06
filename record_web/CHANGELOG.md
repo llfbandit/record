@@ -1,3 +1,6 @@
+## 0.3.0
+feat: Allow codec selection.
+
 ## 0.2.1
 - Fix record_platform_interface version.
 

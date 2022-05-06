@@ -46,9 +46,9 @@ abstract class RecordPlatform extends PlatformInterface {
   /// Ignored on web platform.
   Future<void> start({
     String? path,
-    AudioEncoder encoder = AudioEncoder.AAC,
+    AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
-    double samplingRate = 44100.0,
+    int samplingRate = 44100,
   });
 
   /// Stops recording session and release internal recorder resource.
@@ -78,7 +78,10 @@ abstract class RecordPlatform extends PlatformInterface {
   /// Dispose the recorder
   Future<void> dispose();
 
-  /// Gets current average & max amplitudes
-  /// Always returns zeros on web platform
+  /// Gets current average & max amplitudes (dBFS)
+  /// Always returns zeros on unsupported platforms
   Future<Amplitude> getAmplitude();
+
+  /// Checks if the given encoder is supported on the current platform.
+  Future<bool> isEncoderSupported(AudioEncoder encoder);
 }

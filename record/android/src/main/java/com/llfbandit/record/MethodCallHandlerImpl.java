@@ -3,7 +3,6 @@ package com.llfbandit.record;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
-import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
@@ -22,7 +21,7 @@ public class MethodCallHandlerImpl
   private static final int RECORD_AUDIO_REQUEST_CODE = 1001;
 
   private final Activity activity;
-  private final Recorder recorder = new Recorder();
+  private RecorderBase recorder;
   private Result pendingPermResult;
 
   MethodCallHandlerImpl(Activity activity) {
@@ -30,62 +29,87 @@ public class MethodCallHandlerImpl
   }
 
   void close() {
-    recorder.close();
+    if (recorder != null) {
+      recorder.close();
+    }
     pendingPermResult = null;
   }
 
   @Override
+  @SuppressWarnings("ConstantConditions")
   public void onMethodCall(MethodCall call, @NonNull Result result) {
     switch (call.method) {
       case "start":
-        String path = (String) call.argument("path");
+        String path = call.argument("path");
 
         if (path == null) {
-          File outputDir = activity.getCacheDir();
-          File outputFile = null;
-          try {
-            outputFile = File.createTempFile("audio", ".m4a", outputDir);
-            path = outputFile.getPath();
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
+          path = genTempFileName(result);
+          if (path == null) return;
         }
 
-        recorder.start(
-                path,
-                (int) call.argument("encoder"),
-                (int) call.argument("bitRate"),
-                (double) call.argument("samplingRate"),
-                result);
+        String encoder = call.argument("encoder");
+        int bitRate = call.argument("bitRate");
+        int samplingRate = call.argument("samplingRate");
+
+        recorder = selectRecorder(encoder);
+
+        recorder.start(path, encoder, bitRate, samplingRate, result);
         break;
       case "stop":
-        recorder.stop(result);
+        if (recorder != null) {
+          recorder.stop(result);
+        } else {
+          result.success(null);
+        }
         break;
       case "pause":
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        if (recorder != null) {
           recorder.pause(result);
+        } else {
+          result.success(null);
         }
         break;
       case "resume":
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        if (recorder != null) {
           recorder.resume(result);
+        } else {
+          result.success(null);
         }
         break;
       case "isPaused":
-        recorder.isPaused(result);
+        if (recorder != null) {
+          recorder.isPaused(result);
+        } else {
+          result.success(false);
+        }
         break;
       case "isRecording":
-        recorder.isRecording(result);
+        if (recorder != null) {
+          recorder.isRecording(result);
+        } else {
+          result.success(false);
+        }
         break;
       case "hasPermission":
         hasPermission(result);
         break;
       case "getAmplitude":
-        recorder.getAmplitude(result);
+        if (recorder != null) {
+          recorder.getAmplitude(result);
+        } else {
+          result.success(null);
+        }
         break;
       case "dispose":
         close();
         result.success(null);
+        break;
+      case "isEncoderSupported":
+        String codec = call.argument("encoder");
+        RecorderBase rec = selectRecorder(codec);
+
+        boolean isSupported = rec.isEncoderSupported(codec);
+        result.success(isSupported);
         break;
       default:
         result.notImplemented();
@@ -134,5 +158,34 @@ public class MethodCallHandlerImpl
             new String[]{Manifest.permission.RECORD_AUDIO},
             MethodCallHandlerImpl.RECORD_AUDIO_REQUEST_CODE
     );
+  }
+
+  private RecorderBase selectRecorder(String encoder) {
+    RecorderBase r = new AudioRecorder();
+    if (r.isEncoderSupported(encoder)) {
+      return r;
+    }
+
+    r = new MediaRecorder();
+    if (r.isEncoderSupported(encoder)) {
+      return r;
+    }
+
+    return null;
+  }
+
+  private String genTempFileName(@NonNull Result result) {
+    File outputDir = activity.getCacheDir();
+    File outputFile;
+
+    try {
+      outputFile = File.createTempFile("audio", ".m4a", outputDir);
+      return outputFile.getPath();
+    } catch (IOException e) {
+      result.error("record", "Cannot create temp file.", e.getMessage());
+      e.printStackTrace();
+    }
+
+    return null;
   }
 }

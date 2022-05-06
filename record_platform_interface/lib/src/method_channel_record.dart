@@ -4,7 +4,7 @@ import 'package:record_platform_interface/src/types/amplitude.dart';
 import 'package:record_platform_interface/src/types/audio_encoder.dart';
 
 class MethodChannelRecord extends RecordPlatform {
-  static const MethodChannel _channel = const MethodChannel(
+  static const MethodChannel _channel = MethodChannel(
     'com.llfbandit.record',
   );
 
@@ -39,13 +39,13 @@ class MethodChannelRecord extends RecordPlatform {
   @override
   Future<void> start({
     String? path,
-    AudioEncoder encoder = AudioEncoder.AAC,
+    AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
-    double samplingRate = 44100.0,
+    int samplingRate = 44100,
   }) {
     return _channel.invokeMethod('start', {
       "path": path,
-      "encoder": encoder.index,
+      "encoder": encoder.name,
       "bitRate": bitRate,
       "samplingRate": samplingRate,
     });
@@ -69,5 +69,15 @@ class MethodChannelRecord extends RecordPlatform {
       current: result?['current'] ?? 0.0,
       max: result?['max'] ?? 0.0,
     );
+  }
+
+  @override
+  Future<bool> isEncoderSupported(AudioEncoder encoder) async {
+    final isSupported = await _channel.invokeMethod<bool>(
+      'isEncoderSupported',
+      {'encoder': encoder.name},
+    );
+
+    return isSupported ?? false;
   }
 }

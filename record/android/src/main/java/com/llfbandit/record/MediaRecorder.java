@@ -1,35 +1,33 @@
 package com.llfbandit.record;
 
-import android.media.MediaRecorder;
 import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import io.flutter.plugin.common.MethodChannel.Result;
 
-class Recorder {
-  private static final String LOG_TAG = "Record";
+class MediaRecorder implements RecorderBase {
+  private static final String LOG_TAG = "Record - MR";
 
   private boolean isRecording = false;
   private boolean isPaused = false;
 
-  private MediaRecorder recorder = null;
+  private android.media.MediaRecorder recorder = null;
   private String path;
   private Double maxAmplitude = -160.0;
 
-  void start(
-          @NonNull String path,
-          int encoder,
-          int bitRate,
-          double samplingRate,
-          @NonNull Result result
+  @Override
+  public void start(
+      @NonNull String path,
+      String encoder,
+      int bitRate,
+      int samplingRate,
+      @NonNull Result result
   ) {
     stopRecording();
 
@@ -37,13 +35,20 @@ class Recorder {
 
     this.path = path;
 
-    recorder = new MediaRecorder();
-    recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+    recorder = new android.media.MediaRecorder();
+    recorder.setAudioSource(android.media.MediaRecorder.AudioSource.DEFAULT);
     recorder.setAudioEncodingBitRate(bitRate);
-    recorder.setAudioSamplingRate((int) samplingRate);
+    recorder.setAudioSamplingRate(samplingRate);
     recorder.setOutputFormat(getOutputFormat(encoder));
+
     // must be set after output format
-    recorder.setAudioEncoder(getEncoder(encoder));
+    Integer format = getEncoder(encoder);
+    if (format == null) {
+      Log.d(LOG_TAG, "Falling back to AAC LC");
+      format = android.media.MediaRecorder.AudioEncoder.AAC;
+    }
+
+    recorder.setAudioEncoder(format);
     recorder.setOutputFile(path);
 
     try {
@@ -59,35 +64,45 @@ class Recorder {
     }
   }
 
-  void stop(@NonNull Result result) {
+  @Override
+  public void stop(@NonNull Result result) {
     stopRecording();
     result.success(path);
   }
 
+  @Override
   @RequiresApi(api = Build.VERSION_CODES.N)
-  void pause(@NonNull Result result) {
-    pauseRecording();
+  public void pause(@NonNull Result result) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      pauseRecording();
+    }
     result.success(null);
   }
 
+  @Override
   @RequiresApi(api = Build.VERSION_CODES.N)
-  void resume(@NonNull Result result) {
-    resumeRecording();
+  public void resume(@NonNull Result result) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      resumeRecording();
+    }
     result.success(null);
   }
 
-  void isRecording(@NonNull Result result) {
+  @Override
+  public void isRecording(@NonNull Result result) {
     result.success(isRecording);
   }
 
-  void isPaused(@NonNull Result result) {
+  @Override
+  public void isPaused(@NonNull Result result) {
     result.success(isPaused);
   }
 
-  void getAmplitude(@NonNull Result result) {
+  @Override
+  public void getAmplitude(@NonNull Result result) {
     Map<String, Object> amp = new HashMap<>();
 
-    Double current = -160.0;
+    double current = -160.0;
 
     if (isRecording) {
       current = 20 * Math.log10(recorder.getMaxAmplitude() / 32768.0);
@@ -103,7 +118,14 @@ class Recorder {
     result.success(amp);
   }
 
-  void close() {
+  @Override
+  public boolean isEncoderSupported(String encoder) {
+    Integer format = getEncoder(encoder);
+    return format != null;
+  }
+
+  @Override
+  public void close() {
     stopRecording();
   }
 
@@ -158,33 +180,37 @@ class Recorder {
     }
   }
 
-  private int getOutputFormat(int encoder) {
-    if (encoder == 3 || encoder == 4) {
-      return MediaRecorder.OutputFormat.THREE_GPP;
+  private int getOutputFormat(String encoder) {
+    if (encoder.equals("amrNb") || encoder.equals("amrWb")) {
+      return android.media.MediaRecorder.OutputFormat.THREE_GPP;
     }
 
-    return MediaRecorder.OutputFormat.MPEG_4;
+    return android.media.MediaRecorder.OutputFormat.MPEG_4;
   }
 
   // https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder
-  private int getEncoder(int encoder) {
+  private Integer getEncoder(String encoder) {
     switch (encoder) {
-      case 1:
-        return MediaRecorder.AudioEncoder.AAC_ELD;
-      case 2:
-        return MediaRecorder.AudioEncoder.HE_AAC;
-      case 3:
-        return MediaRecorder.AudioEncoder.AMR_NB;
-      case 4:
-        return MediaRecorder.AudioEncoder.AMR_WB;
-      case 5:
+      case "aacLc":
+        return android.media.MediaRecorder.AudioEncoder.AAC;
+      case "aacEld":
+        return android.media.MediaRecorder.AudioEncoder.AAC_ELD;
+      case "aacHe":
+        return android.media.MediaRecorder.AudioEncoder.HE_AAC;
+      case "amrNb":
+        return android.media.MediaRecorder.AudioEncoder.AMR_NB;
+      case "amrWb":
+        return android.media.MediaRecorder.AudioEncoder.AMR_WB;
+      case "opus":
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-          return MediaRecorder.AudioEncoder.OPUS;
-        } else {
-          Log.d(LOG_TAG, "OPUS codec is available starting from API 29.\nFalling back to AAC");
+          return android.media.MediaRecorder.AudioEncoder.OPUS;
         }
-      default:
-        return MediaRecorder.AudioEncoder.AAC;
+      case "vorbisOgg":
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+          return android.media.MediaRecorder.AudioEncoder.VORBIS;
+        }
     }
+
+    return null;
   }
 }

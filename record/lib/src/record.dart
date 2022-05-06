@@ -7,9 +7,9 @@ class Record implements RecordPlatform {
   @override
   Future<void> start({
     String? path,
-    AudioEncoder encoder = AudioEncoder.AAC,
+    AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
-    double samplingRate = 44100.0,
+    int samplingRate = 44100,
   }) {
     return RecordPlatform.instance.start(
       path: path,
@@ -40,22 +40,27 @@ class Record implements RecordPlatform {
   }
 
   @override
-  Future<bool> isPaused() async {
+  Future<bool> isPaused() {
     return RecordPlatform.instance.isPaused();
   }
 
   @override
-  Future<bool> hasPermission() async {
+  Future<bool> hasPermission() {
     return RecordPlatform.instance.hasPermission();
   }
 
   @override
-  Future<void> dispose() async {
+  Future<void> dispose() {
     return RecordPlatform.instance.dispose();
   }
 
   @override
   Future<Amplitude> getAmplitude() {
     return RecordPlatform.instance.getAmplitude();
+  }
+
+  @override
+  Future<bool> isEncoderSupported(AudioEncoder encoder) {
+    return RecordPlatform.instance.isEncoderSupported(encoder);
   }
 }

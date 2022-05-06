@@ -31,10 +31,10 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
 
         start(
           path: path!,
-          encoder: args["encoder"] as? Int ?? 0,
+          encoder: args["encoder"] as! String,
           bitRate: args["bitRate"] as? Int ?? 128000,
-          samplingRate: args["samplingRate"] as? Float ?? 44100.0,
-          result: result);
+          samplingRate: args["samplingRate"] as? Int ?? 44100,
+          result: result)
         break
       case "stop":
         stop(result)
@@ -54,6 +54,12 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       case "getAmplitude":
         getAmplitude(result)
         break
+      case "isEncoderSupported":
+        let args = call.arguments as! [String : Any]
+        let encoder = args["encoder"] as! String
+        let settings = getEncoderSettings(encoder)
+        result(settings != nil)
+        break
       case "dispose":
         dispose(result)
         break
@@ -64,10 +70,6 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
   }
     
   public func applicationWillTerminate(_ application: UIApplication) {
-    stopRecording()
-  }
-    
-  public func applicationDidEnterBackground(_ application: UIApplication) {
     stopRecording()
   }
 
@@ -91,16 +93,10 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     }
   }
 
-  fileprivate func start(path: String, encoder: Int, bitRate: Int, samplingRate: Float, result: @escaping FlutterResult) {
+  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, result: @escaping FlutterResult) {
     stopRecording()
 
-    let settings = [
-      AVFormatIDKey: getEncoder(encoder),
-      AVEncoderBitRateKey: bitRate,
-      AVSampleRateKey: samplingRate,
-      AVNumberOfChannelsKey: 2,
-      AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-    ] as [String : Any]
+    let settings = getSettings(encoder: encoder, bitRate: bitRate, samplingRate: samplingRate)
 
     let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth]
 
@@ -142,18 +138,24 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     result(nil)
   }
 
-  fileprivate func getAmplitude(_ result: @escaping FlutterResult) {
-    var amp = [String : Float]()
+    fileprivate func isEncoderSupported(encoder: String) -> Bool {
+    let encoderSettings = getEncoderSettings(encoder)
+    return encoderSettings != nil
+  }
 
-    amp["current"] = -160.0
+  fileprivate func getAmplitude(_ result: @escaping FlutterResult) {
+    var amp = ["current" : -160.0, "max" : -160.0] as [String : Float]
 
     if isRecording {
       audioRecorder?.updateMeters()
       
-      let current = audioRecorder?.averagePower(forChannel: 0)
+      guard let current = audioRecorder?.averagePower(forChannel: 0) else {
+        result(amp)
+        return
+      }
 
-      if (current! > maxAmplitude) {
-        maxAmplitude = current!;
+      if (current > maxAmplitude) {
+        maxAmplitude = current
       }
 
       amp["current"] = current
@@ -176,21 +178,52 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     result(path)
   }
 
+  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int) -> [String : Any] {
+    let settings = [
+      AVEncoderBitRateKey: bitRate,
+      AVSampleRateKey: samplingRate,
+      AVNumberOfChannelsKey: 2,
+      AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+    ] as [String : Any]
+
+    var encoderSettings = getEncoderSettings(encoder)
+    // Defaults to ACC LD
+    if (encoderSettings == nil) {
+      encoderSettings = [AVFormatIDKey : Int(kAudioFormatMPEG4AAC)]
+    }
+
+    return settings.merging(encoderSettings!, uniquingKeysWith: { (_, last) in last })
+  }
+
   // https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers
-  fileprivate func getEncoder(_ encoder: Int) -> Int {    
+  fileprivate func getEncoderSettings(_ encoder: String) -> [String : Any]? {    
     switch(encoder) {
-    case 1:
-      return Int(kAudioFormatMPEG4AAC_ELD)
-    case 2:
-      return Int(kAudioFormatMPEG4AAC_HE)
-    case 3:
-      return Int(kAudioFormatAMR)
-    case 4:
-      return Int(kAudioFormatAMR_WB)
-    case 5:
-      return Int(kAudioFormatOpus)
+    case "aacEld":
+      return [AVFormatIDKey : Int(kAudioFormatMPEG4AAC_ELD)]
+    case "aacHe":
+      return [AVFormatIDKey : Int(kAudioFormatMPEG4AAC_HE_V2)]
+    case "amrNb":
+      return [AVFormatIDKey : Int(kAudioFormatAMR)]
+    case "amrWb":
+      return [AVFormatIDKey : Int(kAudioFormatAMR_WB)]
+    case "opus":
+      return [AVFormatIDKey : Int(kAudioFormatOpus)]
+    case "flac":
+      return [AVFormatIDKey : Int(kAudioFormatFLAC)]
+    case "pcm8bit":
+      return [
+        AVFormatIDKey : Int(kAudioFormatLinearPCM),
+        AVLinearPCMBitDepthKey: 8,
+      ]
+    case "pcm16bit":
+      return [
+        AVFormatIDKey : Int(kAudioFormatLinearPCM),
+        AVLinearPCMBitDepthKey: 16,
+      ]
+    case "aacLc":
+      return [AVFormatIDKey : Int(kAudioFormatMPEG4AAC)]
     default:
-      return Int(kAudioFormatMPEG4AAC)
+        return nil
     }
   }
 }

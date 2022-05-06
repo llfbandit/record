@@ -1,14 +1,18 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart' as ap;
 import 'package:record/record.dart';
+
 import 'package:record_example/audio_player.dart';
 
 class AudioRecorder extends StatefulWidget {
   final void Function(String path) onStop;
 
-  const AudioRecorder({required this.onStop});
+  const AudioRecorder({
+    Key? key,
+    required this.onStop,
+  }) : super(key: key);
 
   @override
   _AudioRecorderState createState() => _AudioRecorderState();
@@ -70,7 +74,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
     late Color color;
 
     if (_isRecording || _isPaused) {
-      icon = Icon(Icons.stop, color: Colors.red, size: 30);
+      icon = const Icon(Icons.stop, color: Colors.red, size: 30);
       color = Colors.red.withOpacity(0.1);
     } else {
       final theme = Theme.of(context);
@@ -100,11 +104,11 @@ class _AudioRecorderState extends State<AudioRecorder> {
     late Color color;
 
     if (!_isPaused) {
-      icon = Icon(Icons.pause, color: Colors.red, size: 30);
+      icon = const Icon(Icons.pause, color: Colors.red, size: 30);
       color = Colors.red.withOpacity(0.1);
     } else {
       final theme = Theme.of(context);
-      icon = Icon(Icons.play_arrow, color: Colors.red, size: 30);
+      icon = const Icon(Icons.play_arrow, color: Colors.red, size: 30);
       color = theme.primaryColor.withOpacity(0.1);
     }
 
@@ -126,7 +130,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
       return _buildTimer();
     }
 
-    return Text("Waiting to record");
+    return const Text("Waiting to record");
   }
 
   Widget _buildTimer() {
@@ -135,7 +139,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
 
     return Text(
       '$minutes : $seconds',
-      style: TextStyle(color: Colors.red),
+      style: const TextStyle(color: Colors.red),
     );
   }
 
@@ -151,7 +155,15 @@ class _AudioRecorderState extends State<AudioRecorder> {
   Future<void> _start() async {
     try {
       if (await _audioRecorder.hasPermission()) {
-        await _audioRecorder.start();
+        // We don't do anything with this but printing
+        final isSupported = await _audioRecorder.isEncoderSupported(
+          AudioEncoder.aacLc,
+        );
+        if (kDebugMode) {
+          print('${AudioEncoder.aacLc.name} supported: $isSupported');
+        }
+
+        await _audioRecorder.start(encoder: AudioEncoder.wav);
 
         bool isRecording = await _audioRecorder.isRecording();
         setState(() {
@@ -162,7 +174,9 @@ class _AudioRecorderState extends State<AudioRecorder> {
         _startTimer();
       }
     } catch (e) {
-      print(e);
+      if (kDebugMode) {
+        print(e);
+      }
     }
   }
 
@@ -208,17 +222,19 @@ class _AudioRecorderState extends State<AudioRecorder> {
 }
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   _MyAppState createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
   bool showPlayer = false;
-  ap.AudioSource? audioSource;
+  String? audioPath;
 
   @override
   void initState() {
@@ -233,9 +249,9 @@ class _MyAppState extends State<MyApp> {
         body: Center(
           child: showPlayer
               ? Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 25),
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: AudioPlayer(
-                    source: audioSource!,
+                    source: audioPath!,
                     onDelete: () {
                       setState(() => showPlayer = false);
                     },
@@ -243,8 +259,9 @@ class _MyAppState extends State<MyApp> {
                 )
               : AudioRecorder(
                   onStop: (path) {
+                    if (kDebugMode) print(path);
                     setState(() {
-                      audioSource = ap.AudioSource.uri(Uri.parse(path));
+                      audioPath = path;
                       showPlayer = true;
                     });
                   },
