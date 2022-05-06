@@ -163,7 +163,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
           print('${AudioEncoder.aacLc.name} supported: $isSupported');
         }
 
-        await _audioRecorder.start();
+        await _audioRecorder.start(encoder: AudioEncoder.opus);
 
         bool isRecording = await _audioRecorder.isRecording();
         setState(() {
@@ -259,7 +259,7 @@ class _MyAppState extends State<MyApp> {
                 )
               : AudioRecorder(
                   onStop: (path) {
-                    if (kDebugMode) print(path);
+                    if (kDebugMode) print('Recorded file path: $path');
                     setState(() {
                       audioPath = path;
                       showPlayer = true;

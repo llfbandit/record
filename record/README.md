@@ -57,7 +57,7 @@ Feature           | Android        | iOS      | web     | Windows   | macOS
  pcm16bit        | ✔️            |   ✔️    |  ?      |          |  ✔️ 
 
 For every encoder, you should be really careful with given sampling rates.
-For example, opus can not be recorded at 44100Hz.
+For example, opus could or could not be recorded at 44100Hz.
 
 If a given encoder is not supported when starting recording on platform, the fallbacks are:
  Plaform | encoder
@@ -71,6 +71,7 @@ If a given encoder is not supported when starting recording on platform, the fal
 ## Encoding API levels documentation
 ### Android
 * [MediaRecorder encoding constants](https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder)
+* [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
 
 ### iOs
 * [AVAudioRecorder encoding constants](https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers)

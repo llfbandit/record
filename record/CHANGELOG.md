@@ -1,3 +1,7 @@
+## 4.0.1
+* core: OPUS and vorbis formats are now in OGG containers (instead of MP4).
+* core: README.md updates.
+
 ## 4.0.0
 This contains very small breaking changes. See below.
 * core: BREAK: `AudioEncoder` values are now in lowerCamelCase.

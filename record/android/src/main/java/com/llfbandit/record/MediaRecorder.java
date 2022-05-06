@@ -23,11 +23,11 @@ class MediaRecorder implements RecorderBase {
 
   @Override
   public void start(
-      @NonNull String path,
-      String encoder,
-      int bitRate,
-      int samplingRate,
-      @NonNull Result result
+          @NonNull String path,
+          String encoder,
+          int bitRate,
+          int samplingRate,
+          @NonNull Result result
   ) {
     stopRecording();
 
@@ -181,11 +181,25 @@ class MediaRecorder implements RecorderBase {
   }
 
   private int getOutputFormat(String encoder) {
-    if (encoder.equals("amrNb") || encoder.equals("amrWb")) {
-      return android.media.MediaRecorder.OutputFormat.THREE_GPP;
+    switch (encoder) {
+      case "aacLc":
+      case "aacEld":
+      case "aacHe":
+        return android.media.MediaRecorder.OutputFormat.MPEG_4;
+      case "amrNb":
+      case "amrWb":
+        return android.media.MediaRecorder.OutputFormat.THREE_GPP;
+      case "opus":
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          return android.media.MediaRecorder.OutputFormat.OGG;
+        }
+      case "vorbisOgg":
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          return android.media.MediaRecorder.OutputFormat.OGG;
+        }
     }
 
-    return android.media.MediaRecorder.OutputFormat.MPEG_4;
+    return android.media.MediaRecorder.OutputFormat.DEFAULT;
   }
 
   // https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder
