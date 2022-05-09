@@ -38,37 +38,37 @@ In capabilities, activate "Audio input" in debug AND release schemes
 min SDK: 10.14
 
 ## Platform feature parity matrix
-Feature           | Android        | iOS      | web     | Windows   | macOS
-------------------|----------------|----------|---------|------------|-----------
- pause/resume     | ✔️             |   ✔️    | ✔️     |            | ✔️
- amplitude(dBFS)  | ✔️             |   ✔️    |         |           |  ✔️
- permission check | ✔️             |   ✔️    |  ✔️    |           |  ✔️
-
- Encoder          | Android      | iOS      | web     | Windows | macOS
------------------|----------------|---------|---------|----------|-----------
- aacLc           | ✔️            |   ✔️    |  ?      |   ✔️     |  ✔️ 
- aacEld          | ✔️            |   ✔️    |  ?      |          |  ✔️ 
- aacHe           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️ 
- amrNb           | ✔️            |   ✔️    |  ?      |          |  ✔️ 
- amrWb           | ✔️            |   ✔️    |  ?      |          |  ✔️ 
- opus            | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️ 
- vorbisOgg       | ?(optional)   |          |  ?      |  ✔️     |     
- wav             |  ✔️           |         |  ?      |   ✔️     |     
- flac            |               |    ✔️    |  ?      |  ✔️     |   ✔️
- pcm8bit         | ✔️            |   ✔️    |  ?      |          |  ✔️ 
- pcm16bit        | ✔️            |   ✔️    |  ?      |          |  ✔️ 
+| Feature          | Android        | iOS      | web     | Windows   | macOS
+|------------------|----------------|----------|---------|------------|-----------
+| pause/resume     | ✔️             |   ✔️    | ✔️     |            | ✔️
+| amplitude(dBFS)  | ✔️             |   ✔️    |         |           |  ✔️
+| permission check | ✔️             |   ✔️    |  ✔️    |           |  ✔️
+|
+| Encoder         | Android        | iOS     | web     | Windows | macOS
+|-----------------|----------------|---------|---------|---------|-----------
+| aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️ 
+| aacEld          | ✔️            |   ✔️    |  ?      |         |  ✔️ 
+| aacHe           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️ 
+| amrNb           | ✔️            |   ✔️    |  ?      |         |  ✔️ 
+| amrWb           | ✔️            |   ✔️    |  ?      |          |  ✔️ 
+| opus            | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️ 
+| vorbisOgg       | ?(optional)   |          |  ?      |  ✔️     |     
+| wav             |  ✔️           |         |  ?      |   ✔️     |     
+| flac            |               |    ✔️    |  ?      |  ✔️     |   ✔️
+| pcm8bit         | ✔️            |   ✔️    |  ?      |          |  ✔️ 
+| pcm16bit        | ✔️            |   ✔️    |  ?      |          |  ✔️ 
 
 For every encoder, you should be really careful with given sampling rates.
 For example, opus could or could not be recorded at 44100Hz.
 
 If a given encoder is not supported when starting recording on platform, the fallbacks are:
- Plaform     | encoder
- ------------|---------------------------------------------------------------
- Android     | AAC LC
- iOS         | AAC LC
- web         | OPUS OGG (not guaranteed => choice is made by the browser)
- Windows     | AAC LC
- macOS       | AAC LC
+| Plaform     | encoder                                                       |
+|-------------|---------------------------------------------------------------|
+| Android     | AAC LC                                                        |
+| iOS         | AAC LC                                                        |
+| web         | OPUS OGG (not guaranteed => choice is made by the browser)    |
+| Windows     | AAC LC                                                        |
+| macOS       | AAC LC                                                        |
 
 ## Encoding API levels documentation
 ### Android
