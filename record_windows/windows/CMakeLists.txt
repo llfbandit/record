@@ -14,37 +14,42 @@ add_library(${PLUGIN_NAME} SHARED
 
 apply_standard_settings(${PLUGIN_NAME})
 
-# Add SFML
-set(SFML_DIR $ENV{SFML_DIR})
-find_package(SFML 2.5 COMPONENTS system audio REQUIRED)
-
 set_target_properties(${PLUGIN_NAME} PROPERTIES CXX_VISIBILITY_PRESET hidden)
-
 target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
+# Add SFML
+set(SFML_BUILD_GRAPHICS FALSE)
+set(SFML_BUILD_NETWORK FALSE)
+set(SFML_BUILD_WINDOW FALSE)
+
+include(FetchContent)
+
+FetchContent_Declare(
+ sfml
+ GIT_REPOSITORY https://github.com/SFML/SFML.git
+ GIT_TAG 2.5.1
+)
+
+FetchContent_MakeAvailable(sfml)
+# END Add SFML
+
 target_link_libraries(${PLUGIN_NAME} PRIVATE
   flutter
   flutter_wrapper_plugin
-  sfml-system
   sfml-audio
+  sfml-system
 )
 
-set(SFML_AUDIO_DEBUG_DLL_NAME "${CMAKE_CURRENT_SOURCE_DIR}/bin/sfml-audio-d-2.dll")
-set(SFML_SYSTEM_DEBUG_DLL_NAME "${CMAKE_CURRENT_SOURCE_DIR}/bin/sfml-system-d-2.dll")
-set(SFML_AUDIO_DLL_NAME "${CMAKE_CURRENT_SOURCE_DIR}/bin/sfml-audio-2.dll")
-set(SFML_SYSTEM_DLL_NAME "${CMAKE_CURRENT_SOURCE_DIR}/bin/sfml-system-2.dll")
 set(SFML_OPENAL_DLL_NAME "${CMAKE_CURRENT_SOURCE_DIR}/bin/openal32.dll")
 
 # List of absolute paths to libraries that should be bundled with the plugin
 set(record_windows_bundled_libraries
   ""
-  ${SFML_AUDIO_DEBUG_DLL_NAME}
-  ${SFML_SYSTEM_DEBUG_DLL_NAME}
-  ${SFML_AUDIO_DLL_NAME}
-  ${SFML_SYSTEM_DLL_NAME}
+  $<TARGET_FILE:sfml-audio>
+  $<TARGET_FILE:sfml-system>
   ${SFML_OPENAL_DLL_NAME}
   PARENT_SCOPE
 )

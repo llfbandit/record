@@ -1,6 +1,8 @@
 Audio recorder from microphone to a given file path.
 No external dependencies, MediaRecorder is used for Android an AVAudioRecorder for iOS/macOS.  
+
 On Windows, encoding is provided by [SFML](https://www.sfml-dev.org/).  
+
 On web, well... your browser!
 
 ## Options

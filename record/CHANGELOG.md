@@ -1,5 +1,6 @@
 ## 4.0.1
 * core: OPUS and vorbis formats are now in OGG containers (instead of MP4).
+* core: Relax dependencies version constraints.
 * core: README.md updates.
 
 ## 4.0.0
