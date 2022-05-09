@@ -1,3 +1,9 @@
+## 4.0.2
+* core: Replace SFML by fmedia.
+* feat: More encoders and features on Windows.
+* fix: Windows build by removing SFML.
+* core: README.md updates.
+
 ## 4.0.1
 * core: OPUS and vorbis formats are now in OGG containers (instead of MP4).
 * core: Relax dependencies version constraints.

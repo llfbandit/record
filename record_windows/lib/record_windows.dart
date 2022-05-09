@@ -89,7 +89,7 @@ class RecordWindows extends RecordPlatform {
   @override
   Future<void> start({
     String? path,
-    AudioEncoder encoder = AudioEncoder.vorbisOgg,
+    AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
   }) async {
@@ -112,6 +112,7 @@ class RecordWindows extends RecordPlatform {
       '--rate=$samplingRate',
       '--channels=2',
       '--globcmd=listen',
+      '--gain=6.0',
       ..._getEncoderSettings(encoder, bitRate),
     ]);
 

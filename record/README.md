@@ -1,7 +1,7 @@
 Audio recorder from microphone to a given file path.
 No external dependencies, MediaRecorder is used for Android an AVAudioRecorder for iOS/macOS.  
 
-On Windows, encoding is provided by [SFML](https://www.sfml-dev.org/).  
+On Windows, encoding is provided by [fmedia](https://stsaz.github.io/fmedia/).  
 
 On web, well... your browser!
 
@@ -46,12 +46,12 @@ Feature           | Android        | iOS      | web     | Windows   | macOS
 
  Encoder          | Android      | iOS      | web     | Windows | macOS
 -----------------|----------------|---------|---------|----------|-----------
- aacLc           | ✔️            |   ✔️    |  ?      |          |  ✔️ 
+ aacLc           | ✔️            |   ✔️    |  ?      |   ✔️     |  ✔️ 
  aacEld          | ✔️            |   ✔️    |  ?      |          |  ✔️ 
- aacHe           | ✔️            |   ✔️    |  ?      |          |  ✔️ 
+ aacHe           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️ 
  amrNb           | ✔️            |   ✔️    |  ?      |          |  ✔️ 
  amrWb           | ✔️            |   ✔️    |  ?      |          |  ✔️ 
- opus            | ✔️            |   ✔️    |  ?      |          |  ✔️ 
+ opus            | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️ 
  vorbisOgg       | ?(optional)   |          |  ?      |  ✔️     |     
  wav             |  ✔️           |         |  ?      |   ✔️     |     
  flac            |               |    ✔️    |  ?      |  ✔️     |   ✔️
@@ -62,13 +62,13 @@ For every encoder, you should be really careful with given sampling rates.
 For example, opus could or could not be recorded at 44100Hz.
 
 If a given encoder is not supported when starting recording on platform, the fallbacks are:
- Plaform | encoder
- --------|----------
- Android | AAC LC
- iOS     | AAC LC
- web     | OPUS OGG (not guaranteed => choice is made by the browser)
- Windows | Vorbis OGG
- macOS   | AAC LC
+ Plaform     | encoder
+ ------------|---------------------------------------------------------------
+ Android     | AAC LC
+ iOS         | AAC LC
+ web         | OPUS OGG (not guaranteed => choice is made by the browser)
+ Windows     | AAC LC
+ macOS       | AAC LC
 
 ## Encoding API levels documentation
 ### Android

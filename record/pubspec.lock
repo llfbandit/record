@@ -60,6 +60,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.7.0"
+  path:
+    dependency: transitive
+    description:
+      name: path
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.8.1"
   plugin_platform_interface:
     dependency: transitive
     description:
@@ -94,7 +101,7 @@ packages:
       name: record_windows
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.3.0"
+    version: "0.4.0"
   sky_engine:
     dependency: transitive
     description: flutter
