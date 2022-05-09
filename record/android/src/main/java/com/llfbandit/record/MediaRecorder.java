@@ -197,6 +197,7 @@ class MediaRecorder implements RecorderBase {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
           return android.media.MediaRecorder.OutputFormat.OGG;
         }
+        return android.media.MediaRecorder.OutputFormat.MPEG_4;
     }
 
     return android.media.MediaRecorder.OutputFormat.DEFAULT;
