@@ -1,3 +1,6 @@
+## 0.4.0
+* feat: Replace SFML by fmedia.
+
 ## 0.3.0
 * fix: Cmake build fix by using FetchContent (still WIP).
 
@@ -5,4 +8,3 @@
 * core: Provide also debug DLL to not crash apps. Need to be fixed.
 
 ## 0.1.0
-* core: Initial release.
