@@ -170,10 +170,10 @@ class RecordWindows extends RecordPlatform {
   List<String> _getAacQuality(int bitRate) {
     final rate = bitRate ~/ 1000;
     // Prefer VBR
-    if (rate <= 320) {
-      final quality = (rate / 64).ceil().clamp(1, 5).toInt();
-      return ['--aac-quality=$quality'];
-    }
+    // if (rate <= 320) {
+    //   final quality = (rate / 64).ceil().clamp(1, 5).toInt();
+    //   return ['--aac-quality=$quality'];
+    // }
 
     final quality = rate.clamp(8, 800).toInt();
     return ['--aac-quality=$quality'];
