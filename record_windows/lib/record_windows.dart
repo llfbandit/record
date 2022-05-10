@@ -23,15 +23,13 @@ class RecordWindows extends RecordPlatform {
 
   @override
   Future<void> dispose() {
-    if (_pid != null) {
-      Process.killPid(_pid!, ProcessSignal.sigterm);
-      _pid = null;
-    }
-
-    _isRecording = false;
-    _isPaused = false;
-
-    return Future.value();
+    return stop().then((value) {
+      if (_pid != null) {
+        Process.killPid(_pid!, ProcessSignal.sigterm);
+        _pid = null;
+      }
+      return Future.value();
+    });
   }
 
   @override
@@ -83,7 +81,7 @@ class RecordWindows extends RecordPlatform {
   Future<void> resume() async {
     await _callFMedia(['--globcmd=unpause']);
 
-    _isRecording = true;
+    _isPaused = false;
   }
 
   @override
@@ -93,6 +91,8 @@ class RecordWindows extends RecordPlatform {
     int bitRate = 128000,
     int samplingRate = 44100,
   }) async {
+    await stop();
+
     path ??= p.join(
       Directory.systemTemp.path,
       Random.secure().nextInt(1000000000).toRadixString(16),
@@ -107,6 +107,7 @@ class RecordWindows extends RecordPlatform {
     _path = path;
 
     _pid = await _callFMedia([
+      '--background',
       '--record',
       '--out=$path',
       '--rate=$samplingRate',
@@ -122,6 +123,7 @@ class RecordWindows extends RecordPlatform {
   @override
   Future<String?> stop() async {
     await _callFMedia(['--globcmd=stop']);
+    await _callFMedia(['--globcmd=quit']);
 
     _isRecording = false;
     _isPaused = false;
