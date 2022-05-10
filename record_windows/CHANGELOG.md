@@ -1,3 +1,6 @@
+## 0.4.1
+* fix: Remove CMakeLists.txt.
+
 ## 0.4.0
 * feat: Replace SFML by fmedia.
 
