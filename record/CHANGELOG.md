@@ -1,3 +1,6 @@
+## 4.1.0
+* feat: Add linux platform. EXPERIMENTAL.
+
 ## 4.0.2
 * core: Replace SFML by fmedia.
 * feat: More encoders and features on Windows.

@@ -241,7 +241,14 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "4.0.2"
+    version: "4.1.0"
+  record_linux:
+    dependency: transitive
+    description:
+      name: record_linux
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.0"
   record_macos:
     dependency: transitive
     description:
@@ -332,5 +339,5 @@ packages:
     source: hosted
     version: "0.2.0+1"
 sdks:
-  dart: ">=2.15.0 <3.0.0"
+  dart: ">=2.16.2 <3.0.0"
   flutter: ">=2.8.1"
