@@ -1,3 +1,6 @@
+## 4.1.1
+* core: README.md updates.
+
 ## 4.1.0
 * feat: Add linux platform. EXPERIMENTAL.
 
