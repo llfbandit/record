@@ -4,7 +4,7 @@ import 'package:record_platform_interface/src/types/amplitude.dart';
 import 'package:record_platform_interface/src/types/audio_encoder.dart';
 
 class MethodChannelRecord extends RecordPlatform {
-  static const MethodChannel _channel = MethodChannel(
+  final MethodChannel _channel = const MethodChannel(
     'com.llfbandit.record',
   );
 
