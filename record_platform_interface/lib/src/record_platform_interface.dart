@@ -12,7 +12,7 @@ import 'package:record_platform_interface/src/types/types.dart';
 abstract class RecordPlatform extends PlatformInterface {
   /// A token used for verification of subclasses to ensure they extend this
   /// class instead of implementing it.
-  static const _token = Object();
+  static final _token = Object();
 
   /// Constructs a [RecordPlatform].
   RecordPlatform() : super(token: _token);
