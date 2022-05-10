@@ -180,7 +180,7 @@ class RecordWindows extends RecordPlatform {
   }
 
   Future<int> _callFMedia(List<String> arguments) async {
-    final result = await Process.run('$_assetsDir\\fmedia.exe', [
+    final result = await Process.start('$_assetsDir\\fmedia.exe', [
       '--globcmd.pipe-name=$_pipeProcName',
       ...arguments,
     ]);
