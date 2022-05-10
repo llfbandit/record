@@ -163,7 +163,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
           print('${AudioEncoder.aacLc.name} supported: $isSupported');
         }
 
-        await _audioRecorder.start(encoder: AudioEncoder.opus);
+        await _audioRecorder.start();
 
         bool isRecording = await _audioRecorder.isRecording();
         setState(() {
