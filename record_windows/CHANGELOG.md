@@ -1,3 +1,6 @@
+## 0.4.3
+* fix: Better handling of fmedia process (start/pause/resume/stop start/stop again and again).
+
 ## 0.4.2
 * fix: Unreachable MethodChannel.
 
@@ -14,3 +17,4 @@
 * core: Provide also debug DLL to not crash apps. Need to be fixed.
 
 ## 0.1.0
+* core: Initial release
