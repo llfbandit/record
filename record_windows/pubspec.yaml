@@ -1,6 +1,6 @@
 name: record_windows
 description: Windows specific implementation for record package called by record_platform_interface.
-version: 0.4.1
+version: 0.4.2
 homepage: https://github.com/llfbandit/record/tree/master/record_windows
 
 environment:
@@ -19,8 +19,8 @@ dev_dependencies:
 
 flutter:
   plugin:
+    implements: record
     platforms:
-      implements: record
       windows:
         dartPluginClass: RecordWindows
 
