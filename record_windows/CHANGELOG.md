@@ -1,3 +1,6 @@
+## 0.4.2
+* fix: Unreachable MethodChannel.
+
 ## 0.4.1
 * fix: Remove CMakeLists.txt.
 
