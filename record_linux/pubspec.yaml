@@ -1,0 +1,66 @@
+name: record_linux
+description: Linuw specific implementation for record package called by record_platform_interface.
+version: 0.1.0
+homepage: https://github.com/llfbandit/record/tree/master/record_linux
+
+environment:
+  sdk: ">=2.16.2 <3.0.0"
+  flutter: ">=2.5.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  record_platform_interface: ^0.3.0
+  path: ^1.8.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^1.0.0
+
+# The following section is specific to Flutter.
+flutter:
+  plugin:
+    implements: record
+    platforms:
+      linux:
+        dartPluginClass: RecordLinux
+  
+  assets:
+    - assets/fmedia/fmedia
+    - assets/fmedia/fmedia.conf
+    - assets/fmedia/mod/aac.so
+    - assets/fmedia/mod/afilter.so
+    - assets/fmedia/mod/alac.so
+    - assets/fmedia/mod/ape.so
+    - assets/fmedia/mod/core.so
+    - assets/fmedia/mod/dynanorm.so
+    - assets/fmedia/mod/flac.so
+    - assets/fmedia/mod/fmt.so
+    - assets/fmedia/mod/libALAC-ff.so
+    - assets/fmedia/mod/libDynamicAudioNormalizer-ff.so
+    - assets/fmedia/mod/libfdk-aac-ff.so
+    - assets/fmedia/mod/libFLAC-ff.so
+    - assets/fmedia/mod/libMAC-ff.so
+    - assets/fmedia/mod/libmp3lame-ff.so
+    - assets/fmedia/mod/libmpc-ff.so
+    - assets/fmedia/mod/libmpg123-ff.so
+    - assets/fmedia/mod/libogg-ff.so
+    - assets/fmedia/mod/libopus-ff.so
+    - assets/fmedia/mod/libsoxr-ff.so
+    - assets/fmedia/mod/libvorbis-ff.so
+    - assets/fmedia/mod/libvorbisenc-ff.so
+    - assets/fmedia/mod/libwavpack-ff.so
+    - assets/fmedia/mod/mpc.so
+    - assets/fmedia/mod/mpeg.so
+    - assets/fmedia/mod/net.so
+    - assets/fmedia/mod/opus.so
+    - assets/fmedia/mod/plist.so
+    - assets/fmedia/mod/soxr.so
+    - assets/fmedia/mod/tui.so
+    - assets/fmedia/mod/vorbis.so
+    - assets/fmedia/mod/wavpack.so
+
+  
