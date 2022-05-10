@@ -13,6 +13,8 @@ class RecordPluginWeb extends RecordPlatform {
 
   // Media recorder object
   html.MediaRecorder? _mediaRecorder;
+  // Media stream get from getUserMedia
+  html.MediaStream? _mediaStream;
   // Audio data
   List<html.Blob> _chunks = [];
   // Completer to get data & stop events before `stop()` method ends
@@ -49,14 +51,14 @@ class RecordPluginWeb extends RecordPlatform {
 
   @override
   Future<void> pause() async {
-    if (kDebugMode) print('Recording paused');
+    _log('Recording paused');
 
     _mediaRecorder?.pause();
   }
 
   @override
   Future<void> resume() async {
-    if (kDebugMode) print('Recording resumed');
+    _log('Recording resumed');
     _mediaRecorder?.resume();
   }
 
@@ -84,13 +86,13 @@ class RecordPluginWeb extends RecordPlatform {
     }
 
     try {
-      final stream = await html.window.navigator.mediaDevices?.getUserMedia(
+      _mediaStream = await html.window.navigator.mediaDevices?.getUserMedia(
         constraints,
       );
-      if (stream != null) {
-        _onStart(stream);
+      if (_mediaStream != null) {
+        _onStart(_mediaStream!);
       } else {
-        print('Audio recording not supported.');
+        _log('Audio recording not supported.');
       }
     } catch (error, stack) {
       _onError(error, stack);
@@ -107,7 +109,7 @@ class RecordPluginWeb extends RecordPlatform {
   }
 
   void _onStart(html.MediaStream stream) {
-    if (kDebugMode) print('Start recording');
+    _log('Start recording');
 
     _mediaRecorder = html.MediaRecorder(stream);
     _mediaRecorder?.addEventListener('dataavailable', _onDataAvailable);
@@ -129,7 +131,7 @@ class RecordPluginWeb extends RecordPlatform {
   }
 
   String? _getSupportedMimeType(AudioEncoder encoder) {
-    final types = mime_types[encoder];
+    final types = mimeTypes[encoder];
     if (types == null) return null;
 
     for (var type in types) {
@@ -141,9 +143,7 @@ class RecordPluginWeb extends RecordPlatform {
     return null;
   }
 
-  void _onError(dynamic error, StackTrace trace) {
-    print(error);
-  }
+  void _onError(dynamic error, StackTrace trace) => _log(error);
 
   void _onDataAvailable(html.Event event) {
     if (event is html.BlobEvent && event.data != null) {
@@ -152,7 +152,7 @@ class RecordPluginWeb extends RecordPlatform {
   }
 
   void _onStop(html.Event event) {
-    if (kDebugMode) print('Stop recording');
+    _log('Stop recording');
 
     String? audioUrl;
 
@@ -171,6 +171,20 @@ class RecordPluginWeb extends RecordPlatform {
     _mediaRecorder?.removeEventListener('onstop', _onStop);
     _mediaRecorder = null;
 
+    final tracks = _mediaStream?.getTracks();
+
+    if (tracks != null) {
+      for (var track in tracks) {
+        track.stop();
+      }
+
+      _mediaStream = null;
+    }
+
     _chunks = [];
+  }
+
+  void _log(dynamic msg) {
+    if (kDebugMode) print(msg);
   }
 }

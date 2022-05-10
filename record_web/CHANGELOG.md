@@ -1,5 +1,9 @@
+## 0.3.1
+- fix: Close media stream after recording.
+- core: Flutter lints added.
+
 ## 0.3.0
-feat: Allow codec selection.
+- feat: Allow codec selection.
 
 ## 0.2.1
 - Fix record_platform_interface version.

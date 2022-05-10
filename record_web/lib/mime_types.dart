@@ -1,6 +1,6 @@
 import 'package:record_platform_interface/record_platform_interface.dart';
 
-const mime_types = {
+const mimeTypes = {
   // We apply same mime types for different encoding types for AAC
   AudioEncoder.aacLc: ['audio/aac', 'audio/mp4'],
   AudioEncoder.aacEld: ['audio/aac', 'audio/mp4'],
