@@ -108,7 +108,7 @@ public class AudioRecorder implements RecorderBase {
   public void getAmplitude(@NonNull MethodChannel.Result result) {
     Map<String, Object> amp = new HashMap<>();
 
-    final double currentAmplitude = (double) amplitude.get();
+    final double currentAmplitude = amplitude.get();
 
     if (currentAmplitude > maxAmplitude) {
       maxAmplitude = currentAmplitude;
@@ -250,7 +250,7 @@ public class AudioRecorder implements RecorderBase {
           maxSample = curSample;
         }
       }
-      amplitude.set((int) ((int) 20 * Math.log10(maxSample / 32768.0)));
+      amplitude.set((int) (20 * Math.log10(maxSample / 32768.0)));
     }
 
     private String getFailureReason(int errorCode) {
@@ -311,7 +311,7 @@ public class AudioRecorder implements RecorderBase {
       out.writeInt(Integer.reverseBytes(samplingRate)); // Sampling rate
       out.writeInt(Integer.reverseBytes(samplingRate * channels * bitsPerSample / 8)); // Byte rate
       out.writeShort(Short.reverseBytes((short) (channels * bitsPerSample / 8))); // Bytes per sample
-      out.writeShort(Short.reverseBytes((short) bitsPerSample)); // Bits per sample
+      out.writeShort(Short.reverseBytes(bitsPerSample)); // Bits per sample
       out.writeBytes("data");
       out.writeInt(Integer.reverseBytes(audioDataLength)); // audio length
     }
