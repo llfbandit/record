@@ -166,7 +166,7 @@ public class MethodCallHandlerImpl
       return r;
     }
 
-    r = new MediaRecorder();
+    r = new MediaRecorder(activity);
     if (r.isEncoderSupported(encoder)) {
       return r;
     }
