@@ -27,7 +27,7 @@ apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 android {
     compileSdkVersion 31
 
-    lintOptions {
+    lint {
         disable 'InvalidPackage'
     }
 
@@ -47,6 +47,7 @@ android {
             signingConfig signingConfigs.debug
         }
     }
+    namespace 'com.llfbandit.record_example'
 }
 
 flutter {
