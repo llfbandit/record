@@ -6,6 +6,10 @@ import 'package:record/record.dart';
 
 import 'package:record_example/audio_player.dart';
 
+void main() {
+  runApp(const MyApp());
+}
+
 class AudioRecorder extends StatefulWidget {
   final void Function(String path) onStop;
 
@@ -219,10 +223,6 @@ class _AudioRecorderState extends State<AudioRecorder> {
       setState(() {});
     });
   }
-}
-
-void main() {
-  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
