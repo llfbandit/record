@@ -77,7 +77,7 @@ packages:
       name: collection
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.15.0"
+    version: "1.16.0"
   crypto:
     dependency: transitive
     description:
@@ -136,7 +136,7 @@ packages:
       name: js
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.6.3"
+    version: "0.6.4"
   lints:
     dependency: transitive
     description:
@@ -150,7 +150,7 @@ packages:
       name: material_color_utilities
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.1.3"
+    version: "0.1.4"
   meta:
     dependency: transitive
     description:
@@ -241,42 +241,42 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "4.2.0-beta.1"
+    version: "4.1.1"
   record_linux:
     dependency: transitive
     description:
-      name: record_linux
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../../record_linux"
+      relative: true
+    source: path
     version: "0.1.0"
   record_macos:
     dependency: transitive
     description:
-      name: record_macos
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../../record_macos"
+      relative: true
+    source: path
     version: "0.1.0"
   record_platform_interface:
     dependency: transitive
     description:
-      name: record_platform_interface
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../../record_platform_interface"
+      relative: true
+    source: path
     version: "0.3.0"
   record_web:
     dependency: transitive
     description:
-      name: record_web
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../../record_web"
+      relative: true
+    source: path
     version: "0.3.1"
   record_windows:
     dependency: transitive
     description:
-      name: record_windows
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.4.2"
+      path: "../../record_windows"
+      relative: true
+    source: path
+    version: "0.4.3"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -323,7 +323,7 @@ packages:
       name: vector_math
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.1.1"
+    version: "2.1.2"
   win32:
     dependency: transitive
     description:
@@ -339,5 +339,5 @@ packages:
     source: hosted
     version: "0.2.0+1"
 sdks:
-  dart: ">=2.16.2 <3.0.0"
+  dart: ">=2.17.0-0 <3.0.0"
   flutter: ">=2.8.1"

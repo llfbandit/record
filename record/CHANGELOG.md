@@ -1,8 +1,3 @@
-## 4.2.0-beta.1
-* feat: Add recorder state streams.
-* feat: Add recorder amplitude stream.
-* core: Update dependencies.
-
 ## 4.1.1
 * core: README.md updates.
 

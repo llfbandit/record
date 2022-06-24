@@ -20,7 +20,7 @@ On web, well... your browser!
 ```
 min SDK: 19 (maybe higher => encoder dependent)
 
-### iOS
+### iOs
 ```xml
 <key>NSMicrophoneUsageDescription</key>
 <string>We need to access to the microphone to record audio file</string>
@@ -78,7 +78,7 @@ If a given encoder is not supported when starting recording on platform, the fal
 * [MediaRecorder encoding constants](https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder)
 * [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
 
-### iOS
+### iOs
 * [AVAudioRecorder encoding constants](https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers)
 
 ## Usage
