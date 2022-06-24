@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:record_platform_interface/record_platform_interface.dart';
+export 'package:record_platform_interface/src/types/types.dart';
 
 /// All states of the recorder
 enum RecordState { paused, resumed, stopped }
@@ -10,12 +11,14 @@ class Record implements RecordPlatform {
   @override
   Future<void> start({
     String? path,
+    Device? captureDevice,
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
   }) {
     return RecordPlatform.instance.start(
       path: path,
+      captureDevice: captureDevice,
       encoder: encoder,
       bitRate: bitRate,
       samplingRate: samplingRate,
@@ -131,4 +134,18 @@ class Record implements RecordPlatform {
       }
     }
   }
+
+  @override
+  /// [getCaptureDevices] Get all input devices. Compatible with [Windows, Linux ]
+  Future<List<Device>> getCaptureDevices(){
+    return RecordPlatform.instance.getCaptureDevices();
+  }
+
+  @override
+  /// [getCaptureDevices] Get all output devices. Compatible with [Windows, Linux ]
+  Future<List<Device>> getPlaybackDevices() {
+    return RecordPlatform.instance.getPlaybackDevices();
+  }
+
+
 }
