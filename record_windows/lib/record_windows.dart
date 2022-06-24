@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -35,6 +36,65 @@ class RecordWindows extends RecordPlatform {
   @override
   Future<Amplitude> getAmplitude() {
     return Future.value(Amplitude(current: -160.0, max: -160.0));
+  }
+
+  Future<List<Device>> _getAllDevices() async {
+    List<Device> devices = <Device>[];
+    final result = await Process.start('$_assetsDir\\fmedia.exe', [
+      '--globcmd.pipe-name=$_pipeProcName',
+      '--list-dev'
+    ]);
+    await result.stdout.transform(utf8.decoder).forEach(( info ) {
+      String type = 'Playback';
+      info.splitMapJoin(
+        'device #',
+        onMatch: ( m ) => '',
+        onNonMatch: ( n ) {
+          Device captureDevice = Device();
+          String idStr = n.substring(0,1);
+          String name = n.split(')').first.split(':').last.trim();
+          String channel = n.split(': ').last.split(')').last;
+          String defaultStr = n.split(')').last;
+                    
+          if( int.tryParse( idStr ) is int ){
+            captureDevice.id = int.parse(idStr);
+            if( defaultStr.contains('- Default') ){
+              captureDevice.isDefault = true;
+            }
+          }
+          
+          if( name.isNotEmpty ){
+            captureDevice.name = name+')';
+          }
+
+          if( channel.contains('channel') ){
+            captureDevice.channel = channel.replaceAll('Capture:', '').trim();
+            captureDevice.type = type;
+            if( channel.contains('Capture') ){
+              type = "Capture"; 
+            }
+          }
+          
+          if( captureDevice.id != null ){
+            devices.add( captureDevice );
+          }
+          return n;
+        }
+      ); 
+    });
+    return devices;
+  }
+
+  @override
+  Future<List<Device>> getPlaybackDevices() async {
+    List<Device> playbackDevices = <Device>[...await _getAllDevices()];
+    return playbackDevices.where((element) => element.type == 'Playback').toList();
+  }
+
+  @override
+  Future<List<Device>> getCaptureDevices() async {
+    List<Device> captureDevices = <Device>[...await _getAllDevices()];
+    return captureDevices.where((element) => element.type == 'Capture').toList();
   }
 
   @override
@@ -87,6 +147,7 @@ class RecordWindows extends RecordPlatform {
   @override
   Future<void> start({
     String? path,
+    Device? captureDevice,
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
@@ -106,7 +167,7 @@ class RecordWindows extends RecordPlatform {
 
     _path = path;
 
-    _pid = await _callFMedia([
+    List<String> arguments = [
       '--background',
       '--record',
       '--out=$path',
@@ -115,10 +176,16 @@ class RecordWindows extends RecordPlatform {
       '--globcmd=listen',
       '--gain=6.0',
       ..._getEncoderSettings(encoder, bitRate),
-    ]);
+    ];
+
+    if( captureDevice is Device ){
+      arguments.insert(1, '--dev-capture=${captureDevice.id}');
+    }
+
+    _pid = await _callFMedia(arguments);
 
     _isRecording = true;
-  }
+  } 
 
   @override
   Future<String?> stop() async {
@@ -186,7 +253,6 @@ class RecordWindows extends RecordPlatform {
       '--globcmd.pipe-name=$_pipeProcName',
       ...arguments,
     ]);
-
     return result.pid;
   }
 }

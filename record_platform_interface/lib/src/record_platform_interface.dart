@@ -46,6 +46,7 @@ abstract class RecordPlatform extends PlatformInterface {
   /// Ignored on web platform.
   Future<void> start({
     String? path,
+    Device? captureDevice,
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
@@ -81,6 +82,12 @@ abstract class RecordPlatform extends PlatformInterface {
   /// Gets current average & max amplitudes (dBFS)
   /// Always returns zeros on unsupported platforms
   Future<Amplitude> getAmplitude();
+
+  /// You only get the output devices
+  Future<List<Device>> getPlaybackDevices();
+
+  /// You only get the capture devices
+  Future<List<Device>> getCaptureDevices();
 
   /// Checks if the given encoder is supported on the current platform.
   Future<bool> isEncoderSupported(AudioEncoder encoder);

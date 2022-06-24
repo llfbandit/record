@@ -65,6 +65,7 @@ class RecordPluginWeb extends RecordPlatform {
   @override
   Future<void> start({
     String? path,
+    Device? captureDevice,
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
@@ -186,5 +187,26 @@ class RecordPluginWeb extends RecordPlatform {
 
   void _log(dynamic msg) {
     if (kDebugMode) print(msg);
+  }
+  
+  @override
+  Future<List<Device>> getCaptureDevices() async {
+    List<dynamic> devices = await html.window.navigator.mediaDevices!.enumerateDevices();
+    for( var device in devices ){
+      if( device is html.MediaDeviceInfo ){
+        print(device.label);
+        print(device.groupId);
+        print(device.kind);
+        print(device.deviceId);
+        
+      }      
+    }
+    
+    return <Device>[];
+  }
+  
+  @override
+  Future<List<Device>> getPlaybackDevices() async {
+    return <Device>[];
   }
 }

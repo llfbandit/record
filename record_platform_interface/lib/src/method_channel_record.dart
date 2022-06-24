@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:record_platform_interface/src/record_platform_interface.dart';
-import 'package:record_platform_interface/src/types/amplitude.dart';
-import 'package:record_platform_interface/src/types/audio_encoder.dart';
+import 'package:record_platform_interface/src/types/types.dart';
 
 class MethodChannelRecord extends RecordPlatform {
   final MethodChannel _channel = const MethodChannel(
@@ -39,6 +38,7 @@ class MethodChannelRecord extends RecordPlatform {
   @override
   Future<void> start({
     String? path,
+    Device? captureDevice,
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
@@ -69,6 +69,16 @@ class MethodChannelRecord extends RecordPlatform {
       current: result?['current'] ?? 0.0,
       max: result?['max'] ?? 0.0,
     );
+  }
+
+  @override
+  Future<List<Device>> getPlaybackDevices() async {
+    return [];
+  }
+
+  @override
+  Future<List<Device>> getCaptureDevices() async {
+    return [];
   }
 
   @override
