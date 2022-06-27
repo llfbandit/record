@@ -222,6 +222,8 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       ]
     case "aacLc":
       return [AVFormatIDKey : Int(kAudioFormatMPEG4AAC)]
+    case "wav":
+      return [AVFormatIDKey:Int(kAudioFormatLinearPCM)]
     default:
         return nil
     }
