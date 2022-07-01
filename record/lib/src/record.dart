@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:record_platform_interface/record_platform_interface.dart';
 
 /// All states of the recorder
-enum RecordState { paused, resumed, stopped }
+enum RecordState { pause, record, stop }
 
 /// Audio recorder API
 class Record implements RecordPlatform {
@@ -13,13 +13,15 @@ class Record implements RecordPlatform {
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
-  }) {
-    return RecordPlatform.instance.start(
+  }) async {
+    await RecordPlatform.instance.start(
       path: path,
       encoder: encoder,
       bitRate: bitRate,
       samplingRate: samplingRate,
     );
+
+    return _sendStateEvent(RecordState.record);
   }
 
   StreamController<RecordState>? _stateStreamCtrl;
@@ -27,11 +29,9 @@ class Record implements RecordPlatform {
 
   @override
   Future<String?> stop() async {
-    final result = RecordPlatform.instance.stop();
+    final result = await RecordPlatform.instance.stop();
 
-    if (_stateStreamCtrl?.hasListener ?? false) {
-      _stateStreamCtrl?.add(RecordState.stopped);
-    }
+    await _sendStateEvent(RecordState.stop);
 
     return result;
   }
@@ -40,18 +40,14 @@ class Record implements RecordPlatform {
   Future<void> pause() async {
     await RecordPlatform.instance.pause();
 
-    if (_stateStreamCtrl?.hasListener ?? false) {
-      _stateStreamCtrl?.add(RecordState.paused);
-    }
+    return _sendStateEvent(RecordState.pause);
   }
 
   @override
   Future<void> resume() async {
     await RecordPlatform.instance.resume();
 
-    if (_stateStreamCtrl?.hasListener ?? false) {
-      _stateStreamCtrl?.add(RecordState.resumed);
-    }
+    return _sendStateEvent(RecordState.record);
   }
 
   @override
@@ -123,11 +119,27 @@ class Record implements RecordPlatform {
       return result ? isRecording() : Future.value(false);
     }
 
-    while (await shouldUpdate()) {
-      await Future.delayed(interval);
+    while (await Future.delayed(interval)) {
+      if (!await shouldUpdate()) break;
+      _amplitudeStreamCtrl?.add(await getAmplitude());
+    }
+  }
 
-      if (_amplitudeStreamCtrl?.hasListener ?? false) {
-        _amplitudeStreamCtrl?.add(await getAmplitude());
+  Future<void> _sendStateEvent(RecordState state) async {
+    if (_stateStreamCtrl?.hasListener ?? false) {
+      switch (state) {
+        case RecordState.record:
+          final isRecording = await RecordPlatform.instance.isRecording();
+          if (isRecording) _stateStreamCtrl?.add(state);
+          break;
+        case RecordState.pause:
+          final isPaused = await RecordPlatform.instance.isPaused();
+          if (isPaused) _stateStreamCtrl?.add(state);
+          break;
+        case RecordState.stop:
+          final isRecording = await RecordPlatform.instance.isRecording();
+          if (!isRecording) _stateStreamCtrl?.add(state);
+          break;
       }
     }
   }
