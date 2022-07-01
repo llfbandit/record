@@ -2,6 +2,7 @@
 * fix: WAV recording header, resume-pause (Android).
 * fix: recorder state streams.
 * core: fmedia updated to 1.28 (linux / windows).
+* fix: Add error details on record start (ios).
 
 ## 4.2.0-dev.1
 * feat: Add recorder state streams.
