@@ -114,7 +114,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       isPaused = false
       result(nil)
     } catch {
-      result(FlutterError(code: "", message: "Failed to start recording", details: nil))
+      result(FlutterError(code: "", message: "Failed to start recording", details: "\(error)"))
     }
   }
 
