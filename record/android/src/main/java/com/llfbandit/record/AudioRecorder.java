@@ -60,14 +60,17 @@ public class AudioRecorder implements RecorderBase {
 
     // Get min size of the buffer for writings * factor
     final int bufferSize = AudioRecord.getMinBufferSize(samplingRate,
-        AudioFormat.CHANNEL_IN_MONO, audioFormat) * 2;
+        AudioFormat.CHANNEL_IN_STEREO, audioFormat) * 2;
 
     recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, samplingRate,
-        AudioFormat.CHANNEL_IN_MONO, audioFormat, bufferSize);
+        AudioFormat.CHANNEL_IN_STEREO, audioFormat, bufferSize);
 
     isRecording.set(true);
 
-    recordDataWriter = new RecordDataWriter(path, encoder, samplingRate, bufferSize);
+    recordDataWriter = new RecordDataWriter(
+        path, encoder, samplingRate, bufferSize, (short) 2,
+        (audioFormat == AudioFormat.ENCODING_PCM_16BIT) ? (short) 16 : (short) 8
+    );
     new Thread(recordDataWriter).start();
 
     recorder.startRecording();
@@ -189,15 +192,25 @@ public class AudioRecorder implements RecorderBase {
     final String encoder;
     final int samplingRate;
     final int bufferSize;
+    final short channels;
+    final short bitsPerSample;
     private int audioDataLength = 0;
     // Flag for completion
     CountDownLatch completion = new CountDownLatch(1);
 
-    RecordDataWriter(String path, String encoder, int samplingRate, int bufferSize) {
+    RecordDataWriter(
+        String path,
+        String encoder,
+        int samplingRate,
+        int bufferSize,
+        short channels,
+        short bitsPerSample) {
       this.path = path;
       this.encoder = encoder;
       this.samplingRate = samplingRate;
       this.bufferSize = bufferSize;
+      this.channels = channels;
+      this.bitsPerSample = bitsPerSample;
     }
 
     void close() throws InterruptedException {
@@ -213,22 +226,24 @@ public class AudioRecorder implements RecorderBase {
         out.setLength(0);
 
         while (isRecording.get()) {
-          if (isPaused.get()) {
+          while (isPaused.get()) {
             sleep(100);
           }
 
-          buffer.clear();
-          int result = recorder.read(buffer, bufferSize);
-          if (result < 0) {
-            throw new RuntimeException(getFailureReason(result));
-          } else if (result > 0) {
-            audioDataLength += result;
+          if (isRecording.get()) {
+            buffer.clear();
+            int result = recorder.read(buffer, bufferSize);
+            if (result < 0) {
+              throw new RuntimeException(getFailureReason(result));
+            } else if (result > 0) {
+              audioDataLength += result;
 
-            byte[] bytes = buffer.array();
-            // Update amplitude
-            updateAmplitude(bytes, result);
-            // Write to file
-            out.write(bytes, 0, result);
+              byte[] bytes = buffer.array();
+              // Update amplitude
+              updateAmplitude(bytes, result);
+              // Write to file
+              out.write(bytes, 0, result);
+            }
           }
         }
 
@@ -278,42 +293,68 @@ public class AudioRecorder implements RecorderBase {
     }
 
     private void writeWavHeader(RandomAccessFile out) throws IOException {
-      final short channels = 1;
-      final byte bitsPerSample = 16;
+// Offset  Size  Name             Description
 
-//      Bytes	Content	                                    Offset
-//      4	    Magic number: RIFF/RIFX                  	0
-//      4	    WAVE chunk size = file size - 8             4
-//      4	    WAVE identifier: WAVE                       8
-//      4	    Format chunk identifier: fmt<space>	        12
-//      4	    Format chunk size: 16 	                    16
-//      2	    Sound format code	                        20
-//      2	    Number of channels	                        22
-//      4	    Sampling rate	                            24
-//      4	    Average data rate in bytes per second       28
-//      2	    Bytes per sample*	                        32
-//      2	    Bits per sample*	                        34
-//      4	    Chunk identifier: data	                    36
-//      4	    Chunk length in bytes: N	                40
-//      N	    Audio data	                                44
-//
-//      * For 16 bit PCM data the bytes per sample value is two for monaural but four for stereo.
+// The canonical WAVE format starts with the RIFF header:
 
-      // write file header
+// 0         4   ChunkID          Contains the letters "RIFF" in ASCII form
+//                                (0x52494646 big-endian form).
+// 4         4   ChunkSize        36 + SubChunk2Size, or more precisely:
+//                                4 + (8 + SubChunk1Size) + (8 + SubChunk2Size)
+//                                This is the size of the rest of the chunk 
+//                                following this number.  This is the size of the 
+//                                entire file in bytes minus 8 bytes for the
+//                                two fields not included in this count:
+//                                ChunkID and ChunkSize.
+// 8         4   Format           Contains the letters "WAVE"
+//                                (0x57415645 big-endian form).
+
+// The "WAVE" format consists of two subchunks: "fmt " and "data":
+// The "fmt " subchunk describes the sound data's format:
+
+// 12        4   Subchunk1ID      Contains the letters "fmt "
+//                                (0x666d7420 big-endian form).
+// 16        4   Subchunk1Size    16 for PCM.  This is the size of the
+//                                rest of the Subchunk which follows this number.
+// 20        2   AudioFormat      PCM = 1 (i.e. Linear quantization)
+//                                Values other than 1 indicate some
+//                                form of compression.
+// 22        2   NumChannels      Mono = 1, Stereo = 2, etc.
+// 24        4   SampleRate       8000, 44100, etc.
+// 28        4   ByteRate         == SampleRate * NumChannels * BitsPerSample/8
+// 32        2   BlockAlign       == NumChannels * BitsPerSample/8
+//                                The number of bytes for one sample including
+//                                all channels. I wonder what happens when
+//                                this number isn't an integer?
+// 34        2   BitsPerSample    8 bits = 8, 16 bits = 16, etc.
+//           2   ExtraParamSize   if PCM, then doesn't exist
+//           X   ExtraParams      space for extra parameters
+
+// The "data" subchunk contains the size of the data and the actual sound:
+
+// 36        4   Subchunk2ID      Contains the letters "data"
+//                                (0x64617461 big-endian form).
+// 40        4   Subchunk2Size    == NumSamples * NumChannels * BitsPerSample/8
+//                                This is the number of bytes in the data.
+//                                You can also think of this as the size
+//                                of the read of the subchunk following this 
+//                                number.
+// 44        *   Data             The actual sound data.
+
       out.seek(0);
-      out.writeBytes("RIFF");
-      out.writeInt(Integer.reverseBytes(36 + audioDataLength)); // data length
-      out.writeBytes("WAVE");
-      out.writeBytes("fmt ");
-      out.writeInt(Integer.reverseBytes(16)); // size of 'fmt ' chunk
+      out.writeBytes("RIFF"); // ChunkID
+      out.writeInt(Integer.reverseBytes(36 + audioDataLength)); // ChunkSize
+      out.writeBytes("WAVE"); // Format
+      out.writeBytes("fmt "); // Subchunk1ID
+      out.writeInt(Integer.reverseBytes(16)); // Subchunk1Size
       out.writeShort(Short.reverseBytes((short) 1)); // AudioFormat, 1 for PCM
-      out.writeShort(Short.reverseBytes(channels));// Number of channels
-      out.writeInt(Integer.reverseBytes(samplingRate)); // Sampling rate
-      out.writeInt(Integer.reverseBytes(samplingRate * channels * bitsPerSample / 8)); // Byte rate
-      out.writeShort(Short.reverseBytes((short) (channels * bitsPerSample / 8))); // Bytes per sample
-      out.writeShort(Short.reverseBytes(bitsPerSample)); // Bits per sample
-      out.writeBytes("data");
-      out.writeInt(Integer.reverseBytes(audioDataLength)); // audio length
+      out.writeShort(Short.reverseBytes(channels)); // NumChannels
+      out.writeInt(Integer.reverseBytes(samplingRate)); // SampleRate
+      out.writeInt(Integer.reverseBytes(samplingRate * channels * bitsPerSample / 8)); // ByteRate
+      out.writeShort(Short.reverseBytes((short) (channels * bitsPerSample / 8))); // BlockAlign
+      out.writeShort(Short.reverseBytes(bitsPerSample)); // BitsPerSample
+      out.writeBytes("data"); // Subchunk2ID
+      out.writeInt(Integer.reverseBytes(audioDataLength)); // Subchunk2Size
     }
   }
 }
