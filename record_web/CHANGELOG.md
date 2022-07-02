@@ -1,3 +1,7 @@
+## 0.4.0
+- feat: Add input devices listing.
+- feat: Add number of channels.
+
 ## 0.3.1
 - fix: Close media stream after recording.
 - core: Flutter lints added.

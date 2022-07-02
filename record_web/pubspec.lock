@@ -70,10 +70,10 @@ packages:
   record_platform_interface:
     dependency: "direct main"
     description:
-      name: record_platform_interface
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.3.0"
+      path: "../record_platform_interface"
+      relative: true
+    source: path
+    version: "0.4.0"
   sky_engine:
     dependency: transitive
     description: flutter

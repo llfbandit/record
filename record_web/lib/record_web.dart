@@ -68,6 +68,8 @@ class RecordPluginWeb extends RecordPlatform {
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
+    int numChannels = 2,
+    InputDevice? device,
   }) async {
     _mediaRecorder?.stop();
     _resetMediaRecorder();
@@ -76,6 +78,9 @@ class RecordPluginWeb extends RecordPlatform {
       'audio': true,
       'audioBitsPerSecond': bitRate,
       'bitsPerSecond': bitRate,
+      'sampleRate': samplingRate,
+      'channelCount': numChannels,
+      if (device != null) 'deviceId': {'exact': device.id}
     };
 
     // Try to assign dedicated mime type.
@@ -94,8 +99,8 @@ class RecordPluginWeb extends RecordPlatform {
       } else {
         _log('Audio recording not supported.');
       }
-    } catch (error, stack) {
-      _onError(error, stack);
+    } catch (error) {
+      _onError(error);
     }
   }
 
@@ -106,6 +111,33 @@ class RecordPluginWeb extends RecordPlatform {
     _mediaRecorder?.stop();
 
     return _onStopCompleter?.future;
+  }
+
+  @override
+  Future<List<InputDevice>> listInputDevices() async {
+    final devices = <InputDevice>[];
+
+    final mediaDevices = html.window.navigator.mediaDevices;
+    try {
+      if (mediaDevices == null) {
+        _onError('enumerateDevices() not supported.');
+        return devices;
+      }
+
+      final deviceInfos = await mediaDevices.enumerateDevices();
+      for (var info in deviceInfos) {
+        if (info is html.MediaDeviceInfo &&
+            info.kind == 'audioinput' &&
+            info.deviceId != null &&
+            info.label != null) {
+          devices.add(InputDevice(id: info.deviceId!, label: info.label!));
+        }
+      }
+    } catch (error) {
+      _onError(error);
+    }
+
+    return devices;
   }
 
   void _onStart(html.MediaStream stream) {
@@ -143,7 +175,7 @@ class RecordPluginWeb extends RecordPlatform {
     return null;
   }
 
-  void _onError(dynamic error, StackTrace trace) => _log(error);
+  void _onError(dynamic error) => _log(error);
 
   void _onDataAvailable(html.Event event) {
     if (event is html.BlobEvent && event.data != null) {

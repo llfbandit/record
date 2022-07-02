@@ -6,6 +6,8 @@ import 'package:record_windows/record_windows.dart';
 Future<void> main() async {
   final record = RecordWindows();
 
+  // final d = await record.listInputDevices();
+
   await record.start(
     path: p.join(File(Platform.resolvedExecutable).parent.path, 'rec.m4a'),
   );

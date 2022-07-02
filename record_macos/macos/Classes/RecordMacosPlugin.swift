@@ -33,6 +33,8 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
           encoder: args["encoder"] as! String,
           bitRate: args["bitRate"] as? Int ?? 128000,
           samplingRate: args["samplingRate"] as? Int ?? 44100,
+          numChannels: args["numChannels"] as? Int ?? 2,
+          device: args["device"] as? [String : Any],
           result: result)
         break
       case "stop":
@@ -59,6 +61,8 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         let settings = getEncoderSettings(encoder)
         result(settings != nil)
         break
+      case "listInputDevices":
+        result(listInputDevices())
       case "dispose":
         dispose(result)
         break
@@ -88,10 +92,15 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     }
   }
 
-  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, result: @escaping FlutterResult) {
+  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String, Any]?, result: @escaping FlutterResult) {
     stopRecording()
 
-    let settings = getSettings(encoder: encoder, bitRate: bitRate, samplingRate: samplingRate)
+    let settings = getSettings(
+      encoder: encoder,
+      bitRate: bitRate,
+      samplingRate: samplingRate,
+      numChannels: numChannels,
+      device: device)
 
     do {
       let url = URL(string: path) ?? URL(fileURLWithPath: path)
@@ -168,11 +177,11 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     result(path)
   }
 
-  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int) -> [String : Any] {
+  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String, Any]?) -> [String : Any] {
     let settings = [
       AVEncoderBitRateKey: bitRate,
       AVSampleRateKey: samplingRate,
-      AVNumberOfChannelsKey: 2,
+      AVNumberOfChannelsKey: numChannels,
       AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
     ] as [String : Any]
 
@@ -186,7 +195,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
   }
 
   // https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers
-  fileprivate func getEncoderSettings(_ encoder: String) -> [String : Any]? {    
+  fileprivate func getEncoderSettings(_ encoder: String) -> [String : Any]? {
     switch(encoder) {
     case "aacEld":
       return [AVFormatIDKey : Int(kAudioFormatMPEG4AAC_ELD)]
@@ -214,6 +223,20 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       return [AVFormatIDKey : Int(kAudioFormatMPEG4AAC)]
     default:
       return nil
+    }
+  }
+
+  fileprivate func listInputDevices() -> [[String : Any]] {
+    let discoverySession = AVCaptureDevice.DiscoverySession(
+      deviceTypes: [.builtInMicrophone, .externalUnknown],
+      mediaType: .audio, position: .unspecified
+    )
+
+    return discoverySession.devices.map { (device) -> [String : Any] in
+      return [
+        "id": device.uniqueID,
+        "label": device.localizedName,
+      ]
     }
   }
 }
