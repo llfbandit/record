@@ -1,3 +1,6 @@
+## 0.2.1
+* fix: Better error handling for input devices.
+
 ## 0.2.0
 * feat: Add input devices listing.
 * feat: Add number of channels.
