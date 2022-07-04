@@ -103,19 +103,32 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
 
   fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String: Any]?, result: @escaping FlutterResult) {
     stopRecording()
-    
+
     audioSession = AVCaptureSession()
     guard let audioSession = audioSession else {
       result(FlutterError(code: "-1", message: "Failed to start recording", details: "Audio session is nil."))
       return
     }
-    guard let dev = getInputDevice(device: device), audioSession.canAddInput(dev) else {
-      result(FlutterError(code: "-2", message: "Failed to start recording", details: "Input device not found or not suitable."))
+
+    let dev: AVCaptureInput?
+    do {
+      dev = try getInputDevice(device: device)
+    } catch {
+      result(FlutterError(code: "-2", message: "Failed to start recording", details: "\(error)"))
+      return
+    }
+    
+    guard let dev = dev else {
+      result(FlutterError(code: "-3", message: "Failed to start recording", details: "Input device not found from available list."))
+      return
+    }
+    guard audioSession.canAddInput(dev) else {
+      result(FlutterError(code: "-4", message: "Failed to start recording", details: "Input device cannot be added to the capture session."))
       return
     }
 
     audioSession.beginConfiguration()
-    
+
     // Add input device
     audioSession.addInput(dev)
     // Add output
@@ -126,9 +139,9 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
       samplingRate: samplingRate,
       numChannels: numChannels)
     audioSession.addOutput(audioOutput!)
-    
+
     audioSession.commitConfiguration()
-    
+
     audioSession.startRunning()
     
     audioOutput!.startRecording(
@@ -280,14 +293,14 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
 
   fileprivate func listInputDevices() -> [AVCaptureDevice] {
     let discoverySession = AVCaptureDevice.DiscoverySession(
-        deviceTypes: [.builtInMicrophone, .externalUnknown],
+      deviceTypes: [.builtInMicrophone, .externalUnknown],
       mediaType: .audio, position: .unspecified
     )
 
     return discoverySession.devices
   }
-  
-  fileprivate func getInputDevice(device: [String: Any]?) -> AVCaptureDeviceInput? {
+
+  fileprivate func getInputDevice(device: [String: Any]?) throws -> AVCaptureDeviceInput? {
     guard let device = device else {
       // try to select default device
       let defaultDevice = AVCaptureDevice.default(for: .audio)
@@ -295,11 +308,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
         return nil
       }
 
-      do {
-        return try AVCaptureDeviceInput(device: defaultDevice)
-      } catch {
-        return nil
-      }
+      return try AVCaptureDeviceInput(device: defaultDevice)
     }
 
     // find the given device
@@ -311,10 +320,6 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
       return nil
     }
     
-    do {
-      return try AVCaptureDeviceInput(device: captureDev)
-    } catch {
-      return nil
-    }
+    return try AVCaptureDeviceInput(device: captureDev)
   }
 }
