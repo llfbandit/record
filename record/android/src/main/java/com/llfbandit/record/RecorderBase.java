@@ -2,6 +2,8 @@ package com.llfbandit.record;
 
 import androidx.annotation.NonNull;
 
+import java.util.Map;
+
 import io.flutter.plugin.common.MethodChannel;
 
 public interface RecorderBase {
@@ -12,6 +14,8 @@ public interface RecorderBase {
    * @param encoder      The encoder enum index from dart side.
    * @param bitRate      The bit rate of encoded file.
    * @param samplingRate The sampling rate of encoded file.
+   * @param numChannels  The number of channels.
+   * @param device       The input device to acquire audio data.
    * @param result       Always null
    */
   void start(
@@ -19,6 +23,8 @@ public interface RecorderBase {
       String encoder,
       int bitRate,
       int samplingRate,
+      int numChannels,
+      Map<String, Object> device,
       @NonNull MethodChannel.Result result);
 
   /**

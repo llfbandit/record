@@ -63,6 +63,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         break
       case "listInputDevices":
         result(listInputDevices())
+        break
       case "dispose":
         dispose(result)
         break

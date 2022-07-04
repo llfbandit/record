@@ -33,6 +33,8 @@ class MediaRecorder implements RecorderBase {
       String encoder,
       int bitRate,
       int samplingRate,
+      int numChannels,
+      Map<String, Object> device,
       @NonNull Result result
   ) {
     stopRecording();
@@ -45,9 +47,13 @@ class MediaRecorder implements RecorderBase {
         ? new android.media.MediaRecorder(context)
         : new android.media.MediaRecorder();
 
+    // clamp channels
+    numChannels = Math.max(1, numChannels);
+
     recorder.setAudioSource(android.media.MediaRecorder.AudioSource.DEFAULT);
     recorder.setAudioEncodingBitRate(bitRate);
     recorder.setAudioSamplingRate(samplingRate);
+    recorder.setAudioChannels(numChannels);
     recorder.setOutputFormat(getOutputFormat(encoder));
 
     // must be set after output format

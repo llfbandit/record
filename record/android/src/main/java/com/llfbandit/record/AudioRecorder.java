@@ -46,6 +46,8 @@ public class AudioRecorder implements RecorderBase {
       String encoder,
       int bitRate,
       int samplingRate,
+      int numChannels,
+      Map<String, Object> device,
       @NonNull MethodChannel.Result result) {
 
     stopRecording();
@@ -58,17 +60,22 @@ public class AudioRecorder implements RecorderBase {
       audioFormat = AudioFormat.ENCODING_PCM_16BIT;
     }
 
-    // Get min size of the buffer for writings * factor
-    final int bufferSize = AudioRecord.getMinBufferSize(samplingRate,
-        AudioFormat.CHANNEL_IN_STEREO, audioFormat) * 2;
+    // clamp channels
+    numChannels = Math.min(2, Math.max(1, numChannels));
 
-    recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, samplingRate,
-        AudioFormat.CHANNEL_IN_STEREO, audioFormat, bufferSize);
+    final int channelConfig = numChannels == 1
+        ? AudioFormat.CHANNEL_IN_MONO
+        : AudioFormat.CHANNEL_IN_STEREO;
+
+    // Get min size of the buffer for writings * factor
+    final int bufferSize = AudioRecord.getMinBufferSize(samplingRate, channelConfig, audioFormat) * 2;
+
+    recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, samplingRate, channelConfig, audioFormat, bufferSize);
 
     isRecording.set(true);
 
     recordDataWriter = new RecordDataWriter(
-        path, encoder, samplingRate, bufferSize, (short) 2,
+        path, encoder, samplingRate, bufferSize, (short) numChannels,
         (audioFormat == AudioFormat.ENCODING_PCM_16BIT) ? (short) 16 : (short) 8
     );
     new Thread(recordDataWriter).start();

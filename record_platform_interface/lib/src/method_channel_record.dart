@@ -90,8 +90,6 @@ class MethodChannelRecord extends RecordPlatform {
   Future<List<InputDevice>> listInputDevices() async {
     final devices = await _channel.invokeMethod<List<Map>>('listInputDevices');
 
-    if (devices == null) return [];
-
-    return devices.map(InputDevice.fromMap).toList(growable: false);
+    return devices?.map(InputDevice.fromMap).toList(growable: false) ?? [];
   }
 }
