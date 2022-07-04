@@ -6,17 +6,12 @@ import 'package:record/record.dart';
 
 import 'package:record_example/audio_player.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+void main() => runApp(const MyApp());
 
 class AudioRecorder extends StatefulWidget {
   final void Function(String path) onStop;
 
-  const AudioRecorder({
-    Key? key,
-    required this.onStop,
-  }) : super(key: key);
+  const AudioRecorder({Key? key, required this.onStop}) : super(key: key);
 
   @override
   _AudioRecorderState createState() => _AudioRecorderState();
@@ -32,17 +27,66 @@ class _AudioRecorderState extends State<AudioRecorder> {
   Amplitude? _amplitude;
 
   @override
-  void initState() {
-    _isRecording = false;
-    super.initState();
-  }
-
-  @override
   void dispose() {
     _timer?.cancel();
     _ampTimer?.cancel();
     _audioRecorder.dispose();
     super.dispose();
+  }
+
+  Future<void> _start() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        // We don't do anything with this but printing
+        final isSupported = await _audioRecorder.isEncoderSupported(
+          AudioEncoder.aacLc,
+        );
+        if (kDebugMode) {
+          print('${AudioEncoder.aacLc.name} supported: $isSupported');
+        }
+
+        // final devs = await _audioRecorder.listInputDevices();
+
+        await _audioRecorder.start();
+
+        bool isRecording = await _audioRecorder.isRecording();
+        setState(() {
+          _isRecording = isRecording;
+          _recordDuration = 0;
+        });
+
+        _startTimer();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print(e);
+      }
+    }
+  }
+
+  Future<void> _stop() async {
+    _timer?.cancel();
+    _ampTimer?.cancel();
+    final path = await _audioRecorder.stop();
+
+    widget.onStop(path!);
+
+    setState(() => _isRecording = false);
+  }
+
+  Future<void> _pause() async {
+    _timer?.cancel();
+    _ampTimer?.cancel();
+    await _audioRecorder.pause();
+
+    setState(() => _isPaused = true);
+  }
+
+  Future<void> _resume() async {
+    _startTimer();
+    await _audioRecorder.resume();
+
+    setState(() => _isPaused = false);
   }
 
   @override
@@ -154,61 +198,6 @@ class _AudioRecorderState extends State<AudioRecorder> {
     }
 
     return numberStr;
-  }
-
-  Future<void> _start() async {
-    try {
-      if (await _audioRecorder.hasPermission()) {
-        // We don't do anything with this but printing
-        final isSupported = await _audioRecorder.isEncoderSupported(
-          AudioEncoder.aacLc,
-        );
-        if (kDebugMode) {
-          print('${AudioEncoder.aacLc.name} supported: $isSupported');
-        }
-
-        final devs = await _audioRecorder.listInputDevices();
-
-        await _audioRecorder.start();
-
-        bool isRecording = await _audioRecorder.isRecording();
-        setState(() {
-          _isRecording = isRecording;
-          _recordDuration = 0;
-        });
-
-        _startTimer();
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print(e);
-      }
-    }
-  }
-
-  Future<void> _stop() async {
-    _timer?.cancel();
-    _ampTimer?.cancel();
-    final path = await _audioRecorder.stop();
-
-    widget.onStop(path!);
-
-    setState(() => _isRecording = false);
-  }
-
-  Future<void> _pause() async {
-    _timer?.cancel();
-    _ampTimer?.cancel();
-    await _audioRecorder.pause();
-
-    setState(() => _isPaused = true);
-  }
-
-  Future<void> _resume() async {
-    _startTimer();
-    await _audioRecorder.resume();
-
-    setState(() => _isPaused = false);
   }
 
   void _startTimer() {

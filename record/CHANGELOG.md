@@ -1,15 +1,15 @@
 ## 4.2.0-dev.3
 * feat: Add input devices listing and selection (linux / windows / macOS / web).
 * feat: Add number of channels.
+* core: fmedia updated to 1.28 (linux / windows).
 
 ## 4.2.0-dev.2
 * fix: WAV recording header, resume-pause (Android).
-* fix: recorder state streams.
-* core: fmedia updated to 1.28 (linux / windows).
+* fix: recorder state stream.
 * fix: Add error details on record start (ios).
 
 ## 4.2.0-dev.1
-* feat: Add recorder state streams.
+* feat: Add recorder state stream.
 * feat: Add recorder amplitude stream.
 * core: Update dependencies.
 

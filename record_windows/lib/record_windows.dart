@@ -144,14 +144,17 @@ class RecordWindows extends RecordPlatform {
     final completer = Completer<List<InputDevice>>();
 
     final out = <String>[];
-    process.stdout
+    StreamSubscription<String>? sub;
+    sub = process.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((chunk) {
       out.add(chunk);
-    }).onDone(() {
-      completer.complete(_listInputDevices(out));
-    });
+    })
+      ..onDone(() {
+        sub?.cancel();
+        completer.complete(_listInputDevices(out));
+      });
 
     return completer.future;
   }
