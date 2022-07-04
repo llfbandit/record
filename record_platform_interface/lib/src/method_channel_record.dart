@@ -88,8 +88,8 @@ class MethodChannelRecord extends RecordPlatform {
 
   @override
   Future<List<InputDevice>> listInputDevices() async {
-    final devices = await _channel.invokeMethod<List<Map>>('listInputDevices');
+    final devices = await _channel.invokeMethod<List<dynamic>>('listInputDevices');
 
-    return devices?.map(InputDevice.fromMap).toList(growable: false) ?? [];
+    return devices?.map((d) =>InputDevice.fromMap(d as Map)).toList(growable: false) ?? [];
   }
 }

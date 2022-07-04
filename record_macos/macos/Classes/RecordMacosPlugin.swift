@@ -2,16 +2,15 @@ import Cocoa
 import FlutterMacOS
 import AVFoundation
 
-public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate {
+public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputRecordingDelegate {
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "com.llfbandit.record", binaryMessenger: registrar.messenger)
     let instance = RecordMacosPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
   }
 
-  var isRecording = false
-  var isPaused = false
-  var audioRecorder: AVAudioRecorder?
+  var audioSession: AVCaptureSession?
+  var audioOutput: AVCaptureAudioFileOutput?
   var path: String?
   var maxAmplitude:Float = -160.0;
 
@@ -42,12 +41,15 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         break
       case "pause":
         pause(result)
+        break
       case "resume":
         resume(result)
+        break
       case "isPaused":
-        result(isPaused)
+        result(audioOutput?.isRecordingPaused ?? false)
+        break
       case "isRecording":
-        result(isRecording)
+        result(audioOutput?.isRecording ?? false)
         break
       case "hasPermission":
         hasPermission(result)
@@ -62,7 +64,13 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         result(settings != nil)
         break
       case "listInputDevices":
-        result(listInputDevices())
+      let devs = listInputDevices().map { (device) -> [String : Any] in
+        return [
+          "id": device.uniqueID,
+          "label": device.localizedName,
+        ]
+      }
+        result(devs)
         break
       case "dispose":
         dispose(result)
@@ -93,17 +101,45 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     }
   }
 
-  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String, Any]?, result: @escaping FlutterResult) {
+  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String: Any]?, result: @escaping FlutterResult) {
     stopRecording()
+    
+    audioSession = AVCaptureSession()
+    guard let audioSession = audioSession else {
+      result(FlutterError(code: "-1", message: "Failed to start recording", details: "Audio session is nil."))
+      return
+    }
+    guard let dev = getInputDevice(device: device), audioSession.canAddInput(dev) else {
+      result(FlutterError(code: "-2", message: "Failed to start recording", details: "Input device not found or not suitable."))
+      return
+    }
 
-    let settings = getSettings(
+    audioSession.beginConfiguration()
+    
+    // Add input device
+    audioSession.addInput(dev)
+    // Add output
+    audioOutput = AVCaptureAudioFileOutput()
+    audioOutput!.audioSettings = getSettings(
       encoder: encoder,
       bitRate: bitRate,
       samplingRate: samplingRate,
-      numChannels: numChannels,
-      device: device)
+      numChannels: numChannels)
+    audioSession.addOutput(audioOutput!)
+    
+    audioSession.commitConfiguration()
+    
+    audioSession.startRunning()
+    
+    audioOutput!.startRecording(
+      to: URL(string: path) ?? URL(fileURLWithPath: path),
+      outputFileType: AVFileType.m4a,
+      recordingDelegate: self
+    )
 
-    do {
+    result(nil)
+
+    /*do {
       let url = URL(string: path) ?? URL(fileURLWithPath: path)
       audioRecorder = try AVAudioRecorder(url: url, settings: settings)
       audioRecorder!.delegate = self
@@ -115,7 +151,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       result(nil)
     } catch {
       result(FlutterError(code: "", message: "Failed to start recording", details: error))
-    }
+    }*/
   }
 
   fileprivate func stop(_ result: @escaping FlutterResult) {
@@ -124,15 +160,13 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
   }
     
   fileprivate func pause(_ result: @escaping FlutterResult) {
-    audioRecorder?.pause()
-    isPaused = true
+    audioOutput?.pauseRecording()
     result(nil)
   }
     
   fileprivate func resume(_ result: @escaping FlutterResult) {
-    if isPaused {
-      audioRecorder?.record()
-      isPaused = false
+    if audioOutput?.isRecordingPaused ?? false {
+      audioOutput?.resumeRecording()
     }
     
     result(nil)
@@ -146,30 +180,38 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
   fileprivate func getAmplitude(_ result: @escaping FlutterResult) {
     var amp = ["current" : -160.0, "max" : -160.0] as [String : Float]
 
-    if isRecording {
-      audioRecorder?.updateMeters()
+    if let audioOutput = audioOutput {
+//      var channels = 0
+//      var decibels: Float = 0.0
+//      for connection in audioOutput.connections {
+//        for audioChannel in connection.audioChannels {
+//          decibels += audioChannel.averagePowerLevel
+//          channels += 1
+//        }
+//      }
+//
+//      decibels /= Float(channels)
+//      let current = pow(10.0, 0.05 * decibels) * 20.0
       
-      guard let current = audioRecorder?.averagePower(forChannel: 0) else {
-        result(amp)
-        return
-      }
+      let current = audioOutput.connections.first?.audioChannels.first?.averagePowerLevel
+      if let current = current {
+        if (current > maxAmplitude) {
+          maxAmplitude = current
+        }
 
-      if (current > maxAmplitude) {
-        maxAmplitude = current
+        amp["current"] = current
+        amp["max"] = maxAmplitude
       }
-
-      amp["current"] = current
-      amp["max"] = maxAmplitude
     }
 
     result(amp)
   }
 
   fileprivate func stopRecording() {
-    audioRecorder?.stop()
-    audioRecorder = nil
-    isRecording = false
-    isPaused = false
+    audioOutput?.stopRecording()
+    audioOutput = nil
+    audioSession?.stopRunning()
+    audioSession = nil
     maxAmplitude = -160.0
   }
 
@@ -177,8 +219,17 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     stopRecording()
     result(path)
   }
+  
+  public func fileOutput(_ output: AVCaptureFileOutput,
+                         didFinishRecordingTo outputFileURL: URL,
+                         from connections: [AVCaptureConnection],
+                         error: Error?) {
+    if let error = error {
+      print(error)
+    }
+  }
 
-  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String, Any]?) -> [String : Any] {
+  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int) -> [String : Any] {
     let settings = [
       AVEncoderBitRateKey: bitRate,
       AVSampleRateKey: samplingRate,
@@ -227,17 +278,43 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     }
   }
 
-  fileprivate func listInputDevices() -> [[String : Any]] {
+  fileprivate func listInputDevices() -> [AVCaptureDevice] {
     let discoverySession = AVCaptureDevice.DiscoverySession(
-      deviceTypes: [.builtInMicrophone, .externalUnknown],
+        deviceTypes: [.builtInMicrophone, .externalUnknown],
       mediaType: .audio, position: .unspecified
     )
 
-    return discoverySession.devices.map { (device) -> [String : Any] in
-      return [
-        "id": device.uniqueID,
-        "label": device.localizedName,
-      ]
+    return discoverySession.devices
+  }
+  
+  fileprivate func getInputDevice(device: [String: Any]?) -> AVCaptureDeviceInput? {
+    guard let device = device else {
+      // try to select default device
+      let defaultDevice = AVCaptureDevice.default(for: .audio)
+      guard let defaultDevice = defaultDevice else {
+        return nil
+      }
+
+      do {
+        return try AVCaptureDeviceInput(device: defaultDevice)
+      } catch {
+        return nil
+      }
+    }
+
+    // find the given device
+    let devs = listInputDevices()
+    let captureDev = devs.first { dev in
+      dev.uniqueID == device["id"] as! String
+    }
+    guard let captureDev = captureDev else {
+      return nil
+    }
+    
+    do {
+      return try AVCaptureDeviceInput(device: captureDev)
+    } catch {
+      return nil
     }
   }
 }
