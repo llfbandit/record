@@ -86,9 +86,6 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
       case .authorized:
         result(true)
         break
-      case .denied:
-        result(false)
-        break
       case .notDetermined:
         AVCaptureDevice.requestAccess(for: .audio) { allowed in
           DispatchQueue.main.async {
@@ -97,6 +94,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
         }
         break
       default:
+        result(false)
         break
     }
   }
