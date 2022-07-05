@@ -4,8 +4,15 @@ import 'dart:math';
 import 'package:path/path.dart' as p;
 import 'package:record_platform_interface/record_platform_interface.dart';
 
-///relative path to
-const _assetsDir = 'data/flutter_assets/packages/record_linux/assets/fmedia';
+/// uri of executable file
+final _uri = File(Platform.resolvedExecutable).uri;
+
+/// Absolut path to package assets.
+///
+/// By default data folder is in the same directory as executable.
+final _assetsDir = p.join(_uri.path.substring(
+    0, _uri.path.length - _uri.pathSegments.last.length),
+    'data/flutter_assets/packages/record_linux/assets/fmedia');
 
 const _pipeProcName = 'record_linux';
 
