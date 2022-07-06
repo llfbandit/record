@@ -149,20 +149,6 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     )
 
     result(nil)
-
-    /*do {
-      let url = URL(string: path) ?? URL(fileURLWithPath: path)
-      audioRecorder = try AVAudioRecorder(url: url, settings: settings)
-      audioRecorder!.delegate = self
-      audioRecorder!.isMeteringEnabled = true
-      audioRecorder!.record()
-
-      isRecording = true
-      isPaused = false
-      result(nil)
-    } catch {
-      result(FlutterError(code: "", message: "Failed to start recording", details: error))
-    }*/
   }
 
   fileprivate func stop(_ result: @escaping FlutterResult) {
@@ -291,10 +277,10 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
 
   fileprivate func listInputDevices() -> [AVCaptureDevice] {
     let discoverySession = AVCaptureDevice.DiscoverySession(
-      deviceTypes: [.builtInMicrophone, .externalUnknown],
+      deviceTypes: [.builtInMicrophone],
       mediaType: .audio, position: .unspecified
     )
-
+    
     return discoverySession.devices
   }
 

@@ -87,7 +87,7 @@ packages:
       name: record_macos
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.2.0"
+    version: "0.2.1"
   record_platform_interface:
     dependency: "direct main"
     description:
