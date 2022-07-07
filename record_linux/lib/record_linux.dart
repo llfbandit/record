@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -89,6 +91,8 @@ class RecordLinux extends RecordPlatform {
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
+    int numChannels = 2,
+    InputDevice? device,
   }) async {
     await stop();
 
@@ -105,16 +109,18 @@ class RecordLinux extends RecordPlatform {
 
     _path = path;
 
-    _pid = await _callFMedia([
+    final process = await _callFMedia([
       '--background',
       '--record',
       '--out=$path',
       '--rate=$samplingRate',
-      '--channels=2',
+      '--channels=$numChannels',
       '--globcmd=listen',
       '--gain=6.0',
+      if (device != null) '--dev-capture=${device.id}',
       ..._getEncoderSettings(encoder, bitRate),
     ]);
+    _pid = process.pid;
 
     _isRecording = true;
   }
@@ -128,6 +134,25 @@ class RecordLinux extends RecordPlatform {
     _isPaused = false;
 
     return _path;
+  }
+
+  @override
+  Future<List<InputDevice>> listInputDevices() async {
+    final process = await _callFMedia(['--list-dev']);
+
+    final completer = Completer<List<InputDevice>>();
+
+    final out = <String>[];
+    process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((chunk) {
+      out.add(chunk);
+    }).onDone(() {
+      completer.complete(_listInputDevices(out));
+    });
+
+    return completer.future;
   }
 
   String _getFileNameSuffix(AudioEncoder encoder) {
@@ -180,12 +205,93 @@ class RecordLinux extends RecordPlatform {
     return ['--aac-quality=$quality'];
   }
 
-  Future<int> _callFMedia(List<String> arguments) async {
-    final result = await Process.start('$_assetsDir/fmedia', [
+  Future<Process> _callFMedia(List<String> arguments) {
+    return Process.start('$_assetsDir/fmedia', [
       '--globcmd.pipe-name=$_pipeProcName',
       ...arguments,
     ]);
+  }
 
-    return result.pid;
+  // Playback/Loopback:
+  // device #1: FOO (High Definition Audio) - Default
+  // Default Format: 2 channel, 48000 Hz
+  // Capture:
+  // device #1: Microphone (High Definition Audio Device) - Default
+  // Default Format: 2 channel, 44100 Hz
+  Future<List<InputDevice>> _listInputDevices(List<String> out) async {
+    final devices = <InputDevice>[];
+    var deviceLine = '';
+
+    void _extract({String? secondLine}) {
+      if (deviceLine.isNotEmpty) {
+        final device = _extractDevice(deviceLine, secondLine: secondLine);
+        if (device != null) devices.add(device);
+        deviceLine = '';
+      }
+    }
+
+    var hasCaptureDevices = false;
+    for (var line in out) {
+      // Forwards to capture devices
+      if (!hasCaptureDevices) {
+        hasCaptureDevices = (line == 'Capture:');
+        continue;
+      }
+
+      if (line.startsWith(RegExp(r'^device #'))) {
+        // Extract previous device if second line was missing
+        _extract();
+        deviceLine = line;
+      } else if (line.startsWith(RegExp(r'^\s*Default Format:'))) {
+        _extract(secondLine: line);
+      }
+    }
+
+    // Extract previous device if second line was missing
+    _extract();
+
+    return devices;
+  }
+
+  InputDevice? _extractDevice(String firstLine, {String? secondLine}) {
+    final match = RegExp(r'(?:.*device #)(\d+): (\w.+)').firstMatch(firstLine);
+    if (match == null || match.groupCount != 2) return null;
+
+    // ID
+    final id = match.group(1);
+    if (id == null) return null;
+
+    // Label
+    var label = match.group(2)!;
+    // Remove default from label
+    final index = label.indexOf(' - Default');
+    if (index != -1) {
+      label = label.substring(0, index);
+    }
+
+    int? channels;
+    int? samplingRate;
+    if (secondLine != null) {
+      final match = RegExp(
+        r'(?:.*Default Format: )(\d+) channel, (\d+) Hz',
+      ).firstMatch(secondLine);
+
+      if (match != null && match.groupCount == 2) {
+        // Number of channels
+        final channelsStr = match.group(1);
+        channels = channelsStr != null ? int.tryParse(channelsStr) : null;
+
+        // Sampling rate
+        final samplingStr = match.group(2);
+        samplingRate = samplingStr != null ? int.tryParse(samplingStr) : null;
+      }
+    }
+
+    return InputDevice(
+      id: id,
+      label: label,
+      channels: channels,
+      samplingRate: samplingRate,
+    );
   }
 }

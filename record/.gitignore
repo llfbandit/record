@@ -11,6 +11,9 @@
 /.gradle/
 /.idea/
 
+# FVM
+.fvm/flutter_sdk
+
 # IntelliJ related
 *.iml
 *.ipr

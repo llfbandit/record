@@ -9,6 +9,7 @@ import androidx.core.app.ActivityCompat;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -50,10 +51,12 @@ public class MethodCallHandlerImpl
         String encoder = call.argument("encoder");
         int bitRate = call.argument("bitRate");
         int samplingRate = call.argument("samplingRate");
+        int numChannels = call.argument("numChannels");
+        Map<String, Object> device = call.argument("device");
 
         recorder = selectRecorder(encoder);
 
-        recorder.start(path, encoder, bitRate, samplingRate, result);
+        recorder.start(path, encoder, bitRate, samplingRate, numChannels, device, result);
         break;
       case "stop":
         if (recorder != null) {
@@ -99,6 +102,9 @@ public class MethodCallHandlerImpl
         } else {
           result.success(null);
         }
+        break;
+      case "listInputDevices":
+        result.success(null);
         break;
       case "dispose":
         close();

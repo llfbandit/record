@@ -44,11 +44,19 @@ abstract class RecordPlatform extends PlatformInterface {
   ///
   /// [samplingRate]: The sampling rate for audio in samples per second.
   /// Ignored on web platform.
+  ///
+  /// [numChannels]: The numbers of channels for the recording.
+  /// 1 = mono, 2 = stereo, etc.
+  ///
+  /// [device]: The device to be used for recording. If null, default device
+  /// will be selected.
   Future<void> start({
     String? path,
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
+    int numChannels = 2,
+    InputDevice? device,
   });
 
   /// Stops recording session and release internal recorder resource.
@@ -84,4 +92,12 @@ abstract class RecordPlatform extends PlatformInterface {
 
   /// Checks if the given encoder is supported on the current platform.
   Future<bool> isEncoderSupported(AudioEncoder encoder);
+
+  /// Lists capture/input devices available on the platform.
+  ///
+  /// On Android and iOS, an empty list will be returned.
+  ///
+  /// On web, and in general, you should already have permission before
+  /// accessing this method otherwise the list may return empty.
+  Future<List<InputDevice>> listInputDevices();
 }

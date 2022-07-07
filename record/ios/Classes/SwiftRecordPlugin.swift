@@ -34,6 +34,8 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
           encoder: args["encoder"] as! String,
           bitRate: args["bitRate"] as? Int ?? 128000,
           samplingRate: args["samplingRate"] as? Int ?? 44100,
+          numChannels: args["numChannels"] as? Int ?? 2,
+          device: args["device"] as? [String : Any],
           result: result)
         break
       case "stop":
@@ -60,6 +62,9 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         let settings = getEncoderSettings(encoder)
         result(settings != nil)
         break
+      case "listInputDevices":
+        result(listInputDevices())
+        break
       case "dispose":
         dispose(result)
         break
@@ -68,7 +73,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         break
     }
   }
-    
+
   public func applicationWillTerminate(_ application: UIApplication) {
     stopRecording()
   }
@@ -93,10 +98,15 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     }
   }
 
-  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, result: @escaping FlutterResult) {
+  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String, Any]?, result: @escaping FlutterResult) {
     stopRecording()
 
-    let settings = getSettings(encoder: encoder, bitRate: bitRate, samplingRate: samplingRate)
+    let settings = getSettings(
+      encoder: encoder,
+      bitRate: bitRate,
+      samplingRate: samplingRate,
+      numChannels: numChannels,
+      device: device)
 
     let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth]
 
@@ -114,7 +124,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       isPaused = false
       result(nil)
     } catch {
-      result(FlutterError(code: "", message: "Failed to start recording", details: "\(error)"))
+      result(FlutterError(code: "-1", message: "Failed to start recording", details: "\(error)"))
     }
   }
 
@@ -178,11 +188,11 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     result(path)
   }
 
-  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int) -> [String : Any] {
+  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String, Any]?) -> [String : Any] {
     let settings = [
       AVEncoderBitRateKey: bitRate,
       AVSampleRateKey: samplingRate,
-      AVNumberOfChannelsKey: 2,
+      AVNumberOfChannelsKey: numChannels,
       AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
     ] as [String : Any]
 
@@ -225,5 +235,9 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     default:
         return nil
     }
+  }
+
+  fileprivate func listInputDevices() -> [[String : Any]] {
+    return []
   }
 }

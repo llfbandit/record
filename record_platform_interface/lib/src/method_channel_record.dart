@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:record_platform_interface/src/record_platform_interface.dart';
 import 'package:record_platform_interface/src/types/amplitude.dart';
 import 'package:record_platform_interface/src/types/audio_encoder.dart';
+import 'package:record_platform_interface/src/types/input_device.dart';
 
 class MethodChannelRecord extends RecordPlatform {
   final MethodChannel _channel = const MethodChannel(
@@ -42,12 +43,16 @@ class MethodChannelRecord extends RecordPlatform {
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
+    int numChannels = 2,
+    InputDevice? device,
   }) {
     return _channel.invokeMethod('start', {
-      "path": path,
-      "encoder": encoder.name,
-      "bitRate": bitRate,
-      "samplingRate": samplingRate,
+      'path': path,
+      'encoder': encoder.name,
+      'bitRate': bitRate,
+      'samplingRate': samplingRate,
+      'numChannels': numChannels,
+      'device': device?.toMap(),
     });
   }
 
@@ -79,5 +84,12 @@ class MethodChannelRecord extends RecordPlatform {
     );
 
     return isSupported ?? false;
+  }
+
+  @override
+  Future<List<InputDevice>> listInputDevices() async {
+    final devices = await _channel.invokeMethod<List<dynamic>>('listInputDevices');
+
+    return devices?.map((d) =>InputDevice.fromMap(d as Map)).toList(growable: false) ?? [];
   }
 }

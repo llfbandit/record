@@ -1,3 +1,8 @@
+## 0.5.0
+- feat: Add input devices listing.
+- feat: Add number of channels.
+- core: Update fmedia to version 1.28.
+
 ## 0.4.3
 * fix: Better handling of fmedia process (start/pause/resume/stop start/stop again and again).
 

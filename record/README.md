@@ -1,7 +1,9 @@
-Audio recorder from microphone to a given file path.
-No external dependencies, MediaRecorder is used for Android an AVAudioRecorder for iOS/macOS.  
+Audio recorder from microphone to a given file path.  
+No external dependencies, MediaRecorder is used for Android an AVAudioRecorder for iOS.  
 
 On Windows and linux, encoding is provided by [fmedia](https://stsaz.github.io/fmedia/).  
+
+On macOS, AVCaptureSession (included in SDK).
 
 On web, well... your browser!
 
@@ -9,6 +11,8 @@ On web, well... your browser!
 - bit rate (where applicable)
 - sampling rate
 - encoder
+- Number of channels
+- Input device selection
 
 ## Platforms
 
@@ -35,14 +39,16 @@ min SDK: 11.0
 
 In capabilities, activate "Audio input" in debug AND release schemes
 
-min SDK: 10.14
+min SDK: 10.15
 
 ## Platform feature parity matrix
-| Feature          | Android        | iOS      | web     | Windows    | macOS  | linux
-|------------------|----------------|----------|---------|------------|-------|-----------
-| pause/resume     | ✔️             |   ✔️    | ✔️     |      ✔️    | ✔️    | ✔️
-| amplitude(dBFS)  | ✔️             |   ✔️    |         |            |  ✔️   |
-| permission check | ✔️             |   ✔️    |  ✔️    |            |  ✔️   |
+| Feature          | Android        | iOS             | web     | Windows    | macOS  | linux
+|------------------|----------------|-----------------|---------|------------|-------|-----------
+| pause/resume     | ✔️             |   ✔️           | ✔️     |      ✔️    | ✔️    |  ✔️
+| amplitude(dBFS)  | ✔️             |   ✔️           |         |            |  ✔️   |
+| permission check | ✔️             |   ✔️           |  ✔️    |            |  ✔️   |
+| num of channels  | ✔️             |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| device selection |                | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
 
 
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux

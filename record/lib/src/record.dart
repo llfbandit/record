@@ -13,12 +13,16 @@ class Record implements RecordPlatform {
     AudioEncoder encoder = AudioEncoder.aacLc,
     int bitRate = 128000,
     int samplingRate = 44100,
+    int numChannels = 2,
+    InputDevice? device,
   }) async {
     await RecordPlatform.instance.start(
       path: path,
       encoder: encoder,
       bitRate: bitRate,
       samplingRate: samplingRate,
+      numChannels: numChannels,
+      device: device,
     );
 
     return _sendStateEvent(RecordState.record);
@@ -63,6 +67,11 @@ class Record implements RecordPlatform {
   @override
   Future<bool> hasPermission() {
     return RecordPlatform.instance.hasPermission();
+  }
+
+  @override
+  Future<List<InputDevice>> listInputDevices() {
+    return RecordPlatform.instance.listInputDevices();
   }
 
   @override
