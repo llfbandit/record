@@ -1,3 +1,6 @@
+## 0.6.0
+- fix: shared assets between platforms, fmedia binaries are now in platform folder.
+
 ## 0.5.0
 - feat: Add input devices listing.
 - feat: Add number of channels.

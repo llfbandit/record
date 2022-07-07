@@ -6,14 +6,17 @@ import 'dart:math';
 import 'package:path/path.dart' as p;
 import 'package:record_platform_interface/record_platform_interface.dart';
 
-///relative path to
-const _assetsDir = 'data/flutter_assets/packages/record_linux/assets/fmedia';
+const _fmediaBin = 'fmedia';
 
 const _pipeProcName = 'record_linux';
 
 class RecordLinux extends RecordPlatform {
   static void registerWith() {
     RecordPlatform.instance = RecordLinux();
+
+    // Make fmedia bin executable
+    final path = File(Platform.resolvedExecutable).parent.path;
+    Process.start('chmod', ['+x', p.join(path, _fmediaBin)]);
   }
 
   // fmedia pID
@@ -206,7 +209,9 @@ class RecordLinux extends RecordPlatform {
   }
 
   Future<Process> _callFMedia(List<String> arguments) {
-    return Process.start('$_assetsDir/fmedia', [
+    final path = File(Platform.resolvedExecutable).parent.path;
+
+    return Process.start(p.join(path, _fmediaBin), [
       '--globcmd.pipe-name=$_pipeProcName',
       ...arguments,
     ]);

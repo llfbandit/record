@@ -11,7 +11,7 @@ Future<void> main() async {
   await record.start(
     path: p.join(File(Platform.resolvedExecutable).parent.path, 'rec.m4a'),
   );
-  await Future.delayed(const Duration(seconds: 1));
+  await Future.delayed(const Duration(seconds: 3));
 
   await record.pause();
   await Future.delayed(const Duration(seconds: 1));
