@@ -1,6 +1,6 @@
 name: record_windows
 description: Windows specific implementation for record package called by record_platform_interface.
-version: 0.5.0
+version: 0.6.0
 homepage: https://github.com/llfbandit/record/tree/master/record_windows
 
 environment:
@@ -14,6 +14,10 @@ dependencies:
   record_platform_interface: ^0.4.0
   path: ^1.8.0
 
+# dependency_overrides:
+#   record_platform_interface:
+#     path: ../record_platform_interface
+
 dev_dependencies:
   flutter_lints: ^1.0.4
 
@@ -22,41 +26,5 @@ flutter:
     implements: record
     platforms:
       windows:
+        pluginClass: RecordWindowsPluginCApi
         dartPluginClass: RecordWindows
-
-  assets:
-    - assets/fmedia/fmedia.exe
-    - assets/fmedia/fmedia.conf
-    - assets/fmedia/mod/aac.dll
-    - assets/fmedia/mod/afilter.dll
-    - assets/fmedia/mod/alac.dll
-    - assets/fmedia/mod/ape.dll
-    - assets/fmedia/mod/core.dll
-    - assets/fmedia/mod/direct-sound.dll
-    - assets/fmedia/mod/dynanorm.dll
-    - assets/fmedia/mod/flac.dll
-    - assets/fmedia/mod/fmt.dll
-    - assets/fmedia/mod/libALAC-ff.dll
-    - assets/fmedia/mod/libDynamicAudioNormalizer-ff.dll
-    - assets/fmedia/mod/libfdk-aac-ff.dll
-    - assets/fmedia/mod/libFLAC-ff.dll
-    - assets/fmedia/mod/libMAC-ff.dll
-    - assets/fmedia/mod/libmp3lame-ff.dll
-    - assets/fmedia/mod/libmpc-ff.dll
-    - assets/fmedia/mod/libmpg123-ff.dll
-    - assets/fmedia/mod/libogg-ff.dll
-    - assets/fmedia/mod/libopus-ff.dll
-    - assets/fmedia/mod/libsoxr-ff.dll
-    - assets/fmedia/mod/libvorbis-ff.dll
-    - assets/fmedia/mod/libvorbisenc-ff.dll
-    - assets/fmedia/mod/libwavpack-ff.dll
-    - assets/fmedia/mod/mpc.dll
-    - assets/fmedia/mod/mpeg.dll
-    - assets/fmedia/mod/net.dll
-    - assets/fmedia/mod/opus.dll
-    - assets/fmedia/mod/plist.dll
-    - assets/fmedia/mod/soxr.dll
-    - assets/fmedia/mod/tui.dll
-    - assets/fmedia/mod/vorbis.dll
-    - assets/fmedia/mod/wasapi.dll
-    - assets/fmedia/mod/wavpack.dll

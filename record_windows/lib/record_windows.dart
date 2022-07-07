@@ -6,9 +6,7 @@ import 'dart:math';
 import 'package:path/path.dart' as p;
 import 'package:record_platform_interface/record_platform_interface.dart';
 
-///relative path to
-const _assetsDir =
-    'data\\flutter_assets\\packages\\record_windows\\assets\\fmedia';
+const _fmediaBin = 'fmedia.exe';
 
 const _pipeProcName = 'record_windows';
 
@@ -210,7 +208,9 @@ class RecordWindows extends RecordPlatform {
   }
 
   Future<Process> _callFMedia(List<String> arguments) {
-    return Process.start('$_assetsDir\\fmedia.exe', [
+    final path = File(Platform.resolvedExecutable).parent.path;
+
+    return Process.start(p.join(path, _fmediaBin), [
       '--globcmd.pipe-name=$_pipeProcName',
       ...arguments,
     ]);
