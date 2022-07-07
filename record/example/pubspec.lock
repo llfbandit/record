@@ -234,7 +234,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "4.2.0-dev.3"
+    version: "4.3.0"
   record_linux:
     dependency: transitive
     description:
