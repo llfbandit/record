@@ -1,3 +1,6 @@
+## 4.3.1
+* fix: iOS compilation.
+
 ## 4.3.0
 * feat: Add input devices listing and selection (linux / windows / macOS / web).
 * feat: Add number of channels.
