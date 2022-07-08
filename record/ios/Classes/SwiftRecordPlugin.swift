@@ -98,7 +98,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     }
   }
 
-  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String, Any]?, result: @escaping FlutterResult) {
+  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String: Any]?, result: @escaping FlutterResult) {
     stopRecording()
 
     let settings = getSettings(
@@ -188,7 +188,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     result(path)
   }
 
-  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String, Any]?) -> [String : Any] {
+  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String: Any]?) -> [String : Any] {
     let settings = [
       AVEncoderBitRateKey: bitRate,
       AVSampleRateKey: samplingRate,
