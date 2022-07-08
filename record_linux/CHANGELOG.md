@@ -1,3 +1,6 @@
+## 0.3.1
+- fix: shared assets between platforms, fmedia binaries are now in platform folder.
+
 ## 0.3.0
 - fix: shared assets between platforms, fmedia binaries are now in platform folder.
 
