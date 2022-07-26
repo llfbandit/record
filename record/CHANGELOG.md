@@ -1,3 +1,6 @@
+## 4.3.2
+* fix: Android `hasPermission()` method does not throw exception anymore when permission hsa been denied.
+
 ## 4.3.1
 * fix: iOS compilation.
 

@@ -134,7 +134,7 @@ public class MethodCallHandlerImpl
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
           pendingPermResult.success(true);
         } else {
-          pendingPermResult.error("-2", "Permission denied", null);
+          pendingPermResult.success(false);
         }
         pendingPermResult = null;
         return true;
