@@ -1,3 +1,6 @@
+## 0.3.2
+- fix: CMakeLists bundled libraries.
+
 ## 0.3.1
 - fix: shared assets between platforms, fmedia binaries are now in platform folder.
 
