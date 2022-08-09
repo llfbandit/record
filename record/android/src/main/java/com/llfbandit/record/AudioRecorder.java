@@ -231,6 +231,10 @@ public class AudioRecorder implements RecorderBase {
 
         // Clears file content. Prevents wrong output if file was existing.
         out.setLength(0);
+        // Prepares WAV header & avoids data overwrites.
+        if (encoder.equals("wav")) {
+          writeWavHeader(out);
+        }
 
         while (isRecording.get()) {
           while (isPaused.get()) {

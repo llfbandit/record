@@ -1,3 +1,6 @@
+## 4.3.3
+* fix: WAV header overwrites first 44 data bytes.
+
 ## 4.3.2
 * fix: Android `hasPermission()` method does not throw exception anymore when permission has been denied.
 
