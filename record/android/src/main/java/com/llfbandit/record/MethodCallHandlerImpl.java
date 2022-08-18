@@ -11,19 +11,28 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
+import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
 
-public class MethodCallHandlerImpl
-        implements MethodCallHandler, PluginRegistry.RequestPermissionsResultListener {
+public class MethodCallHandlerImpl implements
+    MethodCallHandler,
+    EventChannel.StreamHandler,
+    PluginRegistry.RequestPermissionsResultListener {
 
   private static final int RECORD_AUDIO_REQUEST_CODE = 1001;
+
+  private static final int RECORD_STATE_PAUSE = 0;
+  private static final int RECORD_STATE_RECORD = 1;
+  private static final int RECORD_STATE_STOP = 2;
 
   private final Activity activity;
   private RecorderBase recorder;
   private Result pendingPermResult;
+  // Event producer
+  private EventChannel.EventSink eventSink;
 
   MethodCallHandlerImpl(Activity activity) {
     this.activity = activity;
@@ -56,39 +65,62 @@ public class MethodCallHandlerImpl
 
         recorder = selectRecorder(encoder);
 
-        recorder.start(path, encoder, bitRate, samplingRate, numChannels, device, result);
+        try {
+          recorder.start(path, encoder, bitRate, samplingRate, numChannels, device);
+          result.success(null);
+          sendStateEvent(RECORD_STATE_RECORD);
+        } catch (Exception e) {
+          result.error("-1", e.getMessage(), e.getCause());
+        }
         break;
       case "stop":
         if (recorder != null) {
-          recorder.stop(result);
+          try {
+            result.success(recorder.stop());
+            sendStateEvent(RECORD_STATE_STOP);
+          } catch (Exception e) {
+            result.error("-2", e.getMessage(), e.getCause());
+          }
         } else {
           result.success(null);
         }
         break;
       case "pause":
         if (recorder != null) {
-          recorder.pause(result);
+          try {
+            recorder.pause();
+            result.success(null);
+            sendStateEvent(RECORD_STATE_PAUSE);
+          } catch (Exception e) {
+            result.error("-3", e.getMessage(), e.getCause());
+          }
         } else {
           result.success(null);
         }
         break;
       case "resume":
         if (recorder != null) {
-          recorder.resume(result);
+          try {
+            recorder.resume();
+            result.success(null);
+            sendStateEvent(RECORD_STATE_RECORD);
+          } catch (Exception e) {
+            result.error("-4", e.getMessage(), e.getCause());
+          }
         } else {
           result.success(null);
         }
         break;
       case "isPaused":
         if (recorder != null) {
-          recorder.isPaused(result);
+          result.success(recorder.isPaused());
         } else {
           result.success(false);
         }
         break;
       case "isRecording":
         if (recorder != null) {
-          recorder.isRecording(result);
+          result.success(recorder.isRecording());
         } else {
           result.success(false);
         }
@@ -98,7 +130,7 @@ public class MethodCallHandlerImpl
         break;
       case "getAmplitude":
         if (recorder != null) {
-          recorder.getAmplitude(result);
+          result.success(recorder.getAmplitude());
         } else {
           result.success(null);
         }
@@ -123,11 +155,27 @@ public class MethodCallHandlerImpl
     }
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+  /// EventChannel.StreamHandler
+  ///
+  @Override
+  public void onListen(Object o, EventChannel.EventSink eventSink) {
+    this.eventSink = eventSink;
+  }
+
+  @Override
+  public void onCancel(Object o) {
+    eventSink = null;
+  }
+  ///
+  /// END EventChannel.StreamHandler
+  /////////////////////////////////////////////////////////////////////////////
+
   @Override
   public boolean onRequestPermissionsResult(
-          int requestCode,
-          String[] permissions,
-          int[] grantResults
+      int requestCode,
+      @NonNull String[] permissions,
+      @NonNull int[] grantResults
   ) {
     if (requestCode == RECORD_AUDIO_REQUEST_CODE) {
       if (pendingPermResult != null) {
@@ -160,9 +208,9 @@ public class MethodCallHandlerImpl
 
   private void askForPermission() {
     ActivityCompat.requestPermissions(
-            activity,
-            new String[]{Manifest.permission.RECORD_AUDIO},
-            MethodCallHandlerImpl.RECORD_AUDIO_REQUEST_CODE
+        activity,
+        new String[]{Manifest.permission.RECORD_AUDIO},
+        MethodCallHandlerImpl.RECORD_AUDIO_REQUEST_CODE
     );
   }
 
@@ -193,5 +241,9 @@ public class MethodCallHandlerImpl
     }
 
     return null;
+  }
+
+  private void sendStateEvent(int state) {
+    if (eventSink != null) eventSink.success(state);
   }
 }

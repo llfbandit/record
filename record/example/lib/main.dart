@@ -18,18 +18,32 @@ class AudioRecorder extends StatefulWidget {
 }
 
 class _AudioRecorderState extends State<AudioRecorder> {
-  bool _isRecording = false;
-  bool _isPaused = false;
   int _recordDuration = 0;
   Timer? _timer;
-  Timer? _ampTimer;
   final _audioRecorder = Record();
+  StreamSubscription<RecordState>? _recordSub;
+  RecordState _recordState = RecordState.stop;
+  StreamSubscription<Amplitude>? _amplitudeSub;
   Amplitude? _amplitude;
+
+  @override
+  void initState() {
+    _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
+      setState(() => _recordState = recordState);
+    });
+
+    _amplitudeSub = _audioRecorder
+        .onAmplitudeChanged(const Duration(milliseconds: 300))
+        .listen((amp) => setState(() => _amplitude = amp));
+
+    super.initState();
+  }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _ampTimer?.cancel();
+    _recordSub?.cancel();
+    _amplitudeSub?.cancel();
     _audioRecorder.dispose();
     super.dispose();
   }
@@ -46,14 +60,10 @@ class _AudioRecorderState extends State<AudioRecorder> {
         }
 
         // final devs = await _audioRecorder.listInputDevices();
+        // final isRecording = await _audioRecorder.isRecording();
 
         await _audioRecorder.start();
-
-        bool isRecording = await _audioRecorder.isRecording();
-        setState(() {
-          _isRecording = isRecording;
-          _recordDuration = 0;
-        });
+        _recordDuration = 0;
 
         _startTimer();
       }
@@ -66,27 +76,20 @@ class _AudioRecorderState extends State<AudioRecorder> {
 
   Future<void> _stop() async {
     _timer?.cancel();
-    _ampTimer?.cancel();
     final path = await _audioRecorder.stop();
+    _recordDuration = 0;
 
     widget.onStop(path!);
-
-    setState(() => _isRecording = false);
   }
 
   Future<void> _pause() async {
     _timer?.cancel();
-    _ampTimer?.cancel();
     await _audioRecorder.pause();
-
-    setState(() => _isPaused = true);
   }
 
   Future<void> _resume() async {
     _startTimer();
     await _audioRecorder.resume();
-
-    setState(() => _isPaused = false);
   }
 
   @override
@@ -121,7 +124,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
     late Icon icon;
     late Color color;
 
-    if (_isRecording || _isPaused) {
+    if (_recordState != RecordState.stop) {
       icon = const Icon(Icons.stop, color: Colors.red, size: 30);
       color = Colors.red.withOpacity(0.1);
     } else {
@@ -136,7 +139,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
         child: InkWell(
           child: SizedBox(width: 56, height: 56, child: icon),
           onTap: () {
-            _isRecording ? _stop() : _start();
+            (_recordState != RecordState.stop) ? _stop() : _start();
           },
         ),
       ),
@@ -144,14 +147,14 @@ class _AudioRecorderState extends State<AudioRecorder> {
   }
 
   Widget _buildPauseResumeControl() {
-    if (!_isRecording && !_isPaused) {
+    if (_recordState == RecordState.stop) {
       return const SizedBox.shrink();
     }
 
     late Icon icon;
     late Color color;
 
-    if (!_isPaused) {
+    if (_recordState == RecordState.record) {
       icon = const Icon(Icons.pause, color: Colors.red, size: 30);
       color = Colors.red.withOpacity(0.1);
     } else {
@@ -166,7 +169,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
         child: InkWell(
           child: SizedBox(width: 56, height: 56, child: icon),
           onTap: () {
-            _isPaused ? _resume() : _pause();
+            (_recordState == RecordState.pause) ? _resume() : _pause();
           },
         ),
       ),
@@ -174,7 +177,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
   }
 
   Widget _buildText() {
-    if (_isRecording || _isPaused) {
+    if (_recordState != RecordState.stop) {
       return _buildTimer();
     }
 
@@ -202,16 +205,9 @@ class _AudioRecorderState extends State<AudioRecorder> {
 
   void _startTimer() {
     _timer?.cancel();
-    _ampTimer?.cancel();
 
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
       setState(() => _recordDuration++);
-    });
-
-    _ampTimer =
-        Timer.periodic(const Duration(milliseconds: 200), (Timer t) async {
-      _amplitude = await _audioRecorder.getAmplitude();
-      setState(() {});
     });
   }
 }

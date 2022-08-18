@@ -1,6 +1,6 @@
 name: record_macos
 description: macOS specific implementation for record package called by record_platform_interface.
-version: 0.2.1
+version: 0.2.2
 homepage: https://github.com/llfbandit/record/tree/master/record_macos
 
 environment:
@@ -13,9 +13,9 @@ dependencies:
 
   record_platform_interface: ^0.4.0
 
-# dependency_overrides:
-#   record_platform_interface:
-#     path: ../record_platform_interface
+dependency_overrides:
+  record_platform_interface:
+    path: ../record_platform_interface
 
 dev_dependencies:
   flutter_lints: ^1.0.4

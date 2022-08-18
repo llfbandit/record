@@ -19,10 +19,12 @@ class RecordPluginWeb extends RecordPlatform {
   List<html.Blob> _chunks = [];
   // Completer to get data & stop events before `stop()` method ends
   Completer<String>? _onStopCompleter;
+  StreamController<RecordState>? _stateStreamCtrl;
 
   @override
   Future<void> dispose() async {
     _mediaRecorder?.stop();
+    _stateStreamCtrl?.close();
     _resetMediaRecorder();
   }
 
@@ -54,12 +56,16 @@ class RecordPluginWeb extends RecordPlatform {
     _log('Recording paused');
 
     _mediaRecorder?.pause();
+
+    _updateState(RecordState.pause);
   }
 
   @override
   Future<void> resume() async {
     _log('Recording resumed');
     _mediaRecorder?.resume();
+
+    _updateState(RecordState.record);
   }
 
   @override
@@ -110,6 +116,8 @@ class RecordPluginWeb extends RecordPlatform {
 
     _mediaRecorder?.stop();
 
+    _updateState(RecordState.stop);
+
     return _onStopCompleter?.future;
   }
 
@@ -147,6 +155,8 @@ class RecordPluginWeb extends RecordPlatform {
     _mediaRecorder?.addEventListener('dataavailable', _onDataAvailable);
     _mediaRecorder?.addEventListener('stop', _onStop);
     _mediaRecorder?.start();
+
+    _updateState(RecordState.record);
   }
 
   @override
@@ -160,6 +170,19 @@ class RecordPluginWeb extends RecordPlatform {
   Future<Amplitude> getAmplitude() async {
     // TODO how to check amplitude values on web?
     return Amplitude(current: -160.0, max: -160.0);
+  }
+
+  @override
+  @override
+  Stream<RecordState> onStateChanged() {
+    _stateStreamCtrl ??= StreamController(
+      onCancel: () {
+        _stateStreamCtrl?.close();
+        _stateStreamCtrl = null;
+      },
+    );
+
+    return _stateStreamCtrl!.stream;
   }
 
   String? _getSupportedMimeType(AudioEncoder encoder) {
@@ -218,5 +241,11 @@ class RecordPluginWeb extends RecordPlatform {
 
   void _log(dynamic msg) {
     if (kDebugMode) print(msg);
+  }
+
+  void _updateState(RecordState state) {
+    if (_stateStreamCtrl?.hasListener ?? false) {
+      _stateStreamCtrl?.add(state);
+    }
   }
 }

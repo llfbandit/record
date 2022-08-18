@@ -1,3 +1,8 @@
+## 4.4.0
+- feat: `onStateChanged()` stream is now filled by platform implementations.
+    - This allows to get reliable updated record states.
+- fix: `onAmplitudeChanged` could result in computation error.
+
 ## 4.3.3
 * fix: WAV header overwrites first 44 data bytes.
 

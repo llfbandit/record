@@ -7,10 +7,9 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import io.flutter.plugin.common.MethodChannel.Result;
 
 class MediaRecorder implements RecorderBase {
   private static final String LOG_TAG = "Record - MR";
@@ -34,9 +33,8 @@ class MediaRecorder implements RecorderBase {
       int bitRate,
       int samplingRate,
       int numChannels,
-      Map<String, Object> device,
-      @NonNull Result result
-  ) {
+      Map<String, Object> device
+  ) throws Exception {
     stopRecording();
 
     Log.d(LOG_TAG, "Start recording");
@@ -71,50 +69,47 @@ class MediaRecorder implements RecorderBase {
       recorder.start();
       isRecording = true;
       isPaused = false;
-      result.success(null);
-    } catch (Exception e) {
+    } catch (IOException | IllegalStateException e) {
       recorder.release();
       recorder = null;
-      result.error("-1", "Start recording failure", e.getMessage());
+      throw new Exception(e);
     }
   }
 
   @Override
-  public void stop(@NonNull Result result) {
+  public String stop() {
     stopRecording();
-    result.success(path);
+    return path;
   }
 
   @Override
   @RequiresApi(api = Build.VERSION_CODES.N)
-  public void pause(@NonNull Result result) {
+  public void pause() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
       pauseRecording();
     }
-    result.success(null);
   }
 
   @Override
   @RequiresApi(api = Build.VERSION_CODES.N)
-  public void resume(@NonNull Result result) {
+  public void resume() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
       resumeRecording();
     }
-    result.success(null);
   }
 
   @Override
-  public void isRecording(@NonNull Result result) {
-    result.success(isRecording);
+  public boolean isRecording() {
+    return isRecording;
   }
 
   @Override
-  public void isPaused(@NonNull Result result) {
-    result.success(isPaused);
+  public boolean isPaused() {
+    return isPaused;
   }
 
   @Override
-  public void getAmplitude(@NonNull Result result) {
+  public Map<String, Object> getAmplitude() {
     Map<String, Object> amp = new HashMap<>();
 
     double current = -160.0;
@@ -130,7 +125,7 @@ class MediaRecorder implements RecorderBase {
     amp.put("current", current);
     amp.put("max", maxAmplitude);
 
-    result.success(amp);
+    return amp;
   }
 
   @Override

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:record_platform_interface/record_platform_interface.dart';
 
@@ -25,6 +26,8 @@ class RecordLinux extends RecordPlatform {
   bool _isRecording = false;
   bool _isPaused = false;
   String? _path;
+  StreamSubscription<String>? _fmediaSub;
+  StreamController<RecordState>? _stateStreamCtrl;
 
   @override
   Future<void> dispose() {
@@ -33,6 +36,8 @@ class RecordLinux extends RecordPlatform {
         Process.killPid(_pid!, ProcessSignal.sigterm);
         _pid = null;
       }
+      _fmediaSub?.cancel();
+      _stateStreamCtrl?.close();
       return Future.value();
     });
   }
@@ -51,13 +56,10 @@ class RecordLinux extends RecordPlatform {
   Future<bool> isEncoderSupported(AudioEncoder encoder) async {
     switch (encoder) {
       case AudioEncoder.aacLc:
-        return true;
+      case AudioEncoder.aacHe:
       case AudioEncoder.flac:
-        return true;
       case AudioEncoder.opus:
-        return true;
       case AudioEncoder.wav:
-        return true;
       case AudioEncoder.vorbisOgg:
         return true;
       default:
@@ -79,14 +81,14 @@ class RecordLinux extends RecordPlatform {
   Future<void> pause() async {
     await _callFMedia(['--globcmd=pause']);
 
-    _isPaused = true;
+    _updateState(RecordState.pause);
   }
 
   @override
   Future<void> resume() async {
     await _callFMedia(['--globcmd=unpause']);
 
-    _isPaused = false;
+    _updateState(RecordState.record);
   }
 
   @override
@@ -114,6 +116,7 @@ class RecordLinux extends RecordPlatform {
     _path = path;
 
     final process = await _callFMedia([
+      '--notui',
       '--background',
       '--record',
       '--out=$path',
@@ -126,7 +129,24 @@ class RecordLinux extends RecordPlatform {
     ]);
     _pid = process.pid;
 
-    _isRecording = true;
+    _updateState(RecordState.record);
+
+    // Print the fmedia output to allow diagnostics.
+    if (kDebugMode) {
+      _fmediaSub?.cancel();
+      _fmediaSub = process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((chunk) {
+        if (kDebugMode) {
+          print(chunk);
+        }
+      })
+        ..onDone(() async {
+          _fmediaSub?.cancel();
+          stop();
+        });
+    }
   }
 
   @override
@@ -134,8 +154,7 @@ class RecordLinux extends RecordPlatform {
     await _callFMedia(['--globcmd=stop']);
     await _callFMedia(['--globcmd=quit']);
 
-    _isRecording = false;
-    _isPaused = false;
+    _updateState(RecordState.stop);
 
     return _path;
   }
@@ -184,7 +203,7 @@ class RecordLinux extends RecordPlatform {
       case AudioEncoder.aacHe:
         return ['--aac-profile=HEv2', ..._getAacQuality(bitRate)];
       case AudioEncoder.flac:
-        return ['--flac-compression=6'];
+        return ['--flac-compression=6', '--format=int16'];
       case AudioEncoder.opus:
         final rate = (bitRate ~/ 1000).clamp(6, 510);
         return ['--opus.bitrate=$rate'];
@@ -299,5 +318,26 @@ class RecordLinux extends RecordPlatform {
       channels: channels,
       samplingRate: samplingRate,
     );
+  }
+
+  Future<void> _updateState(RecordState state) async {
+    switch (state) {
+      case RecordState.pause:
+        _isRecording = true;
+        _isPaused = true;
+        break;
+      case RecordState.record:
+        _isRecording = true;
+        _isPaused = false;
+        break;
+      case RecordState.stop:
+        _isRecording = false;
+        _isPaused = false;
+        break;
+    }
+
+    if (_stateStreamCtrl?.hasListener ?? false) {
+      _stateStreamCtrl?.add(state);
+    }
   }
 }

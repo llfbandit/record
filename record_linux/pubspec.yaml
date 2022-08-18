@@ -1,6 +1,6 @@
 name: record_linux
 description: Linux specific implementation for record package called by record_platform_interface.
-version: 0.3.2
+version: 0.3.3
 homepage: https://github.com/llfbandit/record/tree/master/record_linux
 
 environment:
@@ -14,9 +14,9 @@ dependencies:
   record_platform_interface: ^0.4.0
   path: ^1.8.0
 
-# dependency_overrides:
-#   record_platform_interface:
-#     path: ../record_platform_interface
+dependency_overrides:
+  record_platform_interface:
+    path: ../record_platform_interface
 
 dev_dependencies:
   flutter_test:

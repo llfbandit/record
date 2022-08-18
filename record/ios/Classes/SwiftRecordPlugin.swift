@@ -2,19 +2,23 @@ import Flutter
 import UIKit
 import AVFoundation
 
-public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate {
+public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate, FlutterStreamHandler {
   public static func register(with registrar: FlutterPluginRegistrar) {
-    let channel = FlutterMethodChannel(name: "com.llfbandit.record", binaryMessenger: registrar.messenger())
+    let methodChannel = FlutterMethodChannel(name: "com.llfbandit.record/messages", binaryMessenger: registrar.messenger())
+    let eventChannel = FlutterEventChannel(name: "com.llfbandit.record/events", binaryMessenger: registrar.messenger())
+
     let instance = SwiftRecordPlugin()
-    registrar.addMethodCallDelegate(instance, channel: channel)
+    registrar.addMethodCallDelegate(instance, channel: methodChannel)
+    eventChannel.setStreamHandler(instance)
     registrar.addApplicationDelegate(instance)
   }
 
-  var isRecording = false
-  var isPaused = false
-  var audioRecorder: AVAudioRecorder?
-  var path: String?
-  var maxAmplitude:Float = -160.0;
+  fileprivate var isRecording = false
+  fileprivate var isPaused = false
+  fileprivate var audioRecorder: AVAudioRecorder?
+  fileprivate var path: String?
+  fileprivate var maxAmplitude:Float = -160.0
+  fileprivate var eventSink: FlutterEventSink?
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
@@ -43,10 +47,13 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         break
       case "pause":
         pause(result)
+        break
       case "resume":
         resume(result)
+        break
       case "isPaused":
         result(isPaused)
+        break
       case "isRecording":
         result(isRecording)
         break
@@ -120,8 +127,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
       audioRecorder!.isMeteringEnabled = true
       audioRecorder!.record()
 
-      isRecording = true
-      isPaused = false
+      updateState(1)
       result(nil)
     } catch {
       result(FlutterError(code: "-1", message: "Failed to start recording", details: "\(error)"))
@@ -130,19 +136,20 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
 
   fileprivate func stop(_ result: @escaping FlutterResult) {
     stopRecording()
+    updateState(2)
     result(path)
   }
     
   fileprivate func pause(_ result: @escaping FlutterResult) {
     audioRecorder?.pause()
-    isPaused = true
+    updateState(0)
     result(nil)
   }
     
   fileprivate func resume(_ result: @escaping FlutterResult) {
     if isPaused {
       audioRecorder?.record()
-      isPaused = false
+      updateState(1)
     }
     
     result(nil)
@@ -185,7 +192,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
 
   fileprivate func dispose(_ result: @escaping FlutterResult) {
     stopRecording()
-    result(path)
+    result(nil)
   }
 
   fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String: Any]?) -> [String : Any] {
@@ -239,5 +246,39 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
 
   fileprivate func listInputDevices() -> [[String : Any]] {
     return []
+  }
+
+  public func onListen(
+    withArguments arguments: Any?,
+    eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+
+    self.eventSink = events
+    return nil
+  }
+    
+  public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+    self.eventSink = nil
+    return nil
+  }
+
+  fileprivate func updateState(state: Int) {
+    switch (state) {
+      case 0:
+        isRecording = true
+        isPaused = true
+        break
+      case 1:
+        isRecording = true
+        isPaused = false
+        break
+      case 2:
+        isRecording = false
+        isPaused = false
+        break
+    }
+
+    if let _eventSink = eventSink {
+      _eventSink(state)
+    }    
   }
 }
