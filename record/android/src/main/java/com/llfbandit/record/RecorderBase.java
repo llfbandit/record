@@ -4,8 +4,6 @@ import androidx.annotation.NonNull;
 
 import java.util.Map;
 
-import io.flutter.plugin.common.MethodChannel;
-
 public interface RecorderBase {
   /**
    * Starts the recording with the given parameters.
@@ -16,7 +14,6 @@ public interface RecorderBase {
    * @param samplingRate The sampling rate of encoded file.
    * @param numChannels  The number of channels.
    * @param device       The input device to acquire audio data.
-   * @param result       Always null
    */
   void start(
       @NonNull String path,
@@ -24,50 +21,43 @@ public interface RecorderBase {
       int bitRate,
       int samplingRate,
       int numChannels,
-      Map<String, Object> device,
-      @NonNull MethodChannel.Result result);
+      Map<String, Object> device) throws Exception;
 
   /**
    * Stops the recording.
-   *
-   * @param result Always null
    */
-  void stop(@NonNull MethodChannel.Result result);
+  String stop();
 
   /**
    * Pauses the recording if currently running.
-   *
-   * @param result Always null
    */
-  void pause(@NonNull MethodChannel.Result result);
+  void pause() throws Exception;
 
   /**
    * Resumes the recording if currently paused.
-   *
-   * @param result Always null
    */
-  void resume(@NonNull MethodChannel.Result result);
+  void resume() throws Exception;
 
   /**
    * Gets the state the of recording
    *
-   * @param result True if recording. False otherwise.
+   * @return True if recording. False otherwise.
    */
-  void isRecording(@NonNull MethodChannel.Result result);
+  boolean isRecording();
 
   /**
    * Gets the state the of recording
    *
-   * @param result True if paused. False otherwise.
+   * @return True if paused. False otherwise.
    */
-  void isPaused(@NonNull MethodChannel.Result result);
+  boolean isPaused();
 
   /**
    * Gets the maximum amplitude
    *
-   * @param result Map with current and max amplitude values
+   * @return Map with current and max amplitude values
    */
-  void getAmplitude(@NonNull MethodChannel.Result result);
+  Map<String, Object> getAmplitude();
 
   /**
    * Check if the given encoder is supported by the recorder implementation.

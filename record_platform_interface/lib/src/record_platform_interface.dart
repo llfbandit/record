@@ -100,4 +100,10 @@ abstract class RecordPlatform extends PlatformInterface {
   /// On web, and in general, you should already have permission before
   /// accessing this method otherwise the list may return empty.
   Future<List<InputDevice>> listInputDevices();
+
+  /// Listen to recorder states [RecordState].
+  ///
+  /// Provides pause, resume and stop states.
+  Stream<RecordState> onStateChanged() => throw UnimplementedError(
+      'onStateChanged not implemented on the current platform.');
 }

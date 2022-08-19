@@ -1,40 +1,38 @@
 import 'package:flutter/services.dart';
 import 'package:record_platform_interface/src/record_platform_interface.dart';
-import 'package:record_platform_interface/src/types/amplitude.dart';
-import 'package:record_platform_interface/src/types/audio_encoder.dart';
-import 'package:record_platform_interface/src/types/input_device.dart';
+import 'package:record_platform_interface/src/types/types.dart';
 
 class MethodChannelRecord extends RecordPlatform {
-  final MethodChannel _channel = const MethodChannel(
-    'com.llfbandit.record',
-  );
+  // Channel handlers
+  final _methodChannel = const MethodChannel('com.llfbandit.record/messages');
+  final _eventChannel = const EventChannel('com.llfbandit.record/events');
 
   @override
   Future<bool> hasPermission() async {
-    final result = await _channel.invokeMethod<bool>('hasPermission');
+    final result = await _methodChannel.invokeMethod<bool>('hasPermission');
     return result ?? false;
   }
 
   @override
   Future<bool> isPaused() async {
-    final result = await _channel.invokeMethod<bool>('isPaused');
+    final result = await _methodChannel.invokeMethod<bool>('isPaused');
     return result ?? false;
   }
 
   @override
   Future<bool> isRecording() async {
-    final result = await _channel.invokeMethod<bool>('isRecording');
+    final result = await _methodChannel.invokeMethod<bool>('isRecording');
     return result ?? false;
   }
 
   @override
   Future<void> pause() {
-    return _channel.invokeMethod('pause');
+    return _methodChannel.invokeMethod('pause');
   }
 
   @override
   Future<void> resume() {
-    return _channel.invokeMethod('resume');
+    return _methodChannel.invokeMethod('resume');
   }
 
   @override
@@ -46,7 +44,7 @@ class MethodChannelRecord extends RecordPlatform {
     int numChannels = 2,
     InputDevice? device,
   }) {
-    return _channel.invokeMethod('start', {
+    return _methodChannel.invokeMethod('start', {
       'path': path,
       'encoder': encoder.name,
       'bitRate': bitRate,
@@ -58,17 +56,17 @@ class MethodChannelRecord extends RecordPlatform {
 
   @override
   Future<String?> stop() {
-    return _channel.invokeMethod('stop');
+    return _methodChannel.invokeMethod('stop');
   }
 
   @override
   Future<void> dispose() async {
-    await _channel.invokeMethod('dispose');
+    await _methodChannel.invokeMethod('dispose');
   }
 
   @override
   Future<Amplitude> getAmplitude() async {
-    final result = await _channel.invokeMethod('getAmplitude');
+    final result = await _methodChannel.invokeMethod('getAmplitude');
 
     return Amplitude(
       current: result?['current'] ?? 0.0,
@@ -78,7 +76,7 @@ class MethodChannelRecord extends RecordPlatform {
 
   @override
   Future<bool> isEncoderSupported(AudioEncoder encoder) async {
-    final isSupported = await _channel.invokeMethod<bool>(
+    final isSupported = await _methodChannel.invokeMethod<bool>(
       'isEncoderSupported',
       {'encoder': encoder.name},
     );
@@ -88,8 +86,19 @@ class MethodChannelRecord extends RecordPlatform {
 
   @override
   Future<List<InputDevice>> listInputDevices() async {
-    final devices = await _channel.invokeMethod<List<dynamic>>('listInputDevices');
+    final devices =
+        await _methodChannel.invokeMethod<List<dynamic>>('listInputDevices');
 
-    return devices?.map((d) =>InputDevice.fromMap(d as Map)).toList(growable: false) ?? [];
+    return devices
+            ?.map((d) => InputDevice.fromMap(d as Map))
+            .toList(growable: false) ??
+        [];
+  }
+
+  @override
+  Stream<RecordState> onStateChanged() {
+    return _eventChannel.receiveBroadcastStream().map<RecordState>(
+          (state) => RecordState.values.firstWhere((e) => e.index == state),
+        );
   }
 }

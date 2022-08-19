@@ -1,3 +1,6 @@
+## 0.2.2
+* feat: `onStateChanged()` implementation.
+
 ## 0.2.1
 * fix: Better error handling for input devices.
 

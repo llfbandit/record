@@ -2,17 +2,22 @@ import Cocoa
 import FlutterMacOS
 import AVFoundation
 
-public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputRecordingDelegate {
+public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputRecordingDelegate, FlutterStreamHandler {
   public static func register(with registrar: FlutterPluginRegistrar) {
-    let channel = FlutterMethodChannel(name: "com.llfbandit.record", binaryMessenger: registrar.messenger)
+    let methodChannel = FlutterMethodChannel(name: "com.llfbandit.record/messages", binaryMessenger: registrar.messenger)
+    let eventChannel = FlutterEventChannel(name: "com.llfbandit.record/events", binaryMessenger: registrar.messenger)
+
     let instance = RecordMacosPlugin()
-    registrar.addMethodCallDelegate(instance, channel: channel)
+
+    registrar.addMethodCallDelegate(instance, channel: methodChannel)
+    eventChannel.setStreamHandler(instance)
   }
 
-  var audioSession: AVCaptureSession?
-  var audioOutput: AVCaptureAudioFileOutput?
-  var path: String?
-  var maxAmplitude:Float = -160.0;
+  private var audioSession: AVCaptureSession?
+  private var audioOutput: AVCaptureAudioFileOutput?
+  private var path: String?
+  private var maxAmplitude:Float = -160.0
+  private var eventSink: FlutterEventSink?
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
@@ -60,8 +65,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
       case "isEncoderSupported":
         let args = call.arguments as! [String : Any]
         let encoder = args["encoder"] as! String
-        let settings = getEncoderSettings(encoder)
-        result(settings != nil)
+        result(isEncoderSupported(encoder))
         break
       case "listInputDevices":
       let devs = listInputDevices().map { (device) -> [String : Any] in
@@ -81,7 +85,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     }
   }
 
-  fileprivate func hasPermission(_ result: @escaping FlutterResult) {
+  private func hasPermission(_ result: @escaping FlutterResult) {
     switch AVCaptureDevice.authorizationStatus(for: .audio) {
       case .authorized:
         result(true)
@@ -99,7 +103,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     }
   }
 
-  fileprivate func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String: Any]?, result: @escaping FlutterResult) {
+  private func start(path: String, encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int, device: [String: Any]?, result: @escaping FlutterResult) {
     stopRecording()
 
     audioSession = AVCaptureSession()
@@ -148,33 +152,38 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
       recordingDelegate: self
     )
 
+    updateState(1)
+
     result(nil)
   }
 
-  fileprivate func stop(_ result: @escaping FlutterResult) {
+  private func stop(_ result: @escaping FlutterResult) {
     stopRecording()
+    updateState(2)
     result(path)
   }
     
-  fileprivate func pause(_ result: @escaping FlutterResult) {
+  private func pause(_ result: @escaping FlutterResult) {
     audioOutput?.pauseRecording()
+    updateState(0)
     result(nil)
   }
     
-  fileprivate func resume(_ result: @escaping FlutterResult) {
+  private func resume(_ result: @escaping FlutterResult) {
     if audioOutput?.isRecordingPaused ?? false {
       audioOutput?.resumeRecording()
+      updateState(1)
     }
     
     result(nil)
   }
 
-    fileprivate func isEncoderSupported(encoder: String) -> Bool {
+  private func isEncoderSupported(_ encoder: String) -> Bool {
     let encoderSettings = getEncoderSettings(encoder)
     return encoderSettings != nil
   }
 
-  fileprivate func getAmplitude(_ result: @escaping FlutterResult) {
+  private func getAmplitude(_ result: @escaping FlutterResult) {
     var amp = ["current" : -160.0, "max" : -160.0] as [String : Float]
 
     if let audioOutput = audioOutput {
@@ -204,7 +213,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     result(amp)
   }
 
-  fileprivate func stopRecording() {
+  private func stopRecording() {
     audioOutput?.stopRecording()
     audioOutput = nil
     audioSession?.stopRunning()
@@ -212,9 +221,9 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     maxAmplitude = -160.0
   }
 
-  fileprivate func dispose(_ result: @escaping FlutterResult) {
+  private func dispose(_ result: @escaping FlutterResult) {
     stopRecording()
-    result(path)
+    result(nil)
   }
   
   public func fileOutput(_ output: AVCaptureFileOutput,
@@ -226,7 +235,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     }
   }
 
-  fileprivate func getSettings(encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int) -> [String : Any] {
+  private func getSettings(encoder: String, bitRate: Int, samplingRate: Int, numChannels: Int) -> [String : Any] {
     let settings = [
       AVEncoderBitRateKey: bitRate,
       AVSampleRateKey: samplingRate,
@@ -244,7 +253,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
   }
 
   // https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers
-  fileprivate func getEncoderSettings(_ encoder: String) -> [String : Any]? {
+  private func getEncoderSettings(_ encoder: String) -> [String : Any]? {
     switch(encoder) {
     case "aacEld":
       return [AVFormatIDKey : Int(kAudioFormatMPEG4AAC_ELD)]
@@ -275,7 +284,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     }
   }
 
-  fileprivate func listInputDevices() -> [AVCaptureDevice] {
+  private func listInputDevices() -> [AVCaptureDevice] {
     let discoverySession = AVCaptureDevice.DiscoverySession(
       deviceTypes: [.builtInMicrophone],
       mediaType: .audio, position: .unspecified
@@ -284,7 +293,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     return discoverySession.devices
   }
 
-  fileprivate func getInputDevice(device: [String: Any]?) throws -> AVCaptureDeviceInput? {
+  private func getInputDevice(device: [String: Any]?) throws -> AVCaptureDeviceInput? {
     guard let device = device else {
       // try to select default device
       let defaultDevice = AVCaptureDevice.default(for: .audio)
@@ -305,5 +314,24 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     }
     
     return try AVCaptureDeviceInput(device: captureDev)
+  }
+
+  public func onListen(
+    withArguments arguments: Any?,
+    eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+
+    self.eventSink = events
+    return nil
+  }
+
+  public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+    self.eventSink = nil
+    return nil
+  }
+
+  private func updateState(_ state: Int) {
+    if let _eventSink = eventSink {
+      _eventSink(state)
+    }
   }
 }

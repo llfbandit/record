@@ -20,8 +20,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.flutter.plugin.common.MethodChannel;
-
 public class AudioRecorder implements RecorderBase {
   private static final String LOG_TAG = "Record - AR";
 
@@ -47,9 +45,8 @@ public class AudioRecorder implements RecorderBase {
       int bitRate,
       int samplingRate,
       int numChannels,
-      Map<String, Object> device,
-      @NonNull MethodChannel.Result result) {
-
+      Map<String, Object> device
+  ) throws Exception {
     stopRecording();
 
     this.path = path;
@@ -70,52 +67,53 @@ public class AudioRecorder implements RecorderBase {
     // Get min size of the buffer for writings * factor
     final int bufferSize = AudioRecord.getMinBufferSize(samplingRate, channelConfig, audioFormat) * 2;
 
-    recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, samplingRate, channelConfig, audioFormat, bufferSize);
+    try {
 
-    isRecording.set(true);
+      recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, samplingRate, channelConfig, audioFormat, bufferSize);
 
-    recordDataWriter = new RecordDataWriter(
-        path, encoder, samplingRate, bufferSize, (short) numChannels,
-        (audioFormat == AudioFormat.ENCODING_PCM_16BIT) ? (short) 16 : (short) 8
-    );
-    new Thread(recordDataWriter).start();
+      isRecording.set(true);
 
-    recorder.startRecording();
+      recordDataWriter = new RecordDataWriter(
+          path, encoder, samplingRate, bufferSize, (short) numChannels,
+          (audioFormat == AudioFormat.ENCODING_PCM_16BIT) ? (short) 16 : (short) 8
+      );
+      new Thread(recordDataWriter).start();
 
-    result.success(null);
+      recorder.startRecording();
+    } catch (IllegalArgumentException | IllegalStateException e) {
+      throw new Exception(e);
+    }
   }
 
   @Override
-  public void stop(@NonNull MethodChannel.Result result) {
+  public String stop() {
     stopRecording();
-    result.success(path);
+    return path;
   }
 
   @Override
-  public void pause(@NonNull MethodChannel.Result result) {
+  public void pause() {
     isPaused.set(true);
-    result.success(null);
   }
 
   @RequiresApi(api = Build.VERSION_CODES.N)
   @Override
-  public void resume(@NonNull MethodChannel.Result result) {
+  public void resume() {
     isPaused.set(false);
-    result.success(null);
   }
 
   @Override
-  public void isRecording(@NonNull MethodChannel.Result result) {
-    result.success(isRecording.get());
+  public boolean isRecording() {
+    return isRecording.get();
   }
 
   @Override
-  public void isPaused(@NonNull MethodChannel.Result result) {
-    result.success(isPaused.get());
+  public boolean isPaused() {
+    return isPaused.get();
   }
 
   @Override
-  public void getAmplitude(@NonNull MethodChannel.Result result) {
+  public Map<String, Object> getAmplitude() {
     Map<String, Object> amp = new HashMap<>();
 
     final double currentAmplitude = amplitude.get();
@@ -127,7 +125,7 @@ public class AudioRecorder implements RecorderBase {
     amp.put("current", currentAmplitude);
     amp.put("max", maxAmplitude);
 
-    result.success(amp);
+    return amp;
   }
 
   @Override
@@ -145,8 +143,6 @@ public class AudioRecorder implements RecorderBase {
     if (recorder != null) {
       try {
         if (isRecording.get() || isPaused.get()) {
-          Log.d(LOG_TAG, "Stop recording");
-
           isRecording.set(false);
           isPaused.set(false);
           closeDataWriter();

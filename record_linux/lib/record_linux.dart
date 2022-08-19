@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:record_platform_interface/record_platform_interface.dart';
 
@@ -22,12 +23,16 @@ class RecordLinux extends RecordPlatform {
 
   // fmedia pID
   int? _pid;
-  bool _isRecording = false;
-  bool _isPaused = false;
+  RecordState _state = RecordState.stop;
   String? _path;
+  StreamSubscription<String>? _fmediaSub;
+  StreamController<RecordState>? _stateStreamCtrl;
 
   @override
   Future<void> dispose() {
+    _fmediaSub?.cancel();
+    _stateStreamCtrl?.close();
+
     return stop().then((value) {
       if (_pid != null) {
         Process.killPid(_pid!, ProcessSignal.sigterm);
@@ -51,13 +56,10 @@ class RecordLinux extends RecordPlatform {
   Future<bool> isEncoderSupported(AudioEncoder encoder) async {
     switch (encoder) {
       case AudioEncoder.aacLc:
-        return true;
+      case AudioEncoder.aacHe:
       case AudioEncoder.flac:
-        return true;
       case AudioEncoder.opus:
-        return true;
       case AudioEncoder.wav:
-        return true;
       case AudioEncoder.vorbisOgg:
         return true;
       default:
@@ -67,26 +69,30 @@ class RecordLinux extends RecordPlatform {
 
   @override
   Future<bool> isPaused() {
-    return Future.value(_isPaused);
+    return Future.value(_state == RecordState.pause);
   }
 
   @override
   Future<bool> isRecording() {
-    return Future.value(_isRecording);
+    return Future.value(_state == RecordState.record);
   }
 
   @override
   Future<void> pause() async {
-    await _callFMedia(['--globcmd=pause']);
+    if (_state == RecordState.record) {
+      await _callFMedia(['--globcmd=pause']);
 
-    _isPaused = true;
+      _updateState(RecordState.pause);
+    }
   }
 
   @override
   Future<void> resume() async {
-    await _callFMedia(['--globcmd=unpause']);
+    if (_state == RecordState.pause) {
+      await _callFMedia(['--globcmd=unpause']);
 
-    _isPaused = false;
+      _updateState(RecordState.record);
+    }
   }
 
   @override
@@ -111,9 +117,8 @@ class RecordLinux extends RecordPlatform {
     final file = File(path);
     if (file.existsSync()) await file.delete();
 
-    _path = path;
-
     final process = await _callFMedia([
+      '--notui',
       '--background',
       '--record',
       '--out=$path',
@@ -125,19 +130,35 @@ class RecordLinux extends RecordPlatform {
       ..._getEncoderSettings(encoder, bitRate),
     ]);
     _pid = process.pid;
+    _path = path;
 
-    _isRecording = true;
+    _updateState(RecordState.record);
+
+    // Print the fmedia output to allow diagnostics.
+    _fmediaSub?.cancel();
+    _fmediaSub = process.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((chunk) {
+      if (kDebugMode) print(chunk);
+    });
+    _fmediaSub!.onDone(() {
+      _fmediaSub?.cancel();
+      _path = null;
+      stop();
+    });
   }
 
   @override
   Future<String?> stop() async {
+    final path = _path;
+
     await _callFMedia(['--globcmd=stop']);
     await _callFMedia(['--globcmd=quit']);
 
-    _isRecording = false;
-    _isPaused = false;
+    _updateState(RecordState.stop);
 
-    return _path;
+    return path;
   }
 
   @override
@@ -157,6 +178,18 @@ class RecordLinux extends RecordPlatform {
     });
 
     return completer.future;
+  }
+
+  @override
+  Stream<RecordState> onStateChanged() {
+    _stateStreamCtrl ??= StreamController(
+      onCancel: () {
+        _stateStreamCtrl?.close();
+        _stateStreamCtrl = null;
+      },
+    );
+
+    return _stateStreamCtrl!.stream;
   }
 
   String _getFileNameSuffix(AudioEncoder encoder) {
@@ -184,7 +217,7 @@ class RecordLinux extends RecordPlatform {
       case AudioEncoder.aacHe:
         return ['--aac-profile=HEv2', ..._getAacQuality(bitRate)];
       case AudioEncoder.flac:
-        return ['--flac-compression=6'];
+        return ['--flac-compression=6', '--format=int16'];
       case AudioEncoder.opus:
         final rate = (bitRate ~/ 1000).clamp(6, 510);
         return ['--opus.bitrate=$rate'];
@@ -299,5 +332,15 @@ class RecordLinux extends RecordPlatform {
       channels: channels,
       samplingRate: samplingRate,
     );
+  }
+
+  void _updateState(RecordState state) {
+    if (_state == state) return;
+
+    _state = state;
+
+    if (_stateStreamCtrl?.hasListener ?? false) {
+      _stateStreamCtrl?.add(state);
+    }
   }
 }

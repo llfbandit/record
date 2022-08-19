@@ -1,3 +1,9 @@
+## 0.3.3
+- fix: Flac recording.
+- fix: ACC HE (v2) is now listed as supported.
+- feat: `onStateChanged()` implementation.
+- core: Add debug print when recording to know if fmedia failed.
+
 ## 0.3.2
 - fix: CMakeLists bundled libraries.
 
