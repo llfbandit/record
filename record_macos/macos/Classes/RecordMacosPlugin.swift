@@ -5,7 +5,7 @@ import AVFoundation
 public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputRecordingDelegate, FlutterStreamHandler {
   public static func register(with registrar: FlutterPluginRegistrar) {
     let methodChannel = FlutterMethodChannel(name: "com.llfbandit.record/messages", binaryMessenger: registrar.messenger)
-    let eventChannel = FlutterMethodChannel(name: "com.llfbandit.record/events", binaryMessenger: registrar.messenger)
+    let eventChannel = FlutterEventChannel(name: "com.llfbandit.record/events", binaryMessenger: registrar.messenger)
 
     let instance = RecordMacosPlugin()
 
@@ -178,7 +178,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     result(nil)
   }
 
-  private func isEncoderSupported(encoder: String) -> Bool {
+  private func isEncoderSupported(_ encoder: String) -> Bool {
     let encoderSettings = getEncoderSettings(encoder)
     return encoderSettings != nil
   }
@@ -329,7 +329,7 @@ public class RecordMacosPlugin: NSObject, FlutterPlugin, AVCaptureFileOutputReco
     return nil
   }
 
-  private func updateState(state: Int) {
+  private func updateState(_ state: Int) {
     if let _eventSink = eventSink {
       _eventSink(state)
     }

@@ -106,12 +106,13 @@ class Record implements RecordPlatform {
   }
 
   Future<void> _updateAmplitudeAtInterval() async {
-    Future<bool> shouldUpdate() {
+    Future<bool> shouldUpdate() async {
       var result = _amplitudeStreamCtrl != null;
       result &= !(_amplitudeStreamCtrl?.isClosed ?? true);
       result &= _amplitudeStreamCtrl?.hasListener ?? false;
+      result &= await isRecording() && !(await isPaused());
 
-      return result ? isRecording() : Future.value(false);
+      return result;
     }
 
     if (await shouldUpdate()) {

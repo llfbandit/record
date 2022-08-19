@@ -261,7 +261,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
     return nil
   }
 
-  fileprivate func updateState(state: Int) {
+  fileprivate func updateState(_ state: Int) {
     switch (state) {
       case 0:
         isRecording = true
@@ -271,7 +271,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate
         isRecording = true
         isPaused = false
         break
-      case 2:
+      default:
         isRecording = false
         isPaused = false
         break

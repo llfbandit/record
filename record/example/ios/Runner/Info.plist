@@ -43,5 +43,7 @@
 	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need to access to the microphone to record</string>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 </dict>
 </plist>
