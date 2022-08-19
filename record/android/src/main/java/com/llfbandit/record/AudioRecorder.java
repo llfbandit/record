@@ -143,8 +143,6 @@ public class AudioRecorder implements RecorderBase {
     if (recorder != null) {
       try {
         if (isRecording.get() || isPaused.get()) {
-          Log.d(LOG_TAG, "Stop recording");
-
           isRecording.set(false);
           isPaused.set(false);
           closeDataWriter();

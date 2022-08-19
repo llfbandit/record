@@ -39,15 +39,6 @@ class _AudioRecorderState extends State<AudioRecorder> {
     super.initState();
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _recordSub?.cancel();
-    _amplitudeSub?.cancel();
-    _audioRecorder.dispose();
-    super.dispose();
-  }
-
   Future<void> _start() async {
     try {
       if (await _audioRecorder.hasPermission()) {
@@ -76,10 +67,13 @@ class _AudioRecorderState extends State<AudioRecorder> {
 
   Future<void> _stop() async {
     _timer?.cancel();
-    final path = await _audioRecorder.stop();
     _recordDuration = 0;
 
-    widget.onStop(path!);
+    final path = await _audioRecorder.stop();
+
+    if (path != null) {
+      widget.onStop(path);
+    }
   }
 
   Future<void> _pause() async {
@@ -118,6 +112,15 @@ class _AudioRecorderState extends State<AudioRecorder> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _recordSub?.cancel();
+    _amplitudeSub?.cancel();
+    _audioRecorder.dispose();
+    super.dispose();
   }
 
   Widget _buildRecordStopControl() {

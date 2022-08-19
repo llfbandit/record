@@ -23,21 +23,21 @@ class RecordLinux extends RecordPlatform {
 
   // fmedia pID
   int? _pid;
-  bool _isRecording = false;
-  bool _isPaused = false;
+  RecordState _state = RecordState.stop;
   String? _path;
   StreamSubscription<String>? _fmediaSub;
   StreamController<RecordState>? _stateStreamCtrl;
 
   @override
   Future<void> dispose() {
+    _fmediaSub?.cancel();
+    _stateStreamCtrl?.close();
+
     return stop().then((value) {
       if (_pid != null) {
         Process.killPid(_pid!, ProcessSignal.sigterm);
         _pid = null;
       }
-      _fmediaSub?.cancel();
-      _stateStreamCtrl?.close();
       return Future.value();
     });
   }
@@ -69,26 +69,30 @@ class RecordLinux extends RecordPlatform {
 
   @override
   Future<bool> isPaused() {
-    return Future.value(_isPaused);
+    return Future.value(_state == RecordState.pause);
   }
 
   @override
   Future<bool> isRecording() {
-    return Future.value(_isRecording);
+    return Future.value(_state == RecordState.record);
   }
 
   @override
   Future<void> pause() async {
-    await _callFMedia(['--globcmd=pause']);
+    if (_state == RecordState.record) {
+      await _callFMedia(['--globcmd=pause']);
 
-    _updateState(RecordState.pause);
+      _updateState(RecordState.pause);
+    }
   }
 
   @override
   Future<void> resume() async {
-    await _callFMedia(['--globcmd=unpause']);
+    if (_state == RecordState.pause) {
+      await _callFMedia(['--globcmd=unpause']);
 
-    _updateState(RecordState.record);
+      _updateState(RecordState.record);
+    }
   }
 
   @override
@@ -113,8 +117,6 @@ class RecordLinux extends RecordPlatform {
     final file = File(path);
     if (file.existsSync()) await file.delete();
 
-    _path = path;
-
     final process = await _callFMedia([
       '--notui',
       '--background',
@@ -128,35 +130,35 @@ class RecordLinux extends RecordPlatform {
       ..._getEncoderSettings(encoder, bitRate),
     ]);
     _pid = process.pid;
+    _path = path;
 
     _updateState(RecordState.record);
 
     // Print the fmedia output to allow diagnostics.
-    if (kDebugMode) {
+    _fmediaSub?.cancel();
+    _fmediaSub = process.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((chunk) {
+      if (kDebugMode) print(chunk);
+    });
+    _fmediaSub!.onDone(() {
       _fmediaSub?.cancel();
-      _fmediaSub = process.stderr
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .listen((chunk) {
-        if (kDebugMode) {
-          print(chunk);
-        }
-      })
-        ..onDone(() async {
-          _fmediaSub?.cancel();
-          stop();
-        });
-    }
+      _path = null;
+      stop();
+    });
   }
 
   @override
   Future<String?> stop() async {
+    final path = _path;
+
     await _callFMedia(['--globcmd=stop']);
     await _callFMedia(['--globcmd=quit']);
 
     _updateState(RecordState.stop);
 
-    return _path;
+    return path;
   }
 
   @override
@@ -176,6 +178,18 @@ class RecordLinux extends RecordPlatform {
     });
 
     return completer.future;
+  }
+
+  @override
+  Stream<RecordState> onStateChanged() {
+    _stateStreamCtrl ??= StreamController(
+      onCancel: () {
+        _stateStreamCtrl?.close();
+        _stateStreamCtrl = null;
+      },
+    );
+
+    return _stateStreamCtrl!.stream;
   }
 
   String _getFileNameSuffix(AudioEncoder encoder) {
@@ -320,21 +334,10 @@ class RecordLinux extends RecordPlatform {
     );
   }
 
-  Future<void> _updateState(RecordState state) async {
-    switch (state) {
-      case RecordState.pause:
-        _isRecording = true;
-        _isPaused = true;
-        break;
-      case RecordState.record:
-        _isRecording = true;
-        _isPaused = false;
-        break;
-      case RecordState.stop:
-        _isRecording = false;
-        _isPaused = false;
-        break;
-    }
+  void _updateState(RecordState state) {
+    if (_state == state) return;
+
+    _state = state;
 
     if (_stateStreamCtrl?.hasListener ?? false) {
       _stateStreamCtrl?.add(state);

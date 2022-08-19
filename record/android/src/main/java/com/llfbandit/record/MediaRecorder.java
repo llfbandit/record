@@ -37,8 +37,6 @@ class MediaRecorder implements RecorderBase {
   ) throws Exception {
     stopRecording();
 
-    Log.d(LOG_TAG, "Start recording");
-
     this.path = path;
 
     recorder = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
@@ -143,7 +141,6 @@ class MediaRecorder implements RecorderBase {
     if (recorder != null) {
       try {
         if (isRecording || isPaused) {
-          Log.d(LOG_TAG, "Stop recording");
           recorder.stop();
         }
       } catch (IllegalStateException ex) {
@@ -165,7 +162,6 @@ class MediaRecorder implements RecorderBase {
     if (recorder != null) {
       try {
         if (isRecording) {
-          Log.d(LOG_TAG, "Pause recording");
           recorder.pause();
           isPaused = true;
         }
@@ -180,7 +176,6 @@ class MediaRecorder implements RecorderBase {
     if (recorder != null) {
       try {
         if (isPaused) {
-          Log.d(LOG_TAG, "Resume recording");
           recorder.resume();
           isPaused = false;
         }

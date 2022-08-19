@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 
 /// Audio recorder API
@@ -16,6 +17,7 @@ class Record implements RecordPlatform {
     int numChannels = 2,
     InputDevice? device,
   }) {
+    _log('Start recording');
     return RecordPlatform.instance.start(
       path: path,
       encoder: encoder,
@@ -28,16 +30,19 @@ class Record implements RecordPlatform {
 
   @override
   Future<String?> stop() {
+    _log('Stop recording');
     return RecordPlatform.instance.stop();
   }
 
   @override
   Future<void> pause() {
+    _log('Pause recording');
     return RecordPlatform.instance.pause();
   }
 
   @override
-  Future<void> resume() async {
+  Future<void> resume() {
+    _log('Resume recording');
     return RecordPlatform.instance.resume();
   }
 
@@ -118,5 +123,9 @@ class Record implements RecordPlatform {
     if (await shouldUpdate()) {
       _amplitudeStreamCtrl?.add(await getAmplitude());
     }
+  }
+
+  void _log(String msg) {
+    if (kDebugMode) print(msg);
   }
 }

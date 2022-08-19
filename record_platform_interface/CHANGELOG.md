@@ -1,5 +1,5 @@
 ## 0.5.0
-- feat: onStateChanged is now provided by platform implementations.
+* feat: `onStateChanged()` implementation.
 
 ## 0.4.0
 - feat: Add input devices listing.

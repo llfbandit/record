@@ -53,8 +53,6 @@ class RecordPluginWeb extends RecordPlatform {
 
   @override
   Future<void> pause() async {
-    _log('Recording paused');
-
     _mediaRecorder?.pause();
 
     _updateState(RecordState.pause);
@@ -62,7 +60,6 @@ class RecordPluginWeb extends RecordPlatform {
 
   @override
   Future<void> resume() async {
-    _log('Recording resumed');
     _mediaRecorder?.resume();
 
     _updateState(RecordState.record);
@@ -149,8 +146,6 @@ class RecordPluginWeb extends RecordPlatform {
   }
 
   void _onStart(html.MediaStream stream) {
-    _log('Start recording');
-
     _mediaRecorder = html.MediaRecorder(stream);
     _mediaRecorder?.addEventListener('dataavailable', _onDataAvailable);
     _mediaRecorder?.addEventListener('stop', _onStop);
@@ -198,7 +193,10 @@ class RecordPluginWeb extends RecordPlatform {
     return null;
   }
 
-  void _onError(dynamic error) => _log(error);
+  void _onError(dynamic error) {
+    _resetMediaRecorder();
+    _log(error);
+  }
 
   void _onDataAvailable(html.Event event) {
     if (event is html.BlobEvent && event.data != null) {
@@ -207,8 +205,6 @@ class RecordPluginWeb extends RecordPlatform {
   }
 
   void _onStop(html.Event event) {
-    _log('Stop recording');
-
     String? audioUrl;
 
     if (_chunks.isNotEmpty) {
@@ -239,7 +235,7 @@ class RecordPluginWeb extends RecordPlatform {
     _chunks = [];
   }
 
-  void _log(dynamic msg) {
+  void _log(String msg) {
     if (kDebugMode) print(msg);
   }
 
