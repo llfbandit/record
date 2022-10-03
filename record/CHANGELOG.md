@@ -1,3 +1,6 @@
+## 4.4.1
+* fix: Android build issue with linter.
+
 ## 4.4.0
 * feat: `onStateChanged()` stream is now filled by platform implementations.
     * This allows more reliable updated record states.

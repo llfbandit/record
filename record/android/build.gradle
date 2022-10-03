@@ -30,6 +30,10 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    lint {
+        disable 'InvalidPackage'
+    }
+
     compileOptions {
         // Sets Java compatibility to Java 11
         sourceCompatibility JavaVersion.VERSION_11
