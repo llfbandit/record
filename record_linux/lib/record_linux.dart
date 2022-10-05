@@ -15,10 +15,6 @@ const _pipeProcName = 'record_linux';
 class RecordLinux extends RecordPlatform {
   static void registerWith() {
     RecordPlatform.instance = RecordLinux();
-
-    // Make fmedia bin executable
-    final path = File(Platform.resolvedExecutable).parent.path;
-    Process.start('chmod', ['+x', p.join(path, _fmediaBin)]);
   }
 
   // fmedia pID
@@ -27,6 +23,7 @@ class RecordLinux extends RecordPlatform {
   String? _path;
   StreamSubscription<String>? _fmediaSub;
   StreamController<RecordState>? _stateStreamCtrl;
+  FileSystemEntity? _fmediaFile;
 
   @override
   Future<void> dispose() {
@@ -245,7 +242,24 @@ class RecordLinux extends RecordPlatform {
   Future<Process> _callFMedia(List<String> arguments) {
     final path = File(Platform.resolvedExecutable).parent.path;
 
-    return Process.start(p.join(path, _fmediaPath, _fmediaBin), [
+    if (_fmediaFile == null) {
+      // Lookup for fmedia executable file
+      final files = Directory(path).listSync(
+        recursive: true,
+        followLinks: false,
+      );
+
+      _fmediaFile = files.firstWhere(
+        (f) =>
+            f.parent.path.endsWith(_fmediaPath) &&
+            p.basename(f.path) == _fmediaBin,
+      );
+
+      // Make fmedia bin executable
+      Process.start('chmod', ['+x', _fmediaFile!.path]);
+    }
+
+    return Process.start(_fmediaFile!.path, [
       '--globcmd.pipe-name=$_pipeProcName',
       ...arguments,
     ]);
@@ -335,6 +349,7 @@ class RecordLinux extends RecordPlatform {
   }
 
   void _updateState(RecordState state) {
+    print(state);
     if (_state == state) return;
 
     _state = state;
