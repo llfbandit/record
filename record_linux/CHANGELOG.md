@@ -1,3 +1,7 @@
+## 0.3.4
+- fix: fmedia executable lookup.
+- core: Update fmedia to version 1.29.1.
+
 ## 0.3.3
 - fix: Flac recording.
 - fix: ACC HE (v2) is now listed as supported.
