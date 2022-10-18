@@ -30,7 +30,7 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    lint {
+    lintOptions {
         disable 'InvalidPackage'
     }
 
