@@ -1,3 +1,11 @@
+## 4.4.3
+* fix: Deprecation warning on Android.
+* fix: Android build issue.
+* fix: Don't report Android exception when stop is called just after start.
+
+## 4.4.2
+* fix: Android build issue with linter.
+
 ## 4.4.1
 * fix: Android build issue with linter.
 
