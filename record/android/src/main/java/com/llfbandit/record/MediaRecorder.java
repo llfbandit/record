@@ -27,6 +27,7 @@ class MediaRecorder implements RecorderBase {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public void start(
       @NonNull String path,
       String encoder,
@@ -39,9 +40,11 @@ class MediaRecorder implements RecorderBase {
 
     this.path = path;
 
-    recorder = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-        ? new android.media.MediaRecorder(context)
-        : new android.media.MediaRecorder();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      recorder = new android.media.MediaRecorder(context);
+    } else {
+      recorder = new android.media.MediaRecorder();
+    }
 
     // clamp channels
     numChannels = Math.max(1, numChannels);
@@ -143,7 +146,7 @@ class MediaRecorder implements RecorderBase {
         if (isRecording || isPaused) {
           recorder.stop();
         }
-      } catch (IllegalStateException ex) {
+      } catch (RuntimeException ex) {
         // Mute this exception since 'isRecording' can't be 100% sure
       } finally {
         recorder.reset();
