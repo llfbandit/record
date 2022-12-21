@@ -15,7 +15,8 @@ dependencies:
   record_web: '>=0.5.0 < 2.0.0'
   record_windows: '>=0.6.2 < 2.0.0'
   record_macos: '>=0.2.2 < 2.0.0'
-  record_linux: '>=0.3.3 < 2.0.0'
+#  Removed until https://github.com/llfbandit/record/issues/95 is fixed
+#  record_linux: '>=0.3.3 < 2.0.0'
 
 # dependency_overrides:
 #   record_platform_interface:
@@ -48,5 +49,6 @@ flutter:
         default_package: record_windows
       macos:
         default_package: record_macos
-      linux:
-        default_package: record_linux
+#  Removed until https://github.com/llfbandit/record/issues/95 is fixed
+#      linux:
+#        default_package: record_linux

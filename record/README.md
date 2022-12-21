@@ -1,7 +1,7 @@
 Audio recorder from microphone to a given file path.  
 No external dependencies, MediaRecorder is used for Android an AVAudioRecorder for iOS.  
 
-On Windows and linux, encoding is provided by [fmedia](https://stsaz.github.io/fmedia/).  
+On Windows, encoding is provided by [fmedia](https://stsaz.github.io/fmedia/).  
 
 On macOS, AVCaptureSession (included in SDK).
 
@@ -47,21 +47,21 @@ min SDK: 10.15
 | pause/resume     | ✔️             |   ✔️           | ✔️     |      ✔️    | ✔️    |  ✔️
 | amplitude(dBFS)  | ✔️             |   ✔️           |         |            |  ✔️   |
 | permission check | ✔️             |   ✔️           |  ✔️    |            |  ✔️   |
-| num of channels  | ✔️             |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| device selection |                | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| num of channels  | ✔️             |   ✔️           |  ✔️    |    ✔️      |  ✔️   |
+| device selection |                | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |
 
 
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
 |-----------------|----------------|---------|---------|---------|---------|---------
-| aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
-| aacEld          | ✔️            |   ✔️    |  ?      |         |  ✔️    | 
-| aacHe           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
+| aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |
+| aacEld          | ✔️            |   ✔️    |  ?      |         |  ✔️    |
+| aacHe           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  
 | amrNb           | ✔️            |   ✔️    |  ?      |         |  ✔️    |  
 | amrWb           | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
-| opus            | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
-| vorbisOgg       | ?(optional)   |          |  ?      |  ✔️     |        |   ✔️  
-| wav             |  ✔️           |         |  ?      |   ✔️     |        |   ✔️ 
-| flac            |               |    ✔️    |  ?      |  ✔️     |   ✔️  |   ✔️
+| opus            | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  
+| vorbisOgg       | ?(optional)   |          |  ?      |  ✔️     |        |   
+| wav             |  ✔️           |         |  ?      |   ✔️     |        |   
+| flac            |               |    ✔️    |  ?      |  ✔️     |   ✔️  |  
 | pcm8bit         | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
 | pcm16bit        | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
 
@@ -77,7 +77,7 @@ If a given encoder is not supported when starting recording on platform, the fal
 | web         | OPUS OGG (not guaranteed => choice is made by the browser)   
 | Windows     | AAC LC                                                       
 | macOS       | AAC LC                                                       
-| linux       | AAC LC                                                       
+                                                     
 
 ## Encoding API levels documentation
 ### Android
