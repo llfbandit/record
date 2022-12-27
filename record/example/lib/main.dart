@@ -14,7 +14,7 @@ class AudioRecorder extends StatefulWidget {
   const AudioRecorder({Key? key, required this.onStop}) : super(key: key);
 
   @override
-  _AudioRecorderState createState() => _AudioRecorderState();
+  State<AudioRecorder> createState() => _AudioRecorderState();
 }
 
 class _AudioRecorderState extends State<AudioRecorder> {
@@ -200,7 +200,7 @@ class _AudioRecorderState extends State<AudioRecorder> {
   String _formatNumber(int number) {
     String numberStr = number.toString();
     if (number < 10) {
-      numberStr = '0' + numberStr;
+      numberStr = '0$numberStr';
     }
 
     return numberStr;
@@ -219,7 +219,7 @@ class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
   @override
-  _MyAppState createState() => _MyAppState();
+  State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {

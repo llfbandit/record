@@ -31,7 +31,7 @@ dependencies:
 
 dev_dependencies:
   # https://pub.dev/packages/flutter_lints
-  flutter_lints: ^1.0.4
+  flutter_lints: ^2.0.0
 
 # The following section is specific to Flutter.
 flutter:
