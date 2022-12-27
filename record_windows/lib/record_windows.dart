@@ -245,7 +245,7 @@ class RecordWindows extends RecordPlatform {
     final devices = <InputDevice>[];
     var deviceLine = '';
 
-    void _extract({String? secondLine}) {
+    void extract({String? secondLine}) {
       if (deviceLine.isNotEmpty) {
         final device = _extractDevice(deviceLine, secondLine: secondLine);
         if (device != null) devices.add(device);
@@ -263,15 +263,15 @@ class RecordWindows extends RecordPlatform {
 
       if (line.startsWith(RegExp(r'^device #'))) {
         // Extract previous device if second line was missing
-        _extract();
+        extract();
         deviceLine = line;
       } else if (line.startsWith(RegExp(r'^\s*Default Format: '))) {
-        _extract(secondLine: line);
+        extract(secondLine: line);
       }
     }
 
     // Extract previous device if second line was missing
-    _extract();
+    extract();
 
     return devices;
   }
