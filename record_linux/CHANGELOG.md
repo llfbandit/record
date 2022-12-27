@@ -1,3 +1,9 @@
+## 0.4.0
+- fix: Read all output streams to not leak system resources.
+- chore: fmedia is no more included with the package until a viable solution is found.
+  - You must install it separately and/or distribute it accordingly.
+  - This has been done to fix current build issues.
+
 ## 0.3.4
 - fix: fmedia executable lookup.
 - core: Update fmedia to version 1.29.1.

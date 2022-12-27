@@ -3,11 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:record_platform_interface/record_platform_interface.dart';
 
-const _fmediaPath = 'fmedia';
 const _fmediaBin = 'fmedia';
 
 const _pipeProcName = 'record_linux';
@@ -17,26 +15,14 @@ class RecordLinux extends RecordPlatform {
     RecordPlatform.instance = RecordLinux();
   }
 
-  // fmedia pID
-  int? _pid;
   RecordState _state = RecordState.stop;
   String? _path;
-  StreamSubscription<String>? _fmediaSub;
   StreamController<RecordState>? _stateStreamCtrl;
-  FileSystemEntity? _fmediaFile;
 
   @override
   Future<void> dispose() {
-    _fmediaSub?.cancel();
     _stateStreamCtrl?.close();
-
-    return stop().then((value) {
-      if (_pid != null) {
-        Process.killPid(_pid!, ProcessSignal.sigterm);
-        _pid = null;
-      }
-      return Future.value();
-    });
+    return stop();
   }
 
   @override
@@ -114,7 +100,7 @@ class RecordLinux extends RecordPlatform {
     final file = File(path);
     if (file.existsSync()) await file.delete();
 
-    final process = await _callFMedia([
+    await _callFMedia([
       '--notui',
       '--background',
       '--record',
@@ -126,24 +112,11 @@ class RecordLinux extends RecordPlatform {
       if (device != null) '--dev-capture=${device.id}',
       ..._getEncoderSettings(encoder, bitRate),
     ]);
-    _pid = process.pid;
     _path = path;
 
     _updateState(RecordState.record);
 
-    // Print the fmedia output to allow diagnostics.
-    _fmediaSub?.cancel();
-    _fmediaSub = process.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((chunk) {
-      if (kDebugMode) print(chunk);
-    });
-    _fmediaSub!.onDone(() {
-      _fmediaSub?.cancel();
-      _path = null;
-      stop();
-    });
+    stop();
   }
 
   @override
@@ -160,21 +133,23 @@ class RecordLinux extends RecordPlatform {
 
   @override
   Future<List<InputDevice>> listInputDevices() async {
-    final process = await _callFMedia(['--list-dev']);
-
-    final completer = Completer<List<InputDevice>>();
+    final outStreamCtrl = StreamController<List<int>>();
 
     final out = <String>[];
-    process.stdout
+    outStreamCtrl.stream
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((chunk) {
       out.add(chunk);
-    }).onDone(() {
-      completer.complete(_listInputDevices(out));
     });
 
-    return completer.future;
+    try {
+      await _callFMedia(['--list-dev'], outStreamCtrl: outStreamCtrl);
+
+      return _listInputDevices(out);
+    } finally {
+      outStreamCtrl.close();
+    }
   }
 
   @override
@@ -239,29 +214,20 @@ class RecordLinux extends RecordPlatform {
     return ['--aac-quality=$quality'];
   }
 
-  Future<Process> _callFMedia(List<String> arguments) {
-    final path = File(Platform.resolvedExecutable).parent.path;
-
-    if (_fmediaFile == null) {
-      // Lookup for fmedia executable file
-      final files = Directory(path).listSync(
-        recursive: true,
-        followLinks: false,
-      );
-
-      _fmediaFile = files.firstWhere(
-        (f) =>
-            f.parent.path.endsWith(_fmediaPath) &&
-            p.basename(f.path) == _fmediaBin,
-      );
-
-      // Make fmedia bin executable
-      Process.start('chmod', ['+x', _fmediaFile!.path]);
-    }
-
-    return Process.start(_fmediaFile!.path, [
+  Future<void> _callFMedia(
+    List<String> arguments, {
+    StreamController<List<int>>? outStreamCtrl,
+  }) async {
+    final process = await Process.start(_fmediaBin, [
       '--globcmd.pipe-name=$_pipeProcName',
       ...arguments,
+    ]);
+
+    // Forward both sdtout & stderr streams to our own output streams to not miss any log.
+    // Also, we must listen to both to not leak system resources.
+    await Future.wait([
+      (outStreamCtrl ?? stdout).addStream(process.stdout),
+      stderr.addStream(process.stderr),
     ]);
   }
 
@@ -349,7 +315,6 @@ class RecordLinux extends RecordPlatform {
   }
 
   void _updateState(RecordState state) {
-    print(state);
     if (_state == state) return;
 
     _state = state;
