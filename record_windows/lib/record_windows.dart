@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:record_platform_interface/record_platform_interface.dart';
 
@@ -17,26 +16,15 @@ class RecordWindows extends RecordPlatform {
     RecordPlatform.instance = RecordWindows();
   }
 
-  // fmedia pID
-  int? _pid;
   RecordState _state = RecordState.stop;
   String? _path;
-  StreamSubscription<String>? _fmediaSub;
   StreamController<RecordState>? _stateStreamCtrl;
 
   @override
   Future<void> dispose() {
-    _fmediaSub?.cancel();
     _stateStreamCtrl?.close();
 
-    return stop().then((value) {
-      if (_pid != null) {
-        Process.killPid(_pid!, ProcessSignal.sigterm);
-        _pid = null;
-      }
-
-      return Future.value();
-    });
+    return stop();
   }
 
   @override
@@ -114,7 +102,7 @@ class RecordWindows extends RecordPlatform {
     final file = File(path);
     if (file.existsSync()) await file.delete();
 
-    final process = await _callFMedia([
+    await _callFMedia([
       '--notui',
       '--background',
       '--record',
@@ -126,24 +114,11 @@ class RecordWindows extends RecordPlatform {
       if (device != null) '--dev-capture=${device.id}',
       ..._getEncoderSettings(encoder, bitRate),
     ]);
-    _pid = process.pid;
     _path = path;
 
     _updateState(RecordState.record);
 
-    // Print the fmedia output to allow diagnostics.
-    _fmediaSub?.cancel();
-    _fmediaSub = process.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((chunk) {
-      if (kDebugMode) print(chunk);
-    });
-    _fmediaSub!.onDone(() {
-      _fmediaSub?.cancel();
-      _path = null;
-      stop();
-    });
+    stop();
   }
 
   @override
@@ -160,24 +135,23 @@ class RecordWindows extends RecordPlatform {
 
   @override
   Future<List<InputDevice>> listInputDevices() async {
-    final process = await _callFMedia(['--list-dev']);
-
-    final completer = Completer<List<InputDevice>>();
+    final outStreamCtrl = StreamController<List<int>>();
 
     final out = <String>[];
-    StreamSubscription<String>? sub;
-    sub = process.stdout
+    outStreamCtrl.stream
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((chunk) {
       out.add(chunk);
-    })
-      ..onDone(() {
-        sub?.cancel();
-        completer.complete(_listInputDevices(out));
-      });
+    });
 
-    return completer.future;
+    try {
+      await _callFMedia(['--list-dev'], outStreamCtrl: outStreamCtrl);
+
+      return _listInputDevices(out);
+    } finally {
+      outStreamCtrl.close();
+    }
   }
 
   @override
@@ -242,12 +216,22 @@ class RecordWindows extends RecordPlatform {
     return ['--aac-quality=$quality'];
   }
 
-  Future<Process> _callFMedia(List<String> arguments) {
+  Future<void> _callFMedia(
+    List<String> arguments, {
+    StreamController<List<int>>? outStreamCtrl,
+  }) async {
     final path = File(Platform.resolvedExecutable).parent.path;
 
-    return Process.start(p.join(path, _fmediaPath, _fmediaBin), [
+    final process = await Process.start(p.join(path, _fmediaPath, _fmediaBin), [
       '--globcmd.pipe-name=$_pipeProcName',
       ...arguments,
+    ]);
+
+    // Forward both sdtout & stderr streams to our own output streams to not miss any log.
+    // Also, we must listen to both to not leak system resources.
+    await Future.wait([
+      (outStreamCtrl ?? stdout).addStream(process.stdout),
+      stderr.addStream(process.stderr),
     ]);
   }
 

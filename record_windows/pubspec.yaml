@@ -1,6 +1,6 @@
 name: record_windows
 description: Windows specific implementation for record package called by record_platform_interface.
-version: 0.6.2
+version: 0.7.0
 homepage: https://github.com/llfbandit/record/tree/master/record_windows
 
 environment:

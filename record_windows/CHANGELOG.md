@@ -1,3 +1,7 @@
+## 0.7.0
+- fix: Read all output streams to not leak system resources.
+- chore: Update fmedia to version 1.29.1. 
+
 ## 0.6.2
 - fix: Flac recording.
 - fix: ACC HE (v2) is now listed as supported.
