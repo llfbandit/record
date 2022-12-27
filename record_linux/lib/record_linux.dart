@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:record_platform_interface/record_platform_interface.dart';
 
@@ -89,6 +90,8 @@ class RecordLinux extends RecordPlatform {
   }) async {
     await stop();
 
+    _path = null;
+
     path ??= p.join(
       Directory.systemTemp.path,
       Random.secure().nextInt(1000000000).toRadixString(16),
@@ -100,23 +103,25 @@ class RecordLinux extends RecordPlatform {
     final file = File(path);
     if (file.existsSync()) await file.delete();
 
-    await _callFMedia([
-      '--notui',
-      '--background',
-      '--record',
-      '--out=$path',
-      '--rate=$samplingRate',
-      '--channels=$numChannels',
-      '--globcmd=listen',
-      '--gain=6.0',
-      if (device != null) '--dev-capture=${device.id}',
-      ..._getEncoderSettings(encoder, bitRate),
-    ]);
-    _path = path;
-
-    _updateState(RecordState.record);
-
-    stop();
+    await _callFMedia(
+      [
+        '--notui',
+        '--background',
+        '--record',
+        '--out=$path',
+        '--rate=$samplingRate',
+        '--channels=$numChannels',
+        '--globcmd=listen',
+        '--gain=6.0',
+        if (device != null) '--dev-capture=${device.id}',
+        ..._getEncoderSettings(encoder, bitRate),
+      ],
+      onStarted: () {
+        _path = path;
+        _updateState(RecordState.record);
+      },
+      consumeOutput: false,
+    );
   }
 
   @override
@@ -217,18 +222,33 @@ class RecordLinux extends RecordPlatform {
   Future<void> _callFMedia(
     List<String> arguments, {
     StreamController<List<int>>? outStreamCtrl,
+    VoidCallback? onStarted,
+    bool consumeOutput = true,
   }) async {
     final process = await Process.start(_fmediaBin, [
       '--globcmd.pipe-name=$_pipeProcName',
       ...arguments,
     ]);
 
-    // Forward both sdtout & stderr streams to our own output streams to not miss any log.
-    // Also, we must listen to both to not leak system resources.
-    await Future.wait([
-      (outStreamCtrl ?? stdout).addStream(process.stdout),
-      stderr.addStream(process.stderr),
-    ]);
+    if (onStarted != null) {
+      onStarted();
+    }
+
+    // Listen to both stdout & stderr to not leak system resources.
+    if (consumeOutput) {
+      final out = outStreamCtrl ?? StreamController<List<int>>();
+      if (outStreamCtrl == null) out.stream.listen((event) {});
+      final err = StreamController<List<int>>();
+      err.stream.listen((event) {});
+
+      await Future.wait([
+        out.addStream(process.stdout),
+        err.addStream(process.stderr),
+      ]);
+
+      if (outStreamCtrl == null) out.close();
+      err.close();
+    }
   }
 
   // Playback/Loopback:

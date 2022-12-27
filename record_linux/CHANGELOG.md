@@ -1,3 +1,6 @@
+## 0.4.1
+- fix: Read all output streams to not leak system resources.
+
 ## 0.4.0
 - fix: Read all output streams to not leak system resources.
 - chore: fmedia is no more included with the package until a viable solution is found.

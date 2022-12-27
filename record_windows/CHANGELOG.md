@@ -1,3 +1,6 @@
+## 0.7.1
+- fix: Read all output streams to not leak system resources.
+
 ## 0.7.0
 - fix: Read all output streams to not leak system resources.
 - chore: Update fmedia to version 1.29.1. 
