@@ -1,11 +1,15 @@
 Audio recorder from microphone to a given file path.  
-No external dependencies, MediaRecorder is used for Android an AVAudioRecorder for iOS.  
 
-On Windows and linux, encoding is provided by [fmedia](https://stsaz.github.io/fmedia/).  
+No external dependencies:
 
-On macOS, AVCaptureSession (included in SDK).
+- On Android, MediaRecorder is used.  
+- On iOS, AVAudioRecorder is used.  
+- On macOS, AVCaptureSession is used.  
+- On web, well... your browser!
 
-On web, well... your browser!
+External dependencies:
+- On Windows and linux, encoding is provided by [fmedia](https://stsaz.github.io/fmedia/).  
+- On linux, fmedia must be installed separately.
 
 ## Options
 - bit rate (where applicable)
@@ -22,14 +26,14 @@ On web, well... your browser!
 <!-- Optional, you'll have to check this permission by yourself. -->
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 ```
-min SDK: 19 (maybe higher => encoder dependent)
+- min SDK: 19 (maybe higher => encoder dependent)
 
 ### iOS
 ```xml
 <key>NSMicrophoneUsageDescription</key>
 <string>We need to access to the microphone to record audio file</string>
 ```
-min SDK: 11.0
+- min SDK: 11.0
 
 ### macOS
 ```xml
@@ -37,9 +41,9 @@ min SDK: 11.0
 <string>We need to access to the microphone to record audio file</string>
 ```
 
-In capabilities, activate "Audio input" in debug AND release schemes
+- In capabilities, activate "Audio input" in debug AND release schemes
 
-min SDK: 10.15
+- min SDK: 10.15
 
 ## Platform feature parity matrix
 | Feature          | Android        | iOS             | web     | Windows    | macOS  | linux
