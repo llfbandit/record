@@ -80,7 +80,7 @@ packages:
       name: record_linux
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.4.0"
+    version: "0.4.1"
   record_macos:
     dependency: "direct main"
     description:
@@ -108,7 +108,7 @@ packages:
       name: record_windows
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.7.0"
+    version: "0.7.1"
   sky_engine:
     dependency: transitive
     description: flutter

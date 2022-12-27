@@ -234,14 +234,14 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "4.4.3"
+    version: "4.4.4"
   record_linux:
     dependency: transitive
     description:
       name: record_linux
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.4.0"
+    version: "0.4.1"
   record_macos:
     dependency: transitive
     description:
@@ -269,7 +269,7 @@ packages:
       name: record_windows
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.7.0"
+    version: "0.7.1"
   sky_engine:
     dependency: transitive
     description: flutter

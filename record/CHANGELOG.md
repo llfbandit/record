@@ -1,3 +1,8 @@
+## 4.4.4
+* chore: Update linter rules.
+* chore: Update dependencies.
+* chore: Update readme.md.
+
 ## 4.4.3
 * fix: Deprecation warning on Android.
 * fix: Android build issue.
