@@ -17,17 +17,17 @@ dependencies:
   record_macos: '>=0.2.2 < 2.0.0'
   record_linux: '>=0.4.1 < 2.0.0'
 
-# dependency_overrides:
-#   record_platform_interface:
-#     path: ../record_platform_interface
-#   record_web:
-#     path: ../record_web
-#   record_windows:
-#     path: ../record_windows
-#   record_macos:
-#     path: ../record_macos
-#   record_linux:
-#     path: ../record_linux
+dependency_overrides:
+  record_platform_interface:
+    path: ../record_platform_interface
+  record_web:
+    path: ../record_web
+  record_windows:
+    path: ../record_windows
+  record_macos:
+    path: ../record_macos
+  record_linux:
+    path: ../record_linux
 
 dev_dependencies:
   # https://pub.dev/packages/flutter_lints

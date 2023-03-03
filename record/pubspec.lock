@@ -77,37 +77,37 @@ packages:
   record_linux:
     dependency: "direct main"
     description:
-      name: record_linux
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../record_linux"
+      relative: true
+    source: path
     version: "0.4.1"
   record_macos:
     dependency: "direct main"
     description:
-      name: record_macos
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../record_macos"
+      relative: true
+    source: path
     version: "0.2.2"
   record_platform_interface:
     dependency: "direct main"
     description:
-      name: record_platform_interface
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../record_platform_interface"
+      relative: true
+    source: path
     version: "0.5.0"
   record_web:
     dependency: "direct main"
     description:
-      name: record_web
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../record_web"
+      relative: true
+    source: path
     version: "0.5.0"
   record_windows:
     dependency: "direct main"
     description:
-      name: record_windows
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../record_windows"
+      relative: true
+    source: path
     version: "0.7.1"
   sky_engine:
     dependency: transitive

@@ -2,6 +2,11 @@ package com.llfbandit.record;
 
 import androidx.annotation.NonNull;
 
+import com.llfbandit.record.methodcall.MethodCallHandlerImpl;
+import com.llfbandit.record.permission.PermissionManager;
+import com.llfbandit.record.stream.RecorderRecordStreamHandler;
+import com.llfbandit.record.stream.RecorderStateStreamHandler;
+
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
@@ -13,16 +18,22 @@ import io.flutter.plugin.common.MethodChannel;
  * RecordPlugin
  */
 public class RecordPlugin implements FlutterPlugin, ActivityAware {
-  private static final String MESSAGES_CHANNEL = "com.llfbandit.record/messages";
-  private static final String EVENTS_CHANNEL = "com.llfbandit.record/events";
+  static final String MESSAGES_CHANNEL = "com.llfbandit.record/messages";
+  static final String EVENTS_STATE_CHANNEL = "com.llfbandit.record/events";
+  static final String EVENTS_RECORD_CHANNEL = "com.llfbandit.record/eventsRecord";
 
   /// The MethodChannel that will the communication between Flutter and native Android
   private MethodChannel methodChannel;
   // Channel for communicating with flutter using async stream
   private EventChannel eventChannel;
+  private RecorderStateStreamHandler recorderStateStreamHandler;
+  // Channel for communicating with flutter using async stream
+  private EventChannel eventRecordChannel;
+  private RecorderRecordStreamHandler recorderRecordStreamHandler;
   /// Our call handler
-  private MethodCallHandlerImpl handler;
-  private FlutterPluginBinding pluginBinding;
+  private MethodCallHandlerImpl callHandler;
+
+  private PermissionManager permissionManager;
   private ActivityPluginBinding activityBinding;
 
   /////////////////////////////////////////////////////////////////////////////
@@ -30,12 +41,12 @@ public class RecordPlugin implements FlutterPlugin, ActivityAware {
   /////////////////////////////////////////////////////////////////////////////
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
-    pluginBinding = binding;
+    startPlugin(binding.getBinaryMessenger());
   }
 
   @Override
   public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
-    pluginBinding = null;
+    stopPlugin();
   }
   /// END FlutterPlugin
   /////////////////////////////////////////////////////////////////////////////
@@ -48,7 +59,8 @@ public class RecordPlugin implements FlutterPlugin, ActivityAware {
   public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
     activityBinding = binding;
 
-    startPlugin(pluginBinding.getBinaryMessenger(), binding);
+    permissionManager.setActivity(activityBinding.getActivity());
+    activityBinding.addRequestPermissionsResultListener(permissionManager);
   }
 
   @Override
@@ -63,31 +75,48 @@ public class RecordPlugin implements FlutterPlugin, ActivityAware {
 
   @Override
   public void onDetachedFromActivity() {
-    stopPlugin();
-  }
+    permissionManager.setActivity(null);
+    activityBinding.removeRequestPermissionsResultListener(permissionManager);
 
-  private void startPlugin(BinaryMessenger messenger, ActivityPluginBinding binding) {
-
-    handler = new MethodCallHandlerImpl(binding.getActivity());
-    methodChannel = new MethodChannel(messenger, MESSAGES_CHANNEL);
-    methodChannel.setMethodCallHandler(handler);
-
-    binding.addRequestPermissionsResultListener(handler);
-
-    eventChannel = new EventChannel(messenger, EVENTS_CHANNEL);
-    eventChannel.setStreamHandler(handler);
-  }
-
-  private void stopPlugin() {
-    activityBinding.removeRequestPermissionsResultListener(handler);
     activityBinding = null;
-    methodChannel.setMethodCallHandler(null);
-    eventChannel.setStreamHandler(null);
-    handler.close();
-    handler = null;
-    methodChannel = null;
-    eventChannel = null;
   }
   /// END ActivityAware
   /////////////////////////////////////////////////////////////////////////////
+
+  private void startPlugin(BinaryMessenger messenger) {
+    recorderStateStreamHandler = new RecorderStateStreamHandler();
+    recorderRecordStreamHandler = new RecorderRecordStreamHandler();
+
+    permissionManager = new PermissionManager();
+
+    callHandler = new MethodCallHandlerImpl(
+        permissionManager,
+        recorderStateStreamHandler,
+        recorderRecordStreamHandler
+    );
+
+    methodChannel = new MethodChannel(messenger, MESSAGES_CHANNEL);
+    methodChannel.setMethodCallHandler(callHandler);
+
+    eventChannel = new EventChannel(messenger, EVENTS_STATE_CHANNEL);
+    eventChannel.setStreamHandler(recorderStateStreamHandler);
+
+    eventRecordChannel = new EventChannel(messenger, EVENTS_RECORD_CHANNEL);
+    eventRecordChannel.setStreamHandler(recorderRecordStreamHandler);
+  }
+
+  private void stopPlugin() {
+    methodChannel.setMethodCallHandler(null);
+    methodChannel = null;
+    callHandler.close();
+    callHandler = null;
+
+    eventChannel.setStreamHandler(null);
+    eventChannel = null;
+    recorderStateStreamHandler = null;
+
+    eventRecordChannel.setStreamHandler(null);
+    eventRecordChannel = null;
+    recorderRecordStreamHandler = null;
+  }
 }

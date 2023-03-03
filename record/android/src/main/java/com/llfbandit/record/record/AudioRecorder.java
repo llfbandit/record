@@ -1,15 +1,22 @@
-package com.llfbandit.record;
+package com.llfbandit.record.record;
 
+import static android.media.AudioRecord.ERROR;
+import static android.media.AudioRecord.ERROR_BAD_VALUE;
+import static android.media.AudioRecord.RECORDSTATE_RECORDING;
 import static android.os.SystemClock.sleep;
 
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.Build;
+import android.media.audiofx.AutomaticGainControl;
+import android.media.audiofx.NoiseSuppressor;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
+import androidx.annotation.Nullable;
+
+import com.llfbandit.record.stream.RecorderRecordStreamHandler;
+import com.llfbandit.record.stream.RecorderStateStreamHandler;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -17,99 +24,68 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class AudioRecorder implements RecorderBase {
-  private static final String LOG_TAG = "Record - AR";
+public class AudioRecorder extends RecorderBase {
+  private static final String TAG = "Record";
+
+  // Recording config
+  private final RecordConfig mConfig;
+  // Our recorder
+  private AudioRecord mRecorder;
+  // Recorder features
+  private NoiseSuppressor mNoiseSuppressor = null;
+  private AutomaticGainControl mAutomaticGainControl = null;
 
   // Signals whether a recording is in progress (true) or not (false).
-  private final AtomicBoolean isRecording = new AtomicBoolean(false);
-  // Signals whether a recording is in progress (true) or not (false).
-  private final AtomicBoolean isPaused = new AtomicBoolean(false);
-  // Signals whether a recording is in progress (true) or not (false).
   private final AtomicInteger amplitude = new AtomicInteger(-160);
-  // Our recorder
-  private AudioRecord recorder = null;
-  // Thread to offload the writings from the UI thread
-  private RecordDataWriter recordDataWriter = null;
-  // Audio file path
-  private String path;
   // Max amplitude recorded
   private double maxAmplitude = -100.0;
 
-  @Override
-  public void start(
-      @NonNull String path,
-      String encoder,
-      int bitRate,
-      int samplingRate,
-      int numChannels,
-      Map<String, Object> device
+  public AudioRecorder(
+      @NonNull RecordConfig config,
+      @NonNull RecorderStateStreamHandler recorderStateStreamHandler,
+      @NonNull RecorderRecordStreamHandler recorderRecordStreamHandler
   ) throws Exception {
-    stopRecording();
+    super(recorderStateStreamHandler, recorderRecordStreamHandler);
+    this.mConfig = config;
 
-    this.path = path;
+    mRecorder = createAudioRecord(mConfig);
 
-    Integer audioFormat = getAudioFormat(encoder);
-    if (audioFormat == null) {
-      Log.d(LOG_TAG, "Audio format is not supported.\nFalling back to PCM 16bits");
-      audioFormat = AudioFormat.ENCODING_PCM_16BIT;
+    if (mConfig.noiseCancel) {
+      mNoiseSuppressor = enableNoiseSuppressor(mRecorder);
     }
-
-    // clamp channels
-    numChannels = Math.min(2, Math.max(1, numChannels));
-
-    final int channelConfig = numChannels == 1
-        ? AudioFormat.CHANNEL_IN_MONO
-        : AudioFormat.CHANNEL_IN_STEREO;
-
-    // Get min size of the buffer for writings * factor
-    final int bufferSize = AudioRecord.getMinBufferSize(samplingRate, channelConfig, audioFormat) * 2;
-
-    try {
-
-      recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, samplingRate, channelConfig, audioFormat, bufferSize);
-
-      isRecording.set(true);
-
-      recordDataWriter = new RecordDataWriter(
-          path, encoder, samplingRate, bufferSize, (short) numChannels,
-          (audioFormat == AudioFormat.ENCODING_PCM_16BIT) ? (short) 16 : (short) 8
-      );
-      new Thread(recordDataWriter).start();
-
-      recorder.startRecording();
-    } catch (IllegalArgumentException | IllegalStateException e) {
-      throw new Exception(e);
+    if (mConfig.autoGain) {
+      mAutomaticGainControl = enableAutomaticGainControl(mRecorder);
     }
+  }
+
+  @Override
+  public int getInstanceId() {
+    return mRecorder.getAudioSessionId();
+  }
+
+  @Override
+  public void start() {
+    mRecorder.startRecording();
+
+    updateState(RECORD_STATE_RECORD);
   }
 
   @Override
   public String stop() {
     stopRecording();
-    return path;
+    return mConfig.path;
   }
 
   @Override
   public void pause() {
-    isPaused.set(true);
+    updateState(RECORD_STATE_PAUSE);
   }
 
-  @RequiresApi(api = Build.VERSION_CODES.N)
   @Override
   public void resume() {
-    isPaused.set(false);
-  }
-
-  @Override
-  public boolean isRecording() {
-    return isRecording.get();
-  }
-
-  @Override
-  public boolean isPaused() {
-    return isPaused.get();
+    updateState(RECORD_STATE_RECORD);
   }
 
   @Override
@@ -128,10 +104,8 @@ public class AudioRecorder implements RecorderBase {
     return amp;
   }
 
-  @Override
-  public boolean isEncoderSupported(String encoder) {
-    Integer audioFormat = getAudioFormat(encoder);
-    return audioFormat != null;
+  public static boolean isEncoderSupported(String encoder) {
+    return getAudioFormat(encoder) != null;
   }
 
   @Override
@@ -140,45 +114,26 @@ public class AudioRecorder implements RecorderBase {
   }
 
   private void stopRecording() {
-    if (recorder != null) {
+    if (mRecorder != null) {
       try {
-        if (isRecording.get() || isPaused.get()) {
-          isRecording.set(false);
-          isPaused.set(false);
-          closeDataWriter();
-
-          recorder.stop();
+        if (mRecorder.getRecordingState() == RECORDSTATE_RECORDING) {
+          mRecorder.stop();
         }
       } catch (IllegalStateException ex) {
-        // Mute this exception since 'isRecording' can't be 100% sure
+        // Mute this exception, this should never happen
       } finally {
-        recorder.release();
-        recorder = null;
+        // TODO stop encoding & muxing
       }
     }
 
-    isRecording.set(false);
-    isPaused.set(false);
+    updateState(RECORD_STATE_STOP);
+    release();
 
     amplitude.set(-100);
     maxAmplitude = -100;
-
-    closeDataWriter();
   }
 
-  private void closeDataWriter() {
-    if (recordDataWriter != null) {
-      try {
-        recordDataWriter.close();
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      } finally {
-        recordDataWriter = null;
-      }
-    }
-  }
-
-  private Integer getAudioFormat(String encoder) {
+  private static Integer getAudioFormat(String encoder) {
     switch (encoder) {
       case "wav":
       case "pcm16bit":
@@ -190,6 +145,107 @@ public class AudioRecorder implements RecorderBase {
     return null;
   }
 
+  private AudioRecord createAudioRecord(RecordConfig config) throws Exception {
+    final int audioFormat = getAudioFormat(config);
+    final int channelConfig = getChannels(config);
+    final int bufferSize = getBufferSize(config.samplingRate, channelConfig, audioFormat);
+
+    AudioRecord recorder;
+    try {
+      recorder = new AudioRecord(
+          MediaRecorder.AudioSource.DEFAULT,
+          config.samplingRate,
+          channelConfig,
+          audioFormat,
+          bufferSize);
+    } catch (IllegalArgumentException e) {
+      Log.d(TAG, e.getMessage());
+      throw new Exception(e);
+    }
+
+    if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
+      Log.d(TAG, "Unable to initialize AudioRecord");
+      throw new Exception("Unable to initialize AudioRecord");
+    }
+
+    return recorder;
+  }
+
+  private int getAudioFormat(RecordConfig config) {
+    Integer audioFormat = getAudioFormat(config.encoder);
+    if (audioFormat == null) {
+      Log.d(TAG, "Audio format is not supported.\nFalling back to PCM 16bits");
+      audioFormat = AudioFormat.ENCODING_PCM_16BIT;
+    }
+
+    return audioFormat;
+  }
+
+  private int getChannels(RecordConfig config) {
+    return config.numChannels == 1
+        ? AudioFormat.CHANNEL_IN_MONO
+        : AudioFormat.CHANNEL_IN_STEREO;
+  }
+
+  private int getBufferSize(int samplingRate, int channelConfig, int audioFormat) throws Exception {
+    // Get min size of the buffer for writings
+    final int bufferSize = AudioRecord.getMinBufferSize(
+        samplingRate,
+        channelConfig,
+        audioFormat
+    );
+    if (bufferSize == ERROR_BAD_VALUE || bufferSize == ERROR) {
+      Log.d(TAG, "Recording config is not supported by the hardware, or an invalid config was provided.");
+      throw new Exception("Recording config is not supported by the hardware, or an invalid config was provided.");
+    }
+
+    return bufferSize;
+  }
+
+  @Nullable
+  private NoiseSuppressor enableNoiseSuppressor(AudioRecord recorder) {
+    NoiseSuppressor noiseSuppressor = null;
+
+    if (NoiseSuppressor.isAvailable()) {
+      noiseSuppressor = NoiseSuppressor.create(recorder.getAudioSessionId());
+      if (noiseSuppressor != null) {
+        noiseSuppressor.setEnabled(true);
+      }
+    }
+
+    return noiseSuppressor;
+  }
+
+  @Nullable
+  private AutomaticGainControl enableAutomaticGainControl(AudioRecord recorder) {
+    AutomaticGainControl automaticGainControl = null;
+
+    if (AutomaticGainControl.isAvailable()) {
+      automaticGainControl = AutomaticGainControl.create(recorder.getAudioSessionId());
+      if (automaticGainControl != null) {
+        automaticGainControl.setEnabled(true);
+      }
+    }
+
+    return automaticGainControl;
+  }
+
+  private void release() {
+    if (mNoiseSuppressor != null) {
+      mNoiseSuppressor.release();
+      mNoiseSuppressor = null;
+    }
+    if (mAutomaticGainControl != null) {
+      mAutomaticGainControl.release();
+      mAutomaticGainControl = null;
+    }
+
+    if (mRecorder != null) {
+      mRecorder.release();
+      mRecorder = null;
+    }
+  }
+
   private class RecordDataWriter implements Runnable {
     final String path;
     final String encoder;
@@ -199,7 +255,7 @@ public class AudioRecorder implements RecorderBase {
     final short bitsPerSample;
     private int audioDataLength = 0;
     // Flag for completion
-    CountDownLatch completion = new CountDownLatch(1);
+    private final CountDownLatch completion = new CountDownLatch(1);
 
     RecordDataWriter(
         String path,
@@ -282,13 +338,13 @@ public class AudioRecorder implements RecorderBase {
         case AudioRecord.ERROR_INVALID_OPERATION:
           str.append("AudioRecord.ERROR_INVALID_OPERATION");
           break;
-        case AudioRecord.ERROR_BAD_VALUE:
+        case ERROR_BAD_VALUE:
           str.append("AudioRecord.ERROR_BAD_VALUE");
           break;
         case AudioRecord.ERROR_DEAD_OBJECT:
           str.append("AudioRecord.ERROR_DEAD_OBJECT");
           break;
-        case AudioRecord.ERROR:
+        case ERROR:
           str.append("AudioRecord.ERROR");
           break;
         default:

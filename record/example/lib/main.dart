@@ -53,7 +53,13 @@ class _AudioRecorderState extends State<AudioRecorder> {
         // final devs = await _audioRecorder.listInputDevices();
         // final isRecording = await _audioRecorder.isRecording();
 
-        await _audioRecorder.start();
+        // await _audioRecorder.start();
+        final stream = await _audioRecorder.startStream();
+        stream.listen(
+          (event) => print(event),
+          onDone: () => print('onDone'),
+        );
+
         _recordDuration = 0;
 
         _startTimer();

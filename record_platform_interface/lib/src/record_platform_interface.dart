@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:record_platform_interface/src/method_channel_record.dart';
 import 'package:record_platform_interface/src/types/types.dart';
@@ -34,11 +36,14 @@ abstract class RecordPlatform extends PlatformInterface {
 
   /// Starts new recording session.
   ///
-  /// [path]: The output path file. If not provided will use temp folder.
-  /// Ignored on web platform, output path is retrieve on stop.
+  /// [path]: The output path file.
+  /// If path is null, a temporary file will be created and thus auto-managed
+  /// by the system to delete it when required.
+  ///
+  /// `web`: This parameter is ignored. Output path is retrieve on [stop]
+  /// method is called.
   ///
   /// [encoder]: The audio encoder to be used for recording.
-  /// Ignored on web platform.
   ///
   /// [bitRate]: The audio encoding bit rate in bits per second.
   ///
@@ -59,18 +64,37 @@ abstract class RecordPlatform extends PlatformInterface {
     InputDevice? device,
   });
 
+  /// Same as [start] with output stream instead of a path.
+  ///
+  /// Where possible, the underlying platform won't generate a file.
+  /// Otherwise, a temporary file will be created and thus auto-managed
+  /// by the system to delete it when required.
+  ///
+  /// When stopping the record, you must rely on stream close event to get
+  /// full recorded data.
+  Future<Stream<List<int>>> startStream({
+    AudioEncoder encoder = AudioEncoder.aacLc,
+    int bitRate = 128000,
+    int samplingRate = 44100,
+    int numChannels = 2,
+    InputDevice? device,
+  }) =>
+      throw UnimplementedError(
+          'startStream not implemented on the current platform.');
+
   /// Stops recording session and release internal recorder resource.
+  ///
   /// Returns the output path.
   Future<String?> stop();
 
   /// Pauses recording session.
   ///
-  /// Note: Usable on Android API >= 24(Nougat). Does nothing otherwise.
+  /// Note `Android`: Usable on API >= 24(Nougat). Does nothing otherwise.
   Future<void> pause();
 
   /// Resumes recording session after [pause].
   ///
-  /// Note: Usable on Android API >= 24(Nougat). Does nothing otherwise.
+  /// Note `Android`: Usable on API >= 24(Nougat). Does nothing otherwise.
   Future<void> resume();
 
   /// Checks if there's valid recording session.
@@ -98,7 +122,7 @@ abstract class RecordPlatform extends PlatformInterface {
   /// On Android and iOS, an empty list will be returned.
   ///
   /// On web, and in general, you should already have permission before
-  /// accessing this method otherwise the list may return empty.
+  /// accessing this method otherwise the list may return an empty list.
   Future<List<InputDevice>> listInputDevices();
 
   /// Listen to recorder states [RecordState].

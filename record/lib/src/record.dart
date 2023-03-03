@@ -6,6 +6,7 @@ import 'package:record_platform_interface/record_platform_interface.dart';
 /// Audio recorder API
 class Record implements RecordPlatform {
   StreamController<Amplitude>? _amplitudeStreamCtrl;
+
   Timer? _amplitudeTimer;
 
   @override
@@ -29,8 +30,28 @@ class Record implements RecordPlatform {
   }
 
   @override
+  Future<Stream<List<int>>> startStream({
+    AudioEncoder encoder = AudioEncoder.aacLc,
+    int bitRate = 128000,
+    int samplingRate = 44100,
+    int numChannels = 2,
+    InputDevice? device,
+  }) {
+    _log('Start recording stream');
+
+    return RecordPlatform.instance.startStream(
+      encoder: encoder,
+      bitRate: bitRate,
+      samplingRate: samplingRate,
+      numChannels: numChannels,
+      device: device,
+    );
+  }
+
+  @override
   Future<String?> stop() {
     _log('Stop recording');
+
     return RecordPlatform.instance.stop();
   }
 

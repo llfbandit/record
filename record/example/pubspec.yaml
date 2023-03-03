@@ -20,17 +20,17 @@ dependencies:
   record:
     path: ../
 
-# dependency_overrides:
-#   record_platform_interface:
-#     path: ../../record_platform_interface
-#   record_web:
-#     path: ../../record_web
-#   record_windows:
-#     path: ../../record_windows
-#   record_macos:
-#     path: ../../record_macos
-#   record_linux:
-#     path: ../../record_linux
+dependency_overrides:
+  record_platform_interface:
+    path: ../../record_platform_interface
+  record_web:
+    path: ../../record_web
+  record_windows:
+    path: ../../record_windows
+  record_macos:
+    path: ../../record_macos
+  record_linux:
+    path: ../../record_linux
 
 dev_dependencies:
   flutter_lints: ^2.0.0
