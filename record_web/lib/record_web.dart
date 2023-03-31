@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:js' as js;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
@@ -20,6 +21,7 @@ class RecordPluginWeb extends RecordPlatform {
   // Completer to get data & stop events before `stop()` method ends
   Completer<String>? _onStopCompleter;
   StreamController<RecordState>? _stateStreamCtrl;
+  double maxAmplitude = -160;
 
   @override
   Future<void> dispose() async {
@@ -54,14 +56,22 @@ class RecordPluginWeb extends RecordPlatform {
   @override
   Future<void> pause() async {
     _mediaRecorder?.pause();
-
+    try {
+      js.context.callMethod("pauseAudioCtx", []);
+    } catch (e) {
+      debugPrint(e.toString());
+    }
     _updateState(RecordState.pause);
   }
 
   @override
   Future<void> resume() async {
     _mediaRecorder?.resume();
-
+    try {
+      js.context.callMethod("resumeAudioCtx", []);
+    } catch (e) {
+      debugPrint(e.toString());
+    }
     _updateState(RecordState.record);
   }
 
@@ -150,7 +160,47 @@ class RecordPluginWeb extends RecordPlatform {
     _mediaRecorder?.addEventListener('dataavailable', _onDataAvailable);
     _mediaRecorder?.addEventListener('stop', _onStop);
     _mediaRecorder?.start();
-
+    js.context.callMethod("eval", [
+      """var analyser;
+        var dataArray;
+        var audioCtx = new AudioContext();
+        function createAudioCtx(stream){
+          stream = stream[Object.getOwnPropertySymbols(stream)[0]];
+          const source = audioCtx.createMediaStreamSource(stream);
+          analyser = audioCtx.createAnalyser();
+          analyser.minDecibels = -90;
+          analyser.maxDecibels = -10;
+          source.connect(analyser);
+          // analyser.connect(audioCtx.destination);
+          analyser.fftSize = 256;
+          var bufferLength = analyser.frequencyBinCount;
+          dataArray = new Float32Array(bufferLength);
+        }
+        function getFloatFrequencyData(){
+            analyser.getFloatFrequencyData(dataArray);
+            var peak_frequency = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+            const maxAmplitude = Math.max(...dataArray);
+            return {maxAmplitude, peak_frequency};
+        }
+        function stopAudioCtx(){
+          if(audioCtx.state !== 'closed')
+            {
+              audioCtx.close();
+            }
+        }
+        function resumeAudioCtx(){
+            audioCtx.resume().then(() => {
+                console.log('Playback resumed successfully');
+            }).catch((err) => {
+                console.error('Playback resumed failed');
+            });
+        }
+        function pauseAudioCtx(){
+            audioCtx.suspend();
+        }
+        """
+    ]);
+    js.context.callMethod("createAudioCtx", [stream]);
     _updateState(RecordState.record);
   }
 
@@ -163,11 +213,19 @@ class RecordPluginWeb extends RecordPlatform {
 
   @override
   Future<Amplitude> getAmplitude() async {
-    // TODO how to check amplitude values on web?
-    return Amplitude(current: -160.0, max: -160.0);
+    try {
+      var jsObj = js.context.callMethod("getFloatFrequencyData", []);
+      var obj = js.JsObject.fromBrowserObject(jsObj);
+      var amp = (obj["maxAmplitude"] as num? ?? 0).toDouble();
+      if (maxAmplitude < amp) {
+        maxAmplitude = amp;
+      }
+      return Amplitude(current: amp, max: maxAmplitude);
+    } catch (e) {
+      return Amplitude(current: -160, max: -160);
+    }
   }
 
-  @override
   @override
   Stream<RecordState> onStateChanged() {
     _stateStreamCtrl ??= StreamController(
@@ -221,7 +279,7 @@ class RecordPluginWeb extends RecordPlatform {
     _mediaRecorder?.removeEventListener('dataavailable', _onDataAvailable);
     _mediaRecorder?.removeEventListener('onstop', _onStop);
     _mediaRecorder = null;
-
+    maxAmplitude = -160;
     final tracks = _mediaStream?.getTracks();
 
     if (tracks != null) {
@@ -231,8 +289,12 @@ class RecordPluginWeb extends RecordPlatform {
 
       _mediaStream = null;
     }
-
     _chunks = [];
+    try {
+      js.context.callMethod("stopAudioCtx", []);
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   }
 
   void _log(String msg) {
