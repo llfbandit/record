@@ -15,6 +15,10 @@ dependencies:
     sdk: flutter
 
   record_platform_interface: ^0.5.0
+  import_js_library:
+    git:
+      url: https://github.com/simpleclub-extended/flutter_web_import_js_library.git
+      ref: null-safety
 
 # dependency_overrides:
 #   record_platform_interface:
@@ -29,3 +33,5 @@ flutter:
       web:
         pluginClass: RecordPluginWeb
         fileName: 'record_web.dart'
+  assets:
+    - assets/webm_duration_fix.js

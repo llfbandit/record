@@ -35,6 +35,15 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  import_js_library:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: null-safety
+      resolved-ref: "81f48d54e8e837ad3bf664b6ea0731ffea80cd50"
+      url: "https://github.com/simpleclub-extended/flutter_web_import_js_library.git"
+    source: git
+    version: "2.0.0-nullsafety.0"
   js:
     dependency: transitive
     description:
