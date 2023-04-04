@@ -163,7 +163,7 @@ class RecordPluginWeb extends RecordPlatform {
   }
 
   double getMaxAmplitude() {
-    if(analyser == null) return minmumAmplitude;
+    if (analyser == null) return minmumAmplitude;
     analyser?.getFloatFrequencyData(amplitudeDataArray!);
     var maxAmplitude = amplitudeDataArray!.reduce(max);
     return maxAmplitude;
@@ -179,15 +179,17 @@ class RecordPluginWeb extends RecordPlatform {
   }
 
   createAudioContext(html.MediaStream stream) {
-    audioCtx = AudioContext();
-    var source = audioCtx!.createMediaStreamSource(stream);
-    analyser = audioCtx!.createAnalyser();
-    analyser?.minDecibels = -90;
-    analyser?.maxDecibels = -10;
-    source.connect(analyser!);
-    analyser?.fftSize = 256;
-    var bufferLength = analyser!.frequencyBinCount;
+    var audioCtx = AudioContext();
+    var source = audioCtx.createMediaStreamSource(stream);
+    var analyser = audioCtx.createAnalyser();
+    analyser.minDecibels = -90;
+    analyser.maxDecibels = -10;
+    source.connect(analyser);
+    analyser.fftSize = 256;
+    var bufferLength = analyser.frequencyBinCount;
     amplitudeDataArray = Float32List(bufferLength.toInt());
+    this.audioCtx = audioCtx;
+    this.analyser = analyser;
   }
 
   @override
