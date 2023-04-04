@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:html' as html;
-import 'dart:js' as js;
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
+import 'package:record_web/audio-context.dart';
 import 'package:record_web/mime_types.dart';
 
 class RecordPluginWeb extends RecordPlatform {
@@ -22,6 +23,9 @@ class RecordPluginWeb extends RecordPlatform {
   Completer<String>? _onStopCompleter;
   StreamController<RecordState>? _stateStreamCtrl;
   double maxAmplitude = -160;
+  AudioContext? audioCtx;
+  AnalyserNode? analyser;
+  Float32List? amplitudeDataArray;
 
   @override
   Future<void> dispose() async {
@@ -57,7 +61,7 @@ class RecordPluginWeb extends RecordPlatform {
   Future<void> pause() async {
     _mediaRecorder?.pause();
     try {
-      js.context.callMethod("pauseAudioCtx", []);
+      audioCtx?.suspend();
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -68,7 +72,7 @@ class RecordPluginWeb extends RecordPlatform {
   Future<void> resume() async {
     _mediaRecorder?.resume();
     try {
-      js.context.callMethod("resumeAudioCtx", []);
+      audioCtx?.resume();
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -155,53 +159,32 @@ class RecordPluginWeb extends RecordPlatform {
     return devices;
   }
 
+  double getMaxAmplitude() {
+    assert(analyser != null);
+    analyser?.getFloatFrequencyData(amplitudeDataArray!);
+    var maxAmplitude = amplitudeDataArray!.reduce(max);
+    return maxAmplitude;
+  }
+
   void _onStart(html.MediaStream stream) {
     _mediaRecorder = html.MediaRecorder(stream);
     _mediaRecorder?.addEventListener('dataavailable', _onDataAvailable);
     _mediaRecorder?.addEventListener('stop', _onStop);
     _mediaRecorder?.start();
-    js.context.callMethod("eval", [
-      """var analyser;
-        var dataArray;
-        var audioCtx = new AudioContext();
-        function createAudioCtx(stream){
-          stream = stream[Object.getOwnPropertySymbols(stream)[0]];
-          const source = audioCtx.createMediaStreamSource(stream);
-          analyser = audioCtx.createAnalyser();
-          analyser.minDecibels = -90;
-          analyser.maxDecibels = -10;
-          source.connect(analyser);
-          // analyser.connect(audioCtx.destination);
-          analyser.fftSize = 256;
-          var bufferLength = analyser.frequencyBinCount;
-          dataArray = new Float32Array(bufferLength);
-        }
-        function getFloatFrequencyData(){
-            analyser.getFloatFrequencyData(dataArray);
-            var peak_frequency = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-            const maxAmplitude = Math.max(...dataArray);
-            return {maxAmplitude, peak_frequency};
-        }
-        function stopAudioCtx(){
-          if(audioCtx.state !== 'closed')
-            {
-              audioCtx.close();
-            }
-        }
-        function resumeAudioCtx(){
-            audioCtx.resume().then(() => {
-                console.log('Playback resumed successfully');
-            }).catch((err) => {
-                console.error('Playback resumed failed');
-            });
-        }
-        function pauseAudioCtx(){
-            audioCtx.suspend();
-        }
-        """
-    ]);
-    js.context.callMethod("createAudioCtx", [stream]);
+    createAudioContext(stream);
     _updateState(RecordState.record);
+  }
+
+  createAudioContext(html.MediaStream stream) {
+    audioCtx = AudioContext();
+    var source = audioCtx!.createMediaStreamSource(stream);
+    analyser = audioCtx!.createAnalyser();
+    analyser?.minDecibels = -90;
+    analyser?.maxDecibels = -10;
+    source.connect(analyser!);
+    analyser?.fftSize = 256;
+    var bufferLength = analyser!.frequencyBinCount;
+    amplitudeDataArray = Float32List(bufferLength.toInt());
   }
 
   @override
@@ -214,9 +197,7 @@ class RecordPluginWeb extends RecordPlatform {
   @override
   Future<Amplitude> getAmplitude() async {
     try {
-      var jsObj = js.context.callMethod("getFloatFrequencyData", []);
-      var obj = js.JsObject.fromBrowserObject(jsObj);
-      var amp = (obj["maxAmplitude"] as num? ?? 0).toDouble();
+      var amp = getMaxAmplitude();
       if (maxAmplitude < amp) {
         maxAmplitude = amp;
       }
@@ -291,7 +272,10 @@ class RecordPluginWeb extends RecordPlatform {
     }
     _chunks = [];
     try {
-      js.context.callMethod("stopAudioCtx", []);
+      if (audioCtx?.state != 'closed') {
+        audioCtx?.close();
+        audioCtx = null;
+      }
     } catch (e) {
       debugPrint(e.toString());
     }

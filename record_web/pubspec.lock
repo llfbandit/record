@@ -36,7 +36,7 @@ packages:
     source: sdk
     version: "0.0.0"
   js:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: js
       sha256: "5528c2f391ededb7775ec1daa69e65a2d61276f7552de2b5f7b8d34ee9fd4ab7"
