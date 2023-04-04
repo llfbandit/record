@@ -5,8 +5,11 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
-import 'package:record_web/audio-context.dart';
+import 'package:record_web/audio_context.dart';
 import 'package:record_web/mime_types.dart';
+
+const maximumAmplitude = 0.0;
+const minmumAmplitude = -160.0;
 
 class RecordPluginWeb extends RecordPlatform {
   static void registerWith(Registrar registrar) {
@@ -22,7 +25,7 @@ class RecordPluginWeb extends RecordPlatform {
   // Completer to get data & stop events before `stop()` method ends
   Completer<String>? _onStopCompleter;
   StreamController<RecordState>? _stateStreamCtrl;
-  double maxAmplitude = -160;
+  double maxAmplitudeRecorded = minmumAmplitude;
   AudioContext? audioCtx;
   AnalyserNode? analyser;
   Float32List? amplitudeDataArray;
@@ -160,7 +163,7 @@ class RecordPluginWeb extends RecordPlatform {
   }
 
   double getMaxAmplitude() {
-    assert(analyser != null);
+    if(analyser == null) return minmumAmplitude;
     analyser?.getFloatFrequencyData(amplitudeDataArray!);
     var maxAmplitude = amplitudeDataArray!.reduce(max);
     return maxAmplitude;
@@ -198,12 +201,12 @@ class RecordPluginWeb extends RecordPlatform {
   Future<Amplitude> getAmplitude() async {
     try {
       var amp = getMaxAmplitude();
-      if (maxAmplitude < amp) {
-        maxAmplitude = amp;
+      if (maxAmplitudeRecorded < amp) {
+        maxAmplitudeRecorded = amp;
       }
-      return Amplitude(current: amp, max: maxAmplitude);
+      return Amplitude(current: amp, max: maxAmplitudeRecorded);
     } catch (e) {
-      return Amplitude(current: -160, max: -160);
+      return Amplitude(current: minmumAmplitude, max: maxAmplitudeRecorded);
     }
   }
 
@@ -260,7 +263,7 @@ class RecordPluginWeb extends RecordPlatform {
     _mediaRecorder?.removeEventListener('dataavailable', _onDataAvailable);
     _mediaRecorder?.removeEventListener('onstop', _onStop);
     _mediaRecorder = null;
-    maxAmplitude = -160;
+    maxAmplitudeRecorded = minmumAmplitude;
     final tracks = _mediaStream?.getTracks();
 
     if (tracks != null) {
@@ -272,10 +275,10 @@ class RecordPluginWeb extends RecordPlatform {
     }
     _chunks = [];
     try {
-      if (audioCtx?.state != 'closed') {
+      if (audioCtx != null && audioCtx!.state != 'closed') {
         audioCtx?.close();
-        audioCtx = null;
       }
+      audioCtx = null;
     } catch (e) {
       debugPrint(e.toString());
     }
