@@ -17,6 +17,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.17.0"
+  csslib:
+    dependency: transitive
+    description:
+      name: csslib
+      sha256: c5f80c0361d95655647094aad231fd6efe2ef0f1ee85db4e0d1d99db4d789229
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.16.2"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -35,6 +43,22 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  html:
+    dependency: transitive
+    description:
+      name: html
+      sha256: "49f0f00a6f85ecab782e641ad79377bfd4b4aea463178ac19cbf45ea8419c380"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.14.0+4"
+  import_js_library:
+    dependency: "direct main"
+    description:
+      name: import_js_library
+      sha256: a9c8e15b0f877c7141884e07073c61a6734d02ffffcd618b091091c5540bb5a0
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   js:
     dependency: "direct main"
     description:
@@ -67,6 +91,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.8.0"
+  path:
+    dependency: transitive
+    description:
+      name: path
+      sha256: "8829d8a55c13fc0e37127c29fedf290c102f4e40ae94ada574091fe0ff96c917"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.8.3"
   plugin_platform_interface:
     dependency: transitive
     description:
@@ -88,6 +120,22 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.99"
+  source_span:
+    dependency: transitive
+    description:
+      name: source_span
+      sha256: dd904f795d4b4f3b870833847c461801f6750a9fa8e61ea5ac53f9422b31f250
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.9.1"
+  term_glyph:
+    dependency: transitive
+    description:
+      name: term_glyph
+      sha256: a29248a84fbb7c79282b40b8c72a1209db169a2e0542bce341da992fe1bc7e84
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.1"
   vector_math:
     dependency: transitive
     description:

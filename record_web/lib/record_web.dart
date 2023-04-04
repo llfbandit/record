@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:html' as html;
 import 'dart:math';
+import 'dart:js_util';
+import 'dart:js' as js;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:record_web/audio_context.dart';
+import 'package:record_web/import_js_library.dart';
 import 'package:record_web/mime_types.dart';
+import 'webm_duration_fix.dart';
 
 const maximumAmplitude = 0.0;
 const minimumAmplitude = -160.0;
@@ -14,6 +18,8 @@ const minimumAmplitude = -160.0;
 class RecordPluginWeb extends RecordPlatform {
   static void registerWith(Registrar registrar) {
     RecordPlatform.instance = RecordPluginWeb();
+    ImportJsLibrary.import(
+        url: "./assets/webm_duration_fix.js", flutterPluginName: "record_web");
   }
 
   // Media recorder object
@@ -248,11 +254,17 @@ class RecordPluginWeb extends RecordPlatform {
     }
   }
 
-  void _onStop(html.Event event) {
+  void _onStop(html.Event event) async {
     String? audioUrl;
 
     if (_chunks.isNotEmpty) {
-      final blob = html.Blob(_chunks);
+      var blob = await promiseToFuture<html.Blob>(
+        fixWebmDuration(
+            html.Blob(_chunks),
+            js.JsObject.jsify({
+              "type": _mediaRecorder?.mimeType ?? 'audio/webm',
+            })),
+      );
       audioUrl = html.Url.createObjectUrl(blob);
     }
 
