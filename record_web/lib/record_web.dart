@@ -20,11 +20,13 @@ class RecordPluginWeb extends RecordPlatform {
   // Completer to get data & stop events before `stop()` method ends
   Completer<String>? _onStopCompleter;
   StreamController<RecordState>? _stateStreamCtrl;
+  StreamController<List<int>>? _recordStreamCtrl;
 
   @override
   Future<void> dispose() async {
     _mediaRecorder?.stop();
     _stateStreamCtrl?.close();
+    _recordStreamCtrl?.close();
     _resetMediaRecorder();
   }
 
@@ -66,45 +68,16 @@ class RecordPluginWeb extends RecordPlatform {
   }
 
   @override
-  Future<void> start({
-    String? path,
-    AudioEncoder encoder = AudioEncoder.aacLc,
-    int bitRate = 128000,
-    int samplingRate = 44100,
-    int numChannels = 2,
-    InputDevice? device,
-  }) async {
-    _mediaRecorder?.stop();
-    _resetMediaRecorder();
+  Future<void> start(RecordConfig config, {required String path}) async {
+    return _start(config);
+  }
 
-    final constraints = {
-      'audio': true,
-      'audioBitsPerSecond': bitRate,
-      'bitsPerSecond': bitRate,
-      'sampleRate': samplingRate,
-      'channelCount': numChannels,
-      if (device != null) 'deviceId': {'exact': device.id}
-    };
+  @override
+  Future<Stream<List<int>>> startStream(RecordConfig config) async {
+    await _start(config);
 
-    // Try to assign dedicated mime type.
-    // If contrainst isn't set, browser will record with its default codec.
-    final mimeType = _getSupportedMimeType(encoder);
-    if (mimeType != null) {
-      constraints['mimeType'] = mimeType;
-    }
-
-    try {
-      _mediaStream = await html.window.navigator.mediaDevices?.getUserMedia(
-        constraints,
-      );
-      if (_mediaStream != null) {
-        _onStart(_mediaStream!);
-      } else {
-        _log('Audio recording not supported.');
-      }
-    } catch (error) {
-      _onError(error);
-    }
+    _recordStreamCtrl = StreamController();
+    return _recordStreamCtrl!.stream;
   }
 
   @override
@@ -145,9 +118,46 @@ class RecordPluginWeb extends RecordPlatform {
     return devices;
   }
 
-  void _onStart(html.MediaStream stream) {
+  Future<void> _start(RecordConfig config, [bool isStream = false]) async {
+    _mediaRecorder?.stop();
+    _resetMediaRecorder();
+
+    final constraints = {
+      'audio': true,
+      'audioBitsPerSecond': config.bitRate,
+      'bitsPerSecond': config.bitRate,
+      'sampleRate': config.samplingRate,
+      'channelCount': config.numChannels,
+      if (config.device != null) 'deviceId': {'exact': config.device!.id}
+    };
+
+    // Try to assign dedicated mime type.
+    // If contrainst isn't set, browser will record with its default codec.
+    final mimeType = _getSupportedMimeType(config.encoder);
+    if (mimeType != null) {
+      constraints['mimeType'] = mimeType;
+    }
+
+    try {
+      _mediaStream = await html.window.navigator.mediaDevices?.getUserMedia(
+        constraints,
+      );
+      if (_mediaStream != null) {
+        _onStart(_mediaStream!, isStream);
+      } else {
+        _log('Audio recording not supported.');
+      }
+    } catch (error) {
+      _onError(error);
+    }
+  }
+
+  void _onStart(html.MediaStream stream, [bool isStream = false]) {
     _mediaRecorder = html.MediaRecorder(stream);
-    _mediaRecorder?.addEventListener('dataavailable', _onDataAvailable);
+    _mediaRecorder?.addEventListener(
+      'dataavailable',
+      isStream ? _onDataAvailableStream : _onDataAvailable,
+    );
     _mediaRecorder?.addEventListener('stop', _onStop);
     _mediaRecorder?.start();
 
@@ -204,6 +214,27 @@ class RecordPluginWeb extends RecordPlatform {
     }
   }
 
+  void _onDataAvailableStream(html.Event event) {
+    final streamCtrl = _recordStreamCtrl;
+    if (streamCtrl == null) return;
+
+    if (event is html.BlobEvent) {
+      final data = event.data;
+      if (data == null) return;
+
+      final fileReader = html.FileReader();
+      fileReader.readAsArrayBuffer(data);
+
+      fileReader.onLoad.listen((event) {
+        final result = fileReader.result;
+
+        if (result is List<int>) {
+          streamCtrl.add(result);
+        }
+      });
+    }
+  }
+
   void _onStop(html.Event event) {
     String? audioUrl;
 
@@ -233,6 +264,9 @@ class RecordPluginWeb extends RecordPlatform {
     }
 
     _chunks = [];
+
+    _recordStreamCtrl?.close();
+    _recordStreamCtrl = null;
   }
 
   void _log(String msg) {
