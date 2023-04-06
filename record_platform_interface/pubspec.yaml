@@ -1,10 +1,10 @@
 name: record_platform_interface
 description: A common interface for the record package to call dedicated platforms with method channel.
 homepage: https://github.com/llfbandit/record/tree/master/record_platform_interface
-version: 0.5.0
+version: 0.6.0
 
 environment:
-  sdk: ">=2.15.1 <3.0.0"
+  sdk: ">=2.15.1"
   flutter: ">=2.8.1"
 
 dependencies:
