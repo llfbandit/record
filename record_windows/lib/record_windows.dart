@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -82,25 +81,8 @@ class RecordWindows extends RecordPlatform {
   }
 
   @override
-  Future<void> start({
-    String? path,
-    AudioEncoder encoder = AudioEncoder.aacLc,
-    int bitRate = 128000,
-    int samplingRate = 44100,
-    int numChannels = 2,
-    InputDevice? device,
-  }) async {
+  Future<void> start(RecordConfig config, {required String path}) async {
     await stop();
-
-    _path = null;
-
-    path ??= p.join(
-      Directory.systemTemp.path,
-      Random.secure().nextInt(1000000000).toRadixString(16),
-    );
-
-    path = p.withoutExtension(p.normalize(path));
-    path += _getFileNameSuffix(encoder);
 
     final file = File(path);
     if (file.existsSync()) await file.delete();
@@ -111,12 +93,12 @@ class RecordWindows extends RecordPlatform {
         '--background',
         '--record',
         '--out=$path',
-        '--rate=$samplingRate',
-        '--channels=$numChannels',
+        '--rate=${config.samplingRate}',
+        '--channels=${config.numChannels}',
         '--globcmd=listen',
         '--gain=6.0',
-        if (device != null) '--dev-capture=${device.id}',
-        ..._getEncoderSettings(encoder, bitRate),
+        if (config.device != null) '--dev-capture=${config.device!.id}',
+        ..._getEncoderSettings(config.encoder, config.bitRate),
       ],
       onStarted: () {
         _path = path;
@@ -169,24 +151,6 @@ class RecordWindows extends RecordPlatform {
     );
 
     return _stateStreamCtrl!.stream;
-  }
-
-  String _getFileNameSuffix(AudioEncoder encoder) {
-    switch (encoder) {
-      case AudioEncoder.aacLc:
-      case AudioEncoder.aacHe:
-        return '.m4a';
-      case AudioEncoder.flac:
-        return '.flac';
-      case AudioEncoder.opus:
-        return '.opus';
-      case AudioEncoder.wav:
-        return '.wav';
-      case AudioEncoder.vorbisOgg:
-        return '.ogg';
-      default:
-        return '.m4a';
-    }
   }
 
   List<String> _getEncoderSettings(AudioEncoder encoder, int bitRate) {
