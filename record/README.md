@@ -2,7 +2,7 @@ Audio recorder from microphone to a given file path.
 
 No external dependencies:
 
-- On Android, MediaRecorder is used.  
+- On Android, AudioRecord is used.  
 - On iOS, AVAudioRecorder is used.  
 - On macOS, AVCaptureSession is used.  
 - On web, well... your browser!
@@ -26,7 +26,7 @@ External dependencies:
 <!-- Optional, you'll have to check this permission by yourself. -->
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 ```
-- min SDK: 19 (maybe higher => encoder dependent)
+- min SDK: 21 (maybe higher => encoder dependent)
 
 ### iOS
 ```xml
@@ -52,9 +52,11 @@ External dependencies:
 | amplitude(dBFS)  | ✔️             |   ✔️           |         |            |  ✔️   |
 | permission check | ✔️             |   ✔️           |  ✔️    |            |  ✔️   |
 | num of channels  | ✔️             |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| device selection |                | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| device selection | (auto BT/mic)  | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| auto gain        | ✔️             |                 |         |            |       |  
+| noise suppresion | ✔️             |                 |         |            |       |  
 
-
+## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
 |-----------------|----------------|---------|---------|---------|---------|---------
 | aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
@@ -65,12 +67,24 @@ External dependencies:
 | opus            | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
 | vorbisOgg       | ?(optional)   |          |  ?      |  ✔️     |        |   ✔️  
 | wav             |  ✔️           |         |  ?      |   ✔️     |        |   ✔️ 
-| flac            |               |    ✔️    |  ?      |  ✔️     |   ✔️  |   ✔️
+| flac            |  ✔️           |    ✔️    |  ?      |  ✔️     |   ✔️  |   ✔️
 | pcm8bit         | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
 | pcm16bit        | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
 
+## Stream
+| Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
+|-----------------|----------------|---------|---------|---------|---------|---------
+| aacLc           | ✔️*            |       |  **      |       |      |  
+| aacEld          | ✔️*            |       |  **      |       |      | 
+| aacHe           | ✔️*            |       |  **      |       |      |  
+| pcm8bit         | ✔️            |       |   **     |       |     |  
+| pcm16bit        | ✔️            |       |   **     |       |     |  
+
+\* AAC is streamed with raw AAC with ADTS headers, so it can be saved as file.  
+** web platform may allow more encoders.  
+
+
 For every encoder, you should be really careful with given sampling rates.
-For example, opus could or could not be recorded at 44100Hz.
 
 If a given encoder is not supported when starting recording on platform, the fallbacks are:  
 
@@ -100,13 +114,10 @@ final record = Record();
 
 // Check and request permission
 if (await record.hasPermission()) {
-  // Start recording
-  await record.start(
-    path: 'aFullPath/myFile.m4a',
-    encoder: AudioEncoder.aacLc, // by default
-    bitRate: 128000, // by default
-    sampleRate: 44100, // by default
-  );
+  // Start recording to file
+  await record.start(const RecordConfig(), path: 'aFullPath/myFile.m4a');
+  // Start recording to stream
+  final stream = await record.startStream(const RecordConfig());
 }
 
 // Get the state of the recorder

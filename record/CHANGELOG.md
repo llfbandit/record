@@ -1,3 +1,19 @@
+## Unreleased
+
+* TODO feat: Add amplitude on web.
+* TODO feat: Add Multiple instance.
+
+## 5.0.0-dev1
+* BREAK: `Record` has been renamed to `AudioRecorder` to avoid clash with incoming dart v3.
+* BREAK: path is now required on all IO platforms. Set an empty String on web platform.
+* BREAK: Android SDK minimum version is 21.
+* BREAK: `start` and `startStream` method parameters are now wrapped in `RecordConfig` object.
+
+* chore: Massively reworked platform implementations.
+
+* feat: Add streaming feature.
+* feat: Add Noise suppressor and auto gain where available.
+
 ## 4.4.4
 * chore: Update linter rules.
 * chore: Update dependencies.

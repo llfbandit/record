@@ -1,26 +1,29 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import 'package:record_example/audio_player.dart';
 
 void main() => runApp(const MyApp());
 
-class AudioRecorder extends StatefulWidget {
+class _AudioRecorder extends StatefulWidget {
   final void Function(String path) onStop;
 
-  const AudioRecorder({Key? key, required this.onStop}) : super(key: key);
+  const _AudioRecorder({Key? key, required this.onStop}) : super(key: key);
 
   @override
-  State<AudioRecorder> createState() => _AudioRecorderState();
+  State<_AudioRecorder> createState() => _AudioRecorderState();
 }
 
-class _AudioRecorderState extends State<AudioRecorder> {
+class _AudioRecorderState extends State<_AudioRecorder> {
   int _recordDuration = 0;
   Timer? _timer;
-  final _audioRecorder = Record();
+  final _audioRecorder = AudioRecorder();
   StreamSubscription<RecordState>? _recordSub;
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
@@ -30,6 +33,8 @@ class _AudioRecorderState extends State<AudioRecorder> {
   void initState() {
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       setState(() => _recordState = recordState);
+    }, onError: (error) {
+      debugPrint(error);
     });
 
     _amplitudeSub = _audioRecorder
@@ -48,12 +53,34 @@ class _AudioRecorderState extends State<AudioRecorder> {
         );
         if (kDebugMode) {
           print('${AudioEncoder.aacLc.name} supported: $isSupported');
+
+          final devs = await _audioRecorder.listInputDevices();
+          print(devs);
+          final isRecording = await _audioRecorder.isRecording();
+          print('isRecording: $isRecording');
         }
 
-        // final devs = await _audioRecorder.listInputDevices();
-        // final isRecording = await _audioRecorder.isRecording();
+        const config = RecordConfig(noiseCancel: true);
 
-        await _audioRecorder.start();
+        // Record to file
+        String path;
+        if (kIsWeb) {
+          path = '';
+        } else {
+          final dir = await getApplicationDocumentsDirectory();
+          path = p.join(dir.path, 'test.m4a');
+        }
+        await _audioRecorder.start(config, path: path);
+
+        // Record to stream
+        // final stream = await _audioRecorder.startStream(config);
+        // stream.listen(
+        //   // ignore: avoid_print
+        //   (data) => print(data),
+        //   // ignore: avoid_print
+        //   onDone: () => print('onDone'),
+        // );
+
         _recordDuration = 0;
 
         _startTimer();
@@ -247,7 +274,7 @@ class _MyAppState extends State<MyApp> {
                     },
                   ),
                 )
-              : AudioRecorder(
+              : _AudioRecorder(
                   onStop: (path) {
                     if (kDebugMode) print('Recorded file path: $path');
                     setState(() {

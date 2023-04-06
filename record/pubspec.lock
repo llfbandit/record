@@ -5,16 +5,18 @@ packages:
     dependency: transitive
     description:
       name: characters
-      url: "https://pub.dartlang.org"
+      sha256: e6a326c8af69605aec75ed6c187d06b349707a27fbff8222ca9cc2cff167975c
+      url: "https://pub.dev"
     source: hosted
     version: "1.2.1"
   collection:
     dependency: transitive
     description:
       name: collection
-      url: "https://pub.dartlang.org"
+      sha256: cfc915e6923fe5ce6e153b0723c753045de46de1b4d63771530504004a45fae0
+      url: "https://pub.dev"
     source: hosted
-    version: "1.16.0"
+    version: "1.17.0"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -24,7 +26,8 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_lints
-      url: "https://pub.dartlang.org"
+      sha256: aeb0b80a8b3709709c9cc496cdc027c5b3216796bc0af0ce1007eaf24464fd4c
+      url: "https://pub.dev"
     source: hosted
     version: "2.0.1"
   flutter_web_plugins:
@@ -36,78 +39,98 @@ packages:
     dependency: transitive
     description:
       name: js
-      url: "https://pub.dartlang.org"
+      sha256: "5528c2f391ededb7775ec1daa69e65a2d61276f7552de2b5f7b8d34ee9fd4ab7"
+      url: "https://pub.dev"
     source: hosted
-    version: "0.6.4"
+    version: "0.6.5"
   lints:
     dependency: transitive
     description:
       name: lints
-      url: "https://pub.dartlang.org"
+      sha256: "5e4a9cd06d447758280a8ac2405101e0e2094d2a1dbdd3756aec3fe7775ba593"
+      url: "https://pub.dev"
     source: hosted
     version: "2.0.1"
   material_color_utilities:
     dependency: transitive
     description:
       name: material_color_utilities
-      url: "https://pub.dartlang.org"
+      sha256: d92141dc6fe1dad30722f9aa826c7fbc896d021d792f80678280601aff8cf724
+      url: "https://pub.dev"
     source: hosted
-    version: "0.1.5"
+    version: "0.2.0"
   meta:
     dependency: transitive
     description:
       name: meta
-      url: "https://pub.dartlang.org"
+      sha256: "6c268b42ed578a53088d834796959e4a1814b5e9e164f147f580a386e5decf42"
+      url: "https://pub.dev"
     source: hosted
     version: "1.8.0"
   path:
     dependency: transitive
     description:
       name: path
-      url: "https://pub.dartlang.org"
+      sha256: "8829d8a55c13fc0e37127c29fedf290c102f4e40ae94ada574091fe0ff96c917"
+      url: "https://pub.dev"
     source: hosted
-    version: "1.8.2"
+    version: "1.8.3"
   plugin_platform_interface:
     dependency: transitive
     description:
       name: plugin_platform_interface
-      url: "https://pub.dartlang.org"
+      sha256: "6a2128648c854906c53fa8e33986fc0247a1116122f9534dd20e3ab9e16a32bc"
+      url: "https://pub.dev"
     source: hosted
-    version: "2.1.3"
+    version: "2.1.4"
+  record_android:
+    dependency: "direct main"
+    description:
+      path: "../record_android"
+      relative: true
+    source: path
+    version: "1.0.0"
+  record_ios:
+    dependency: "direct main"
+    description:
+      path: "../record_ios"
+      relative: true
+    source: path
+    version: "1.0.0"
   record_linux:
     dependency: "direct main"
     description:
-      name: record_linux
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../record_linux"
+      relative: true
+    source: path
     version: "0.4.1"
   record_macos:
     dependency: "direct main"
     description:
-      name: record_macos
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../record_macos"
+      relative: true
+    source: path
     version: "0.2.2"
   record_platform_interface:
     dependency: "direct main"
     description:
-      name: record_platform_interface
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.5.0"
+      path: "../record_platform_interface"
+      relative: true
+    source: path
+    version: "0.6.0"
   record_web:
     dependency: "direct main"
     description:
-      name: record_web
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../record_web"
+      relative: true
+    source: path
     version: "0.5.0"
   record_windows:
     dependency: "direct main"
     description:
-      name: record_windows
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "../record_windows"
+      relative: true
+    source: path
     version: "0.7.1"
   sky_engine:
     dependency: transitive
@@ -118,9 +141,10 @@ packages:
     dependency: transitive
     description:
       name: vector_math
-      url: "https://pub.dartlang.org"
+      sha256: "80b3257d1492ce4d091729e3a67a60407d227c27241d6927be0130c98e741803"
+      url: "https://pub.dev"
     source: hosted
-    version: "2.1.2"
+    version: "2.1.4"
 sdks:
   dart: ">=2.17.0 <3.0.0"
   flutter: ">=2.8.1"
