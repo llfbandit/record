@@ -1,0 +1,25 @@
+name: record_ios
+description: iOS specific implementation for record package called by record_platform_interface.
+version: 1.0.0
+homepage: https://github.com/llfbandit/record/tree/master/record_ios
+
+environment:
+  sdk: ">=2.15.1"
+  flutter: ">=2.8.1"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  record_platform_interface: ^0.6.0
+
+dependency_overrides:
+  record_platform_interface:
+    path: ../record_platform_interface
+
+flutter:
+  plugin:
+    implements: record
+    platforms:
+      ios:
+        pluginClass: RecordPlugin
