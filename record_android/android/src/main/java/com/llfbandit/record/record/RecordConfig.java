@@ -15,8 +15,9 @@ public class RecordConfig {
   public final int numChannels;
   @Nullable
   public final Map<String, Object> device;
-  public final boolean noiseCancel;
   public final boolean autoGain;
+  public final boolean echoCancel;
+  public final boolean noiseCancel;
 
   /**
    * @param path         The output path to write the file.
@@ -25,8 +26,9 @@ public class RecordConfig {
    * @param samplingRate The sampling rate of encoded file.
    * @param numChannels  The number of channels (1 or 2).
    * @param device       The input device to acquire audio data.
-   * @param noiseCancel  Enables noise cancellation if available.
    * @param autoGain     Enables automatic gain control if available.
+   * @param echoCancel   Enables echo cancellation if available.
+   * @param noiseCancel  Enables noise cancellation if available.
    */
   public RecordConfig(
       @Nullable String path,
@@ -35,8 +37,9 @@ public class RecordConfig {
       int samplingRate,
       int numChannels,
       @Nullable Map<String, Object> device,
-      boolean noiseCancel,
-      boolean autoGain
+      boolean autoGain,
+      boolean echoCancel,
+      boolean noiseCancel
   ) {
     this.path = path;
     this.encoder = encoder;
@@ -44,7 +47,8 @@ public class RecordConfig {
     this.samplingRate = samplingRate;
     this.numChannels = Math.min(2, Math.max(1, numChannels));
     this.device = device;
-    this.noiseCancel = noiseCancel;
     this.autoGain = autoGain;
+    this.echoCancel = echoCancel;
+    this.noiseCancel = noiseCancel;
   }
 }

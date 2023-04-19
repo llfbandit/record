@@ -7,6 +7,7 @@ import static android.media.AudioRecord.RECORDSTATE_RECORDING;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.media.audiofx.AcousticEchoCanceler;
 import android.media.audiofx.AutomaticGainControl;
 import android.media.audiofx.NoiseSuppressor;
 
@@ -19,8 +20,9 @@ public class PCMReader {
   private final RecordConfig config;
   // Recorder & features
   private AudioRecord reader;
-  private NoiseSuppressor noiseSuppressor;
   private AutomaticGainControl automaticGainControl;
+  private AcousticEchoCanceler acousticEchoCanceler;
+  private NoiseSuppressor noiseSuppressor;
   // Min size of the buffer for writings
   private int bufferSize;
   // Last acquired amplitude
@@ -30,8 +32,9 @@ public class PCMReader {
     this.config = config;
 
     createReader();
-    enableNoiseSuppressor();
     enableAutomaticGainControl();
+    enableEchoSuppressor();
+    enableNoiseSuppressor();
   }
 
   public int getBufferSize() {
@@ -127,6 +130,15 @@ public class PCMReader {
     return bufferSize * 4;
   }
 
+  private void enableAutomaticGainControl() {
+    if (config.autoGain && AutomaticGainControl.isAvailable()) {
+      automaticGainControl = AutomaticGainControl.create(reader.getAudioSessionId());
+      if (automaticGainControl != null) {
+        automaticGainControl.setEnabled(true);
+      }
+    }
+  }
+
   private void enableNoiseSuppressor() {
     if (config.noiseCancel && NoiseSuppressor.isAvailable()) {
       noiseSuppressor = NoiseSuppressor.create(reader.getAudioSessionId());
@@ -136,11 +148,11 @@ public class PCMReader {
     }
   }
 
-  private void enableAutomaticGainControl() {
-    if (config.autoGain && AutomaticGainControl.isAvailable()) {
-      automaticGainControl = AutomaticGainControl.create(reader.getAudioSessionId());
-      if (automaticGainControl != null) {
-        automaticGainControl.setEnabled(true);
+  private void enableEchoSuppressor() {
+    if (config.echoCancel && AcousticEchoCanceler.isAvailable()) {
+      acousticEchoCanceler = AcousticEchoCanceler.create(reader.getAudioSessionId());
+      if (acousticEchoCanceler != null) {
+        acousticEchoCanceler.setEnabled(true);
       }
     }
   }
@@ -175,13 +187,17 @@ public class PCMReader {
       reader = null;
     }
 
-    if (noiseSuppressor != null) {
-      noiseSuppressor.release();
-      noiseSuppressor = null;
-    }
     if (automaticGainControl != null) {
       automaticGainControl.release();
       automaticGainControl = null;
+    }
+    if (acousticEchoCanceler != null) {
+      acousticEchoCanceler.release();
+      acousticEchoCanceler = null;
+    }
+    if (noiseSuppressor != null) {
+      noiseSuppressor.release();
+      noiseSuppressor = null;
     }
   }
 

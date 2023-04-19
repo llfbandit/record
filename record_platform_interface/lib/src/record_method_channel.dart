@@ -48,13 +48,7 @@ class RecordMethodChannel extends RecordPlatform {
   Future<void> start(RecordConfig config, {required String path}) {
     return _methodChannel.invokeMethod('start', {
       'path': path,
-      'encoder': config.encoder.name,
-      'bitRate': config.bitRate,
-      'samplingRate': config.samplingRate,
-      'numChannels': config.numChannels,
-      'device': config.device?.toMap(),
-      'noiseCancel': config.noiseCancel,
-      'autoGain': config.autoGain,
+      ...config.toMap(),
     });
   }
 
@@ -78,15 +72,7 @@ class RecordMethodChannel extends RecordPlatform {
 
     _recordStreamCtrl = StreamController();
 
-    await _methodChannel.invokeMethod('startStream', {
-      'encoder': config.encoder.name,
-      'bitRate': config.bitRate,
-      'samplingRate': config.samplingRate,
-      'numChannels': config.numChannels,
-      'device': config.device?.toMap(),
-      'noiseCancel': config.noiseCancel,
-      'autoGain': config.autoGain,
-    });
+    await _methodChannel.invokeMethod('startStream', config.toMap());
 
     return _recordStreamCtrl!.stream;
   }
