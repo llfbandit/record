@@ -95,12 +95,13 @@ class RecordPluginWeb extends RecordPlatform {
     _resetMediaRecorder();
 
     final constraints = {
-      'audio': true,
+      'audio': device == null 
+        ? true 
+        : {'deviceId': {'exact': device.id}},
       'audioBitsPerSecond': bitRate,
       'bitsPerSecond': bitRate,
       'sampleRate': samplingRate,
       'channelCount': numChannels,
-      if (device != null) 'deviceId': {'exact': device.id}
     };
 
     // Try to assign dedicated mime type.
