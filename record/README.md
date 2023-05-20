@@ -105,7 +105,7 @@ if (await record.hasPermission()) {
     path: 'aFullPath/myFile.m4a',
     encoder: AudioEncoder.aacLc, // by default
     bitRate: 128000, // by default
-    sampleRate: 44100, // by default
+    samplingRate: 44100, // by default
   );
 }
 
