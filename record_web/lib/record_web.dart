@@ -96,12 +96,16 @@ class RecordPluginWebWrapper extends RecordPlatform {
   }
 
   Recorder _getRecorder(String recorderId) {
-    return _recorders[recorderId] != null
-        ? _recorders[recorderId]!
-        : throw PlatformException(
-            code: 'record',
-            message:
-                'Record has not yet been created or has already been disposed.',
-          );
+    final recorder = _recorders[recorderId];
+
+    if (recorder == null) {
+      throw PlatformException(
+        code: 'record',
+        message:
+            'Record has not yet been created or has already been disposed.',
+      );
+    }
+
+    return recorder;
   }
 }

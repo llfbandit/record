@@ -40,7 +40,9 @@ class _AudioRecorderState extends State<_AudioRecorder> {
 
     _amplitudeSub = _audioRecorder
         .onAmplitudeChanged(const Duration(milliseconds: 300))
-        .listen((amp) => setState(() => _amplitude = amp));
+        .listen((amp) {
+      setState(() => _amplitude = amp);
+    });
 
     super.initState();
   }

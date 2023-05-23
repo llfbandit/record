@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:record_platform_interface/record_platform_interface.dart';
+import 'package:uuid/uuid.dart';
+
+const _uuid = Uuid();
 
 /// Audio recorder API
 class AudioRecorder {
@@ -14,7 +17,7 @@ class AudioRecorder {
   /// created.
   final _createCompleter = Completer<void>();
 
-  AudioRecorder() : _recorderId = '1' {
+  AudioRecorder() : _recorderId = _uuid.v4() {
     _create();
   }
 

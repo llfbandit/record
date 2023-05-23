@@ -1,9 +1,15 @@
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:record_web/mime_types.dart';
+
+import 'audio_context.dart';
+
+const _kMaxAmplitude = 0.0;
+const _kMinAmplitude = -160.0;
 
 class Recorder {
   // Media recorder object
@@ -17,11 +23,16 @@ class Recorder {
   StreamController<RecordState>? _stateStreamCtrl;
   StreamController<List<int>>? _recordStreamCtrl;
 
+  // Amplitude
+  double _maxAmplitude = _kMinAmplitude;
+  AudioContext? _audioCtx;
+  AnalyserNode? _analyser;
+
   Future<void> dispose() async {
     _mediaRecorder?.stop();
     _stateStreamCtrl?.close();
     _recordStreamCtrl?.close();
-    _resetMediaRecorder();
+    _reset();
   }
 
   Future<bool> hasPermission() async {
@@ -41,17 +52,30 @@ class Recorder {
   }
 
   Future<bool> isRecording() async {
-    return _mediaRecorder?.state == 'recording';
+    final state = _mediaRecorder?.state;
+    return state == 'recording' || state == 'paused';
   }
 
   Future<void> pause() async {
     _mediaRecorder?.pause();
+
+    try {
+      _audioCtx?.suspend();
+    } catch (e) {
+      debugPrint(e.toString());
+    }
 
     _updateState(RecordState.pause);
   }
 
   Future<void> resume() async {
     _mediaRecorder?.resume();
+
+    try {
+      _audioCtx?.resume();
+    } catch (e) {
+      debugPrint(e.toString());
+    }
 
     _updateState(RecordState.record);
   }
@@ -110,15 +134,18 @@ class Recorder {
 
   Future<void> _start(RecordConfig config, [bool isStream = false]) async {
     _mediaRecorder?.stop();
-    _resetMediaRecorder();
+    _reset();
 
     final constraints = {
-      'audio': true,
+      'audio': config.device == null
+          ? true
+          : {
+              'deviceId': {'exact': config.device!.id}
+            },
       'audioBitsPerSecond': config.bitRate,
       'bitsPerSecond': config.bitRate,
       'sampleRate': config.samplingRate,
       'channelCount': config.numChannels,
-      if (config.device != null) 'deviceId': {'exact': config.device!.id}
     };
 
     // Try to assign dedicated mime type.
@@ -135,7 +162,7 @@ class Recorder {
       if (_mediaStream != null) {
         _onStart(_mediaStream!, isStream);
       } else {
-        _log('Audio recording not supported.');
+        debugPrint('Audio recording not supported.');
       }
     } catch (error) {
       _onError(error);
@@ -151,6 +178,8 @@ class Recorder {
     _mediaRecorder?.addEventListener('stop', _onStop);
     _mediaRecorder?.start();
 
+    _createAudioContext(stream);
+
     _updateState(RecordState.record);
   }
 
@@ -161,8 +190,16 @@ class Recorder {
   }
 
   Future<Amplitude> getAmplitude() async {
-    // TODO how to check amplitude values on web?
-    return Amplitude(current: -160.0, max: -160.0);
+    try {
+      final amp = _getMaxAmplitude().clamp(_kMinAmplitude, _kMaxAmplitude);
+
+      if (_maxAmplitude < amp) {
+        _maxAmplitude = amp;
+      }
+      return Amplitude(current: amp, max: _maxAmplitude);
+    } catch (e) {
+      return Amplitude(current: _kMinAmplitude, max: _maxAmplitude);
+    }
   }
 
   Stream<RecordState> onStateChanged() {
@@ -190,8 +227,8 @@ class Recorder {
   }
 
   void _onError(dynamic error) {
-    _resetMediaRecorder();
-    _log(error);
+    _reset();
+    debugPrint(error.toString());
   }
 
   void _onDataAvailable(html.Event event) {
@@ -229,15 +266,16 @@ class Recorder {
       audioUrl = html.Url.createObjectUrl(blob);
     }
 
-    _resetMediaRecorder();
+    _reset();
 
     _onStopCompleter?.complete(audioUrl);
   }
 
-  void _resetMediaRecorder() {
+  void _reset() {
     _mediaRecorder?.removeEventListener('dataavailable', _onDataAvailable);
     _mediaRecorder?.removeEventListener('onstop', _onStop);
     _mediaRecorder = null;
+    _maxAmplitude = _kMinAmplitude;
 
     final tracks = _mediaStream?.getTracks();
 
@@ -251,17 +289,53 @@ class Recorder {
 
     _chunks = [];
 
+    try {
+      if (_audioCtx != null && _audioCtx!.state != 'closed') {
+        _audioCtx?.close();
+      }
+      _audioCtx = null;
+      _analyser = null;
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+
     _recordStreamCtrl?.close();
     _recordStreamCtrl = null;
   }
 
-  void _log(String msg) {
-    if (kDebugMode) print(msg);
+  void _updateState(RecordState state) {
+    final ctrl = _stateStreamCtrl;
+    if (ctrl == null) return;
+
+    if (ctrl.hasListener && !ctrl.isClosed) {
+      ctrl.add(state);
+    }
   }
 
-  void _updateState(RecordState state) {
-    if (_stateStreamCtrl?.hasListener ?? false) {
-      _stateStreamCtrl?.add(state);
-    }
+  void _createAudioContext(html.MediaStream stream) {
+    var audioCtx = AudioContext();
+    var source = audioCtx.createMediaStreamSource(stream);
+
+    var analyser = audioCtx.createAnalyser();
+    analyser.minDecibels = _kMinAmplitude;
+    analyser.maxDecibels = _kMaxAmplitude;
+    analyser.fftSize = 1024; // NB of samples (must be power of 2)
+    analyser.smoothingTimeConstant = 0.3; // Default 0.8 is way too high
+    source.connect(analyser);
+
+    _audioCtx = audioCtx;
+    _analyser = analyser;
+  }
+
+  double _getMaxAmplitude() {
+    final analyser = _analyser;
+    if (analyser == null) return _kMinAmplitude;
+
+    final bufferLength = analyser.frequencyBinCount; // Always fftSize / 2
+    final dataArray = Float32List(bufferLength.toInt());
+
+    analyser.getFloatFrequencyData(dataArray);
+
+    return dataArray.reduce(math.max);
   }
 }
