@@ -47,19 +47,22 @@ public class PCMReader {
 
   public int read(ByteBuffer audioBuffer) throws Exception {
     int resultBytes = reader.read(audioBuffer, bufferSize);
+
     if (resultBytes < 0) {
       throw new Exception(getReadFailureReason(resultBytes));
     }
 
-    byte[] buffer = new byte[resultBytes];
-    audioBuffer.get(buffer, 0, resultBytes);
+    if (resultBytes > 0) {
+      byte[] buffer = new byte[resultBytes];
+      audioBuffer.get(buffer, 0, resultBytes);
 
-    // Update amplitude
-    amplitude.set(getAmplitude(
-        buffer,
-        resultBytes,
-        reader.getAudioFormat() == AudioFormat.ENCODING_PCM_8BIT ? 1 : 2
-    ));
+      // Update amplitude
+      amplitude.set(getAmplitude(
+          buffer,
+          resultBytes,
+          reader.getAudioFormat() == AudioFormat.ENCODING_PCM_8BIT ? 1 : 2
+      ));
+    }
 
     return resultBytes;
   }
@@ -216,7 +219,7 @@ public class PCMReader {
         }
       }
 
-      return (int) (20 * Math.log10(maxSample / 32768.0)); // 16 signed bits 2^15
+      return (int) (20 * Math.log10(maxSample / 32767.0)); // 16 signed bits 2^15
     } else /* if (bytesPerSample == 1) */ { // PCM 8 bits
       for (int i = 0; i < size; i++) {
         int curSample = Math.abs(chunk[i]);

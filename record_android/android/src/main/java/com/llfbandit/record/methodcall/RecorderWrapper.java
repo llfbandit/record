@@ -19,8 +19,8 @@ import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodChannel;
 
 class RecorderWrapper {
-  static final String EVENTS_STATE_CHANNEL = "com.llfbandit.record/events";
-  static final String EVENTS_RECORD_CHANNEL = "com.llfbandit.record/eventsRecord";
+  static final String EVENTS_STATE_CHANNEL = "com.llfbandit.record/events/";
+  static final String EVENTS_RECORD_CHANNEL = "com.llfbandit.record/eventsRecord/";
 
   private EventChannel eventChannel;
   private final RecorderStateStreamHandler recorderStateStreamHandler = new RecorderStateStreamHandler();
@@ -33,11 +33,11 @@ class RecorderWrapper {
   @Nullable
   private RecordConfig config;
 
-  RecorderWrapper(@NonNull BinaryMessenger messenger) {
-    eventChannel = new EventChannel(messenger, EVENTS_STATE_CHANNEL);
+  RecorderWrapper(String recorderId, @NonNull BinaryMessenger messenger) {
+    eventChannel = new EventChannel(messenger, EVENTS_STATE_CHANNEL + recorderId);
     eventChannel.setStreamHandler(recorderStateStreamHandler);
 
-    eventRecordChannel = new EventChannel(messenger, EVENTS_RECORD_CHANNEL);
+    eventRecordChannel = new EventChannel(messenger, EVENTS_RECORD_CHANNEL + recorderId);
     eventRecordChannel.setStreamHandler(recorderRecordStreamHandler);
   }
 
@@ -81,7 +81,7 @@ class RecorderWrapper {
         recorder.pause();
         result.success(null);
       } catch (Exception e) {
-        result.error("-3", e.getMessage(), e.getCause());
+        result.error("record", e.getMessage(), e.getCause());
       }
     } else {
       result.success(null);
@@ -124,7 +124,7 @@ class RecorderWrapper {
         recorder.resume();
         result.success(null);
       } catch (Exception e) {
-        result.error("-4", e.getMessage(), e.getCause());
+        result.error("record", e.getMessage(), e.getCause());
       }
     } else {
       result.success(null);
@@ -137,7 +137,7 @@ class RecorderWrapper {
         recorder.stop();
         result.success(config != null ? config.path : null);
       } catch (Exception e) {
-        result.error("-2", e.getMessage(), e.getCause());
+        result.error("record", e.getMessage(), e.getCause());
       }
     } else {
       result.success(null);
@@ -145,17 +145,19 @@ class RecorderWrapper {
   }
 
   private void startRecording(@NonNull RecordConfig config, @NonNull MethodChannel.Result result) {
+    this.config = config;
+
     try {
-      dispose();
-
-      this.config = config;
-
-      recorder = createRecorder(config);
+      if (recorder == null) {
+        recorder = createRecorder(config);
+      } else if (recorder.isRecording()) {
+        recorder.stop();
+      }
 
       recorder.start();
       result.success(null);
     } catch (Exception e) {
-      result.error("-1", e.getMessage(), e.getCause());
+      result.error("record", e.getMessage(), e.getCause());
     }
   }
 

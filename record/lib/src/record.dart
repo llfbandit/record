@@ -111,9 +111,9 @@ class AudioRecorder {
   }
 
   /// Dispose the recorder
-  Future<void> dispose() async {
+  Future<void> dispose() {
+    _amplitudeStreamCtrl?.close();
     _amplitudeTimer?.cancel();
-    await _amplitudeStreamCtrl?.close();
     return RecordPlatform.instance.dispose(_recorderId);
   }
 
@@ -148,9 +148,8 @@ class AudioRecorder {
       var result = _amplitudeStreamCtrl != null;
       result &= !(_amplitudeStreamCtrl?.isClosed ?? true);
       result &= _amplitudeStreamCtrl?.hasListener ?? false;
-      result &= await isRecording() && !(await isPaused());
 
-      return result;
+      return result && await isRecording();
     }
 
     if (await shouldUpdate()) {

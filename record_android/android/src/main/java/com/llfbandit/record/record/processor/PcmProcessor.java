@@ -127,6 +127,7 @@ public class PcmProcessor implements AudioProcessor {
     void stop(VoidCallback complete) {
       this.complete = complete;
       isRecording.set(false);
+      isPaused.set(false);
     }
 
     private void complete() {

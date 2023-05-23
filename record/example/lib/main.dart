@@ -63,7 +63,6 @@ class _AudioRecorderState extends State<_AudioRecorder> {
         final config = RecordConfig(
           encoder: encoder,
           noiseCancel: true,
-          device: devs[1],
         );
 
         // Record to file
