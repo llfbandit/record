@@ -19,23 +19,27 @@ class RecordLinux extends RecordPlatform {
   StreamController<RecordState>? _stateStreamCtrl;
 
   @override
-  Future<void> dispose() {
+  Future<void> create(String recorderId) async {}
+
+  @override
+  Future<void> dispose(String recorderId) {
     _stateStreamCtrl?.close();
-    return stop();
+    return stop(recorderId);
   }
 
   @override
-  Future<Amplitude> getAmplitude() {
+  Future<Amplitude> getAmplitude(String recorderId) {
     return Future.value(Amplitude(current: -160.0, max: -160.0));
   }
 
   @override
-  Future<bool> hasPermission() {
+  Future<bool> hasPermission(String recorderId) {
     return Future.value(true);
   }
 
   @override
-  Future<bool> isEncoderSupported(AudioEncoder encoder) async {
+  Future<bool> isEncoderSupported(
+      String recorderId, AudioEncoder encoder) async {
     switch (encoder) {
       case AudioEncoder.aacLc:
       case AudioEncoder.aacHe:
@@ -50,36 +54,40 @@ class RecordLinux extends RecordPlatform {
   }
 
   @override
-  Future<bool> isPaused() {
+  Future<bool> isPaused(String recorderId) {
     return Future.value(_state == RecordState.pause);
   }
 
   @override
-  Future<bool> isRecording() {
+  Future<bool> isRecording(String recorderId) {
     return Future.value(_state == RecordState.record);
   }
 
   @override
-  Future<void> pause() async {
+  Future<void> pause(String recorderId) async {
     if (_state == RecordState.record) {
-      await _callFMedia(['--globcmd=pause']);
+      await _callFMedia(['--globcmd=pause'], recorderId: recorderId);
 
       _updateState(RecordState.pause);
     }
   }
 
   @override
-  Future<void> resume() async {
+  Future<void> resume(String recorderId) async {
     if (_state == RecordState.pause) {
-      await _callFMedia(['--globcmd=unpause']);
+      await _callFMedia(['--globcmd=unpause'], recorderId: recorderId);
 
       _updateState(RecordState.record);
     }
   }
 
   @override
-  Future<void> start(RecordConfig config, {required String path}) async {
-    await stop();
+  Future<void> start(
+    String recorderId,
+    RecordConfig config, {
+    required String path,
+  }) async {
+    await stop(recorderId);
 
     final file = File(path);
     if (file.existsSync()) await file.delete();
@@ -102,15 +110,16 @@ class RecordLinux extends RecordPlatform {
         _updateState(RecordState.record);
       },
       consumeOutput: false,
+      recorderId: recorderId,
     );
   }
 
   @override
-  Future<String?> stop() async {
+  Future<String?> stop(String recorderId) async {
     final path = _path;
 
-    await _callFMedia(['--globcmd=stop']);
-    await _callFMedia(['--globcmd=quit']);
+    await _callFMedia(['--globcmd=stop'], recorderId: recorderId);
+    await _callFMedia(['--globcmd=quit'], recorderId: recorderId);
 
     _updateState(RecordState.stop);
 
@@ -118,7 +127,7 @@ class RecordLinux extends RecordPlatform {
   }
 
   @override
-  Future<List<InputDevice>> listInputDevices() async {
+  Future<List<InputDevice>> listInputDevices(String recorderId) async {
     final outStreamCtrl = StreamController<List<int>>();
 
     final out = <String>[];
@@ -130,16 +139,17 @@ class RecordLinux extends RecordPlatform {
     });
 
     try {
-      await _callFMedia(['--list-dev'], outStreamCtrl: outStreamCtrl);
+      await _callFMedia(['--list-dev'],
+          recorderId: '', outStreamCtrl: outStreamCtrl);
 
-      return _listInputDevices(out);
+      return _listInputDevices(recorderId, out);
     } finally {
       outStreamCtrl.close();
     }
   }
 
   @override
-  Stream<RecordState> onStateChanged() {
+  Stream<RecordState> onStateChanged(String recorderId) {
     _stateStreamCtrl ??= StreamController(
       onCancel: () {
         _stateStreamCtrl?.close();
@@ -184,12 +194,13 @@ class RecordLinux extends RecordPlatform {
 
   Future<void> _callFMedia(
     List<String> arguments, {
+    required String recorderId,
     StreamController<List<int>>? outStreamCtrl,
     VoidCallback? onStarted,
     bool consumeOutput = true,
   }) async {
     final process = await Process.start(_fmediaBin, [
-      '--globcmd.pipe-name=$_pipeProcName',
+      '--globcmd.pipe-name=$_pipeProcName/$recorderId',
       ...arguments,
     ]);
 
@@ -220,7 +231,10 @@ class RecordLinux extends RecordPlatform {
   // Capture:
   // device #1: Microphone (High Definition Audio Device) - Default
   // Default Format: 2 channel, 44100 Hz
-  Future<List<InputDevice>> _listInputDevices(List<String> out) async {
+  Future<List<InputDevice>> _listInputDevices(
+    String recorderId,
+    List<String> out,
+  ) async {
     final devices = <InputDevice>[];
     var deviceLine = '';
 

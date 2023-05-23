@@ -27,4 +27,3 @@ flutter:
     platforms:
       windows:
         pluginClass: RecordWindowsPluginCApi
-        dartPluginClass: RecordWindows

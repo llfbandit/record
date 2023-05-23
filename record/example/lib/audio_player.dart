@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart' as ap;
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -26,7 +27,7 @@ class AudioPlayerState extends State<AudioPlayer> {
   static const double _controlSize = 56;
   static const double _deleteBtnSize = 24;
 
-  final _audioPlayer = ap.AudioPlayer();
+  final _audioPlayer = ap.AudioPlayer()..setReleaseMode(ReleaseMode.stop);
   late StreamSubscription<void> _playerStateChangedSubscription;
   late StreamSubscription<Duration?> _durationChangedSubscription;
   late StreamSubscription<Duration> _positionChangedSubscription;
@@ -77,7 +78,11 @@ class AudioPlayerState extends State<AudioPlayer> {
               icon: const Icon(Icons.delete,
                   color: Color(0xFF73748D), size: _deleteBtnSize),
               onPressed: () {
-                stop().then((value) => widget.onDelete());
+                if (_audioPlayer.state == ap.PlayerState.playing) {
+                  stop().then((value) => widget.onDelete());
+                } else {
+                  widget.onDelete();
+                }
               },
             ),
           ],

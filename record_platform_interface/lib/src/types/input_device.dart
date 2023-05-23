@@ -31,4 +31,14 @@ class InputDevice {
         'channels': channels,
         'samplingRate': samplingRate,
       };
+
+  @override
+  String toString() {
+    return '''
+      id: $id
+      label: $label
+      channels: $channels
+      samplingRate: $samplingRate
+      ''';
+  }
 }

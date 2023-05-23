@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +22,7 @@ class _AudioRecorder extends StatefulWidget {
 class _AudioRecorderState extends State<_AudioRecorder> {
   int _recordDuration = 0;
   Timer? _timer;
-  final _audioRecorder = AudioRecorder();
+  late final AudioRecorder _audioRecorder;
   StreamSubscription<RecordState>? _recordSub;
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
@@ -31,6 +30,8 @@ class _AudioRecorderState extends State<_AudioRecorder> {
 
   @override
   void initState() {
+    _audioRecorder = AudioRecorder();
+
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       setState(() => _recordState = recordState);
     }, onError: (error) {
@@ -47,20 +48,23 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   Future<void> _start() async {
     try {
       if (await _audioRecorder.hasPermission()) {
+        const encoder = AudioEncoder.aacLc;
+
         // We don't do anything with this but printing
         final isSupported = await _audioRecorder.isEncoderSupported(
-          AudioEncoder.aacLc,
+          encoder,
         );
-        if (kDebugMode) {
-          print('${AudioEncoder.aacLc.name} supported: $isSupported');
 
-          final devs = await _audioRecorder.listInputDevices();
-          print(devs);
-          final isRecording = await _audioRecorder.isRecording();
-          print('isRecording: $isRecording');
-        }
+        debugPrint('${encoder.name} supported: $isSupported');
 
-        const config = RecordConfig(noiseCancel: true);
+        final devs = await _audioRecorder.listInputDevices();
+        debugPrint(devs.toString());
+
+        final config = RecordConfig(
+          encoder: encoder,
+          noiseCancel: true,
+          device: devs[1],
+        );
 
         // Record to file
         String path;

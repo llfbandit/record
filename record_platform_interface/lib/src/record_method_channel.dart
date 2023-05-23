@@ -7,94 +7,131 @@ import '../record_platform_interface.dart';
 class RecordMethodChannel extends RecordPlatform {
   // Channel handlers
   final _methodChannel = const MethodChannel('com.llfbandit.record/messages');
-  final _eventChannel = const EventChannel('com.llfbandit.record/events');
-  final _eventRecordChannel = const EventChannel(
-    'com.llfbandit.record/eventsRecord',
-  );
 
-  StreamController<List<int>>? _recordStreamCtrl;
-  Stream<List<int>>? _recordStream;
-  Stream<RecordState>? _stateStream;
+  final _eventRecordChannels = <String, StreamController<List<int>>>{};
 
   @override
-  Future<bool> hasPermission() async {
-    final result = await _methodChannel.invokeMethod<bool>('hasPermission');
+  Future<void> create(String recorderId) {
+    return _methodChannel.invokeMethod<void>(
+      'create',
+      {'recorderId': recorderId},
+    );
+  }
+
+  @override
+  Future<bool> hasPermission(String recorderId) async {
+    final result = await _methodChannel.invokeMethod<bool>(
+      'hasPermission',
+      {'recorderId': recorderId},
+    );
     return result ?? false;
   }
 
   @override
-  Future<bool> isPaused() async {
-    final result = await _methodChannel.invokeMethod<bool>('isPaused');
+  Future<bool> isPaused(String recorderId) async {
+    final result = await _methodChannel.invokeMethod<bool>(
+      'isPaused',
+      {'recorderId': recorderId},
+    );
+
     return result ?? false;
   }
 
   @override
-  Future<bool> isRecording() async {
-    final result = await _methodChannel.invokeMethod<bool>('isRecording');
+  Future<bool> isRecording(String recorderId) async {
+    final result = await _methodChannel.invokeMethod<bool>(
+      'isRecording',
+      {'recorderId': recorderId},
+    );
     return result ?? false;
   }
 
   @override
-  Future<void> pause() {
-    return _methodChannel.invokeMethod('pause');
+  Future<void> pause(String recorderId) {
+    return _methodChannel.invokeMethod(
+      'pause',
+      {'recorderId': recorderId},
+    );
   }
 
   @override
-  Future<void> resume() {
-    return _methodChannel.invokeMethod('resume');
+  Future<void> resume(String recorderId) {
+    return _methodChannel.invokeMethod(
+      'resume',
+      {'recorderId': recorderId},
+    );
   }
 
   @override
-  Future<void> start(RecordConfig config, {required String path}) {
+  Future<void> start(String recorderId, RecordConfig config,
+      {required String path}) {
     return _methodChannel.invokeMethod('start', {
+      'recorderId': recorderId,
       'path': path,
       ...config.toMap(),
     });
   }
 
   @override
-  Future<Stream<List<int>>> startStream(RecordConfig config) async {
-    await _stopListeningRecordStream();
+  Future<Stream<List<int>>> startStream(
+    String recorderId,
+    RecordConfig config,
+  ) async {
+    await _stopListeningRecordStream(recorderId);
 
-    if (_recordStream == null) {
-      _recordStream = _eventRecordChannel
-          .receiveBroadcastStream()
-          .map<List<int>>((data) => data);
+    final eventRecordChannel = EventChannel(
+      'com.llfbandit.record/eventsRecord/$recorderId',
+    );
 
-      _recordStream!.listen(
-        (data) {
-          final streamCtrl = _recordStreamCtrl;
-          if (streamCtrl == null || streamCtrl.isClosed) return;
-          streamCtrl.add(data);
-        },
-      );
-    }
+    final recordStreamCtrl = StreamController<List<int>>();
+    _eventRecordChannels[recorderId] = recordStreamCtrl;
 
-    _recordStreamCtrl = StreamController();
+    final recordStream = eventRecordChannel
+        .receiveBroadcastStream()
+        .map<List<int>>((data) => data);
 
-    await _methodChannel.invokeMethod('startStream', config.toMap());
+    recordStream.listen(
+      (data) {
+        if (recordStreamCtrl.isClosed) return;
+        recordStreamCtrl.add(data);
+      },
+    );
 
-    return _recordStreamCtrl!.stream;
+    await _methodChannel.invokeMethod('startStream', {
+      'recorderId': recorderId,
+      ...config.toMap(),
+    });
+
+    return recordStreamCtrl.stream;
   }
 
   @override
-  Future<String?> stop() async {
-    final outputPath = await _methodChannel.invokeMethod('stop');
+  Future<String?> stop(String recorderId) async {
+    final outputPath = await _methodChannel.invokeMethod(
+      'stop',
+      {'recorderId': recorderId},
+    );
 
-    await _stopListeningRecordStream();
+    await _stopListeningRecordStream(recorderId);
 
     return outputPath;
   }
 
   @override
-  Future<void> dispose() async {
-    await _methodChannel.invokeMethod('dispose');
-    await _stopListeningRecordStream();
+  Future<void> dispose(String recorderId) async {
+    await _methodChannel.invokeMethod(
+      'dispose',
+      {'recorderId': recorderId},
+    );
+    await _stopListeningRecordStream(recorderId);
   }
 
   @override
-  Future<Amplitude> getAmplitude() async {
-    final result = await _methodChannel.invokeMethod('getAmplitude');
+  Future<Amplitude> getAmplitude(String recorderId) async {
+    final result = await _methodChannel.invokeMethod(
+      'getAmplitude',
+      {'recorderId': recorderId},
+    );
 
     return Amplitude(
       current: result?['current'] ?? 0.0,
@@ -103,19 +140,23 @@ class RecordMethodChannel extends RecordPlatform {
   }
 
   @override
-  Future<bool> isEncoderSupported(AudioEncoder encoder) async {
+  Future<bool> isEncoderSupported(
+    String recorderId,
+    AudioEncoder encoder,
+  ) async {
     final isSupported = await _methodChannel.invokeMethod<bool>(
       'isEncoderSupported',
-      {'encoder': encoder.name},
+      {'encoder': encoder.name, 'recorderId': recorderId},
     );
 
     return isSupported ?? false;
   }
 
   @override
-  Future<List<InputDevice>> listInputDevices() async {
+  Future<List<InputDevice>> listInputDevices(String recorderId) async {
     final devices = await _methodChannel.invokeMethod<List<dynamic>>(
       'listInputDevices',
+      {'recorderId': recorderId},
     );
 
     return devices
@@ -125,16 +166,18 @@ class RecordMethodChannel extends RecordPlatform {
   }
 
   @override
-  Stream<RecordState> onStateChanged() {
-    _stateStream ??= _eventChannel.receiveBroadcastStream().map<RecordState>(
+  Stream<RecordState> onStateChanged(String recorderId) {
+    final eventChannel = EventChannel(
+      'com.llfbandit.record/events/$recorderId',
+    );
+
+    return eventChannel.receiveBroadcastStream().map<RecordState>(
           (state) => RecordState.values.firstWhere((e) => e.index == state),
         );
-
-    return _stateStream ?? Stream.value(RecordState.stop);
   }
 
-  Future<void> _stopListeningRecordStream() async {
-    await _recordStreamCtrl?.close();
-    _recordStreamCtrl = null;
+  Future<void> _stopListeningRecordStream(String recorderId) async {
+    await _eventRecordChannels[recorderId]?.close();
+    _eventRecordChannels.remove(recorderId);
   }
 }

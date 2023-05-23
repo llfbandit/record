@@ -4,14 +4,15 @@ version: 5.0.0-dev1
 homepage: https://github.com/llfbandit/record/tree/master/record
 
 environment:
-  sdk: ">=2.15.1"
-  flutter: ">=2.8.1"
+  sdk: ">=2.15.1 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  record_platform_interface: ^0.6.0
+  uuid: ^3.0.0
+
+  record_platform_interface: ^0.7.0
   record_web: '>=0.5.0 < 2.0.0'
   record_windows: '>=0.7.1 < 2.0.0'
   record_macos: '>=0.2.2 < 2.0.0'
