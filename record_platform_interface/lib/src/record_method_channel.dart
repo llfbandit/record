@@ -8,7 +8,7 @@ class RecordMethodChannel extends RecordPlatform {
   // Channel handlers
   final _methodChannel = const MethodChannel('com.llfbandit.record/messages');
 
-  final _eventRecordChannels = <String, StreamController<List<int>>>{};
+  final _eventRecordChannels = <String, StreamController<Uint8List>>{};
 
   @override
   Future<void> create(String recorderId) {
@@ -73,7 +73,7 @@ class RecordMethodChannel extends RecordPlatform {
   }
 
   @override
-  Future<Stream<List<int>>> startStream(
+  Future<Stream<Uint8List>> startStream(
     String recorderId,
     RecordConfig config,
   ) async {
@@ -83,12 +83,12 @@ class RecordMethodChannel extends RecordPlatform {
       'com.llfbandit.record/eventsRecord/$recorderId',
     );
 
-    final recordStreamCtrl = StreamController<List<int>>();
+    final recordStreamCtrl = StreamController<Uint8List>();
     _eventRecordChannels[recorderId] = recordStreamCtrl;
 
     final recordStream = eventRecordChannel
         .receiveBroadcastStream()
-        .map<List<int>>((data) => data);
+        .map<Uint8List>((data) => data);
 
     recordStream.listen(
       (data) {

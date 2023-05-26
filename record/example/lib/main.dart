@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -68,23 +69,23 @@ class _AudioRecorderState extends State<_AudioRecorder> {
         );
 
         // Record to file
-        String path;
-        if (kIsWeb) {
-          path = '';
-        } else {
-          final dir = await getApplicationDocumentsDirectory();
-          path = p.join(dir.path, 'test.m4a');
-        }
-        await _audioRecorder.start(config, path: path);
+        // String path;
+        // if (kIsWeb) {
+        //   path = '';
+        // } else {
+        //   final dir = await getApplicationDocumentsDirectory();
+        //   path = p.join(dir.path, 'test.m4a');
+        // }
+        // await _audioRecorder.start(config, path: path);
 
         // Record to stream
-        // final stream = await _audioRecorder.startStream(config);
-        // stream.listen(
-        //   // ignore: avoid_print
-        //   (data) => print(data),
-        //   // ignore: avoid_print
-        //   onDone: () => print('onDone'),
-        // );
+        final stream = await _audioRecorder.startStream(config);
+        stream.listen(
+          // ignore: avoid_print
+          (data) => print(data),
+          // ignore: avoid_print
+          onDone: () => print('onDone'),
+        );
 
         _recordDuration = 0;
 

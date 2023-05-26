@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:uuid/uuid.dart';
@@ -48,7 +49,7 @@ class AudioRecorder {
   ///
   /// When stopping the record, you must rely on stream close event to get
   /// full recorded data.
-  Future<Stream<List<int>>> startStream(RecordConfig config) async {
+  Future<Stream<Uint8List>> startStream(RecordConfig config) async {
     await _createCompleter.future;
     return RecordPlatform.instance.startStream(_recorderId, config);
   }

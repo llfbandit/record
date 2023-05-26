@@ -55,10 +55,10 @@ packages:
     dependency: transitive
     description:
       name: lints
-      sha256: "5e4a9cd06d447758280a8ac2405101e0e2094d2a1dbdd3756aec3fe7775ba593"
+      sha256: "6b0206b0bf4f04961fc5438198ccb3a885685cd67d4d4a32cc20ad7f8adbe015"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.1"
+    version: "2.1.0"
   material_color_utilities:
     dependency: transitive
     description:
@@ -98,10 +98,10 @@ packages:
       relative: true
     source: path
     version: "1.0.0"
-  record_ios:
+  record_darwin:
     dependency: "direct main"
     description:
-      path: "../record_ios"
+      path: "../record_darwin"
       relative: true
     source: path
     version: "1.0.0"
@@ -112,13 +112,6 @@ packages:
       relative: true
     source: path
     version: "0.4.1"
-  record_macos:
-    dependency: "direct main"
-    description:
-      path: "../record_macos"
-      relative: true
-    source: path
-    version: "0.2.2"
   record_platform_interface:
     dependency: "direct main"
     description:
@@ -170,4 +163,4 @@ packages:
     source: hosted
     version: "2.1.4"
 sdks:
-  dart: ">=3.0.0-0 <4.0.0"
+  dart: ">=3.0.0-417 <4.0.0"

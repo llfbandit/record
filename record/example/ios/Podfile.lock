@@ -2,33 +2,35 @@ PODS:
   - audioplayers_darwin (0.0.1):
     - Flutter
   - Flutter (1.0.0)
-  - path_provider_ios (0.0.1):
+  - path_provider_foundation (0.0.1):
     - Flutter
-  - record (0.0.1):
+    - FlutterMacOS
+  - record_darwin (1.0.0):
     - Flutter
+    - FlutterMacOS
 
 DEPENDENCIES:
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/ios`)
   - Flutter (from `Flutter`)
-  - path_provider_ios (from `.symlinks/plugins/path_provider_ios/ios`)
-  - record (from `.symlinks/plugins/record/ios`)
+  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - record_darwin (from `.symlinks/plugins/record_darwin/ios`)
 
 EXTERNAL SOURCES:
   audioplayers_darwin:
     :path: ".symlinks/plugins/audioplayers_darwin/ios"
   Flutter:
     :path: Flutter
-  path_provider_ios:
-    :path: ".symlinks/plugins/path_provider_ios/ios"
-  record:
-    :path: ".symlinks/plugins/record/ios"
+  path_provider_foundation:
+    :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  record_darwin:
+    :path: ".symlinks/plugins/record_darwin/ios"
 
 SPEC CHECKSUMS:
-  audioplayers_darwin: 387322cb364026a1782298c982693b1b6aa9fa1b
-  Flutter: 50d75fe2f02b26cc09d224853bb45737f8b3214a
-  path_provider_ios: 14f3d2fd28c4fdb42f44e0f751d12861c43cee02
-  record: cae05d8dd3cdb1dea3511b20e5a5811a1ae00d0d
+  audioplayers_darwin: 877d9a4d06331c5c374595e46e16453ac7eafa40
+  Flutter: f04841e97a9d0b0a8025694d0796dd46242b2854
+  path_provider_foundation: eaf5b3e458fc0e5fbb9940fb09980e853fe058b8
+  record_darwin: 1f6619f2abac4d1ca91d3eeab038c980d76f1517
 
 PODFILE CHECKSUM: 7368163408c647b7eb699d0d788ba6718e18fb8d
 
-COCOAPODS: 1.11.3
+COCOAPODS: 1.12.1

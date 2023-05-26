@@ -207,10 +207,10 @@ packages:
     dependency: transitive
     description:
       name: path_provider_linux
-      sha256: "2ae08f2216225427e64ad224a24354221c2c7907e448e6e0e8b57b1eb9f10ad1"
+      sha256: ffbb8cc9ed2c9ec0e4b7a541e56fd79b138e8f47d2fb86815f15358a349b3b57
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.10"
+    version: "2.1.11"
   path_provider_platform_interface:
     dependency: transitive
     description:
@@ -265,10 +265,10 @@ packages:
       relative: true
     source: path
     version: "1.0.0"
-  record_ios:
+  record_darwin:
     dependency: "direct overridden"
     description:
-      path: "../../record_ios"
+      path: "../../record_darwin"
       relative: true
     source: path
     version: "1.0.0"
@@ -279,13 +279,6 @@ packages:
       relative: true
     source: path
     version: "0.4.1"
-  record_macos:
-    dependency: "direct overridden"
-    description:
-      path: "../../record_macos"
-      relative: true
-    source: path
-    version: "0.2.2"
   record_platform_interface:
     dependency: "direct overridden"
     description:
