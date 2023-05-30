@@ -46,7 +46,6 @@ class RecordLinux extends RecordPlatform {
       case AudioEncoder.flac:
       case AudioEncoder.opus:
       case AudioEncoder.wav:
-      case AudioEncoder.vorbisOgg:
         return true;
       default:
         return false;
@@ -173,8 +172,6 @@ class RecordLinux extends RecordPlatform {
         return ['--opus.bitrate=$rate'];
       case AudioEncoder.wav:
         return [];
-      case AudioEncoder.vorbisOgg:
-        return ['--vorbis.quality=6.0'];
       default:
         return [];
     }

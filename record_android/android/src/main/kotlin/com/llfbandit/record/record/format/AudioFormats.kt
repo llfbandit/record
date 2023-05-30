@@ -32,7 +32,6 @@ object AudioFormats {
             "amrWb" -> MediaFormat.MIMETYPE_AUDIO_AMR_WB
             "wav", "pcm16bit", "pcm8bit" -> MediaFormat.MIMETYPE_AUDIO_RAW
             "opus" -> MediaFormat.MIMETYPE_AUDIO_OPUS
-            "vorbisOgg" -> MediaFormat.MIMETYPE_AUDIO_VORBIS
             "flac" -> MediaFormat.MIMETYPE_AUDIO_FLAC
             else -> null
         }

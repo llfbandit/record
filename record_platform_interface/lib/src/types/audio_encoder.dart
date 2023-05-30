@@ -41,11 +41,6 @@ enum AudioEncoder {
   /// Suggested file extension: `opus`
   opus,
 
-  /// Ogg Vorbis Audio
-  ///
-  /// Suggested file extension: `ogg`
-  vorbisOgg,
-
   /// Free Lossless Audio Codec
   ///
   /// /// Suggested file extension: `flac`

@@ -8,7 +8,6 @@ import com.llfbandit.record.record.format.AmrNbFormat
 import com.llfbandit.record.record.format.AmrWbFormat
 import com.llfbandit.record.record.format.FlacFormat
 import com.llfbandit.record.record.format.Format
-import com.llfbandit.record.record.format.OggFormat
 import com.llfbandit.record.record.format.OpusFormat
 import com.llfbandit.record.record.format.PcmFormat
 import com.llfbandit.record.record.format.WaveFormat
@@ -223,7 +222,6 @@ class AudioRecorder(
                 "flac" -> return FlacFormat()
                 "pcm16bit", "pcm8bit" -> return PcmFormat()
                 "opus" -> return OpusFormat()
-                "vorbisOgg" -> return OggFormat()
                 "wav" -> return WaveFormat()
             }
             throw Exception("Unknown format: " + config.encoder)
