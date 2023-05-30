@@ -64,6 +64,7 @@ namespace record_windows
 		HRESULT CreateFlacProfile( IMFMediaType* pMediaType);
 		HRESULT CreateAmrNbProfile( IMFMediaType* pMediaType);
 		HRESULT CreatePcmProfile( IMFMediaType* pMediaType);
+		HRESULT FillWavHeader();
 
 		HRESULT InitRecording(std::unique_ptr<RecordConfig> config);
 		void UpdateState(RecordState state);
@@ -79,6 +80,7 @@ namespace record_windows
 		IMFSinkWriter* m_pWriter;
 		std::string m_recordingPath;
 		bool m_mfStarted = false;
+		IMFMediaType* m_pMediaType;
 
 		bool m_bFirstSample = true;
 		LONGLONG m_llBaseTime = 0;
@@ -86,6 +88,7 @@ namespace record_windows
 
 		double m_amplitude = -160;
 		double m_maxAmplitude = -160;
+		DWORD m_dataWritten = 0;
 
 		EventStreamHandler<>* m_stateEventHandler;
 		EventStreamHandler<>* m_recordEventHandler;

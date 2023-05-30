@@ -66,7 +66,7 @@ External dependencies:
 | amrWb           | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
 | opus            | ✔️            |   ✔️    |  ?      |         |  ✔️    |  ✔️ 
 | vorbisOgg       | ?(optional)   |          |  ?      |         |        |   ✔️  
-| wav             |  ✔️           |         |  ?      |        |        |   ✔️ 
+| wav             |  ✔️           |         |  ?      |    ✔️    |        |   ✔️ 
 | flac            |  ✔️           |    ✔️    |  ?      |  ✔️     |   ✔️  |   ✔️
 | pcm8bit         | ✔️            |   ✔️    |  ?      |    ✔️   |  ✔️   |  
 | pcm16bit        | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️   |  

@@ -32,6 +32,7 @@ namespace record_windows
 				{
 					m_llBaseTime = llTimestamp;
 					m_bFirstSample = false;
+					m_dataWritten = 0;
 				}
 
 				// Save current timestamp in case of Pause
@@ -61,6 +62,9 @@ namespace record_windows
 
 						if (SUCCEEDED(hr))
 						{
+							// Update total data written
+							m_dataWritten += size;
+
 							// Send data to stream when there's no writer
 							if (m_recordEventHandler && !m_pWriter) {
 								std::vector<uint8_t> bytes(pChunk, pChunk + size);

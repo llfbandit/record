@@ -53,7 +53,8 @@ namespace record_windows
 		m_pPresentationDescriptor(NULL),
 		m_stateEventHandler(stateEventHandler),
 		m_recordEventHandler(recordEventHandler),
-		m_recordingPath(std::string())
+		m_recordingPath(std::string()),
+		m_pMediaType(NULL)
 	{
 	}
 
@@ -246,6 +247,10 @@ namespace record_windows
 			hr = m_pWriter->Finalize();
 		}
 
+		if (m_pConfig && m_pConfig->encoderName == "wav") {
+			FillWavHeader();
+		}
+
 		m_bFirstSample = true;
 		m_llBaseTime = 0;
 		m_llLastTime = 0;
@@ -266,6 +271,7 @@ namespace record_windows
 		SafeRelease(m_pPresentationDescriptor);
 		SafeRelease(m_pReader);
 		SafeRelease(m_pWriter);
+		SafeRelease(m_pMediaType);
 		m_pConfig = nullptr;
 		m_recordingPath = std::string();
 
@@ -396,6 +402,8 @@ namespace record_windows
 		{
 			m_pWriter = pSinkWriter;
 			m_pWriter->AddRef();
+			m_pMediaType = pMediaTypeOut;
+			m_pMediaType->AddRef();
 		}
 
 		SafeRelease(&pSinkWriter);
