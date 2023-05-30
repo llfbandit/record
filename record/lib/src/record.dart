@@ -11,6 +11,7 @@ class AudioRecorder {
   StreamController<Amplitude>? _amplitudeStreamCtrl;
 
   Timer? _amplitudeTimer;
+  late Duration _amplitudeTimerInterval;
 
   final String _recorderId;
 
@@ -59,18 +60,21 @@ class AudioRecorder {
   /// Returns the output path if any.
   Future<String?> stop() async {
     await _createCompleter.future;
+    _amplitudeTimer?.cancel();
     return RecordPlatform.instance.stop(_recorderId);
   }
 
   /// Pauses recording session.
   Future<void> pause() async {
     await _createCompleter.future;
+    _amplitudeTimer?.cancel();
     return RecordPlatform.instance.pause(_recorderId);
   }
 
   /// Resumes recording session after [pause].
   Future<void> resume() async {
     await _createCompleter.future;
+    _startAmplitudeTimer();
     return RecordPlatform.instance.resume(_recorderId);
   }
 
@@ -138,11 +142,10 @@ class AudioRecorder {
       },
     );
 
+    _amplitudeTimerInterval = interval;
+
     _amplitudeTimer?.cancel();
-    _amplitudeTimer = Timer.periodic(
-      interval,
-      (timer) => _updateAmplitudeAtInterval(),
-    );
+    _startAmplitudeTimer();
 
     return _amplitudeStreamCtrl!.stream;
   }
@@ -152,6 +155,7 @@ class AudioRecorder {
       var result = _amplitudeStreamCtrl != null;
       result &= !(_amplitudeStreamCtrl?.isClosed ?? true);
       result &= _amplitudeStreamCtrl?.hasListener ?? false;
+      result &= _amplitudeTimer?.isActive ?? false;
 
       return result && await isRecording();
     }
@@ -159,5 +163,14 @@ class AudioRecorder {
     if (await shouldUpdate()) {
       _amplitudeStreamCtrl?.add(await getAmplitude());
     }
+  }
+
+  void _startAmplitudeTimer() {
+    if (_amplitudeStreamCtrl == null) return;
+
+    _amplitudeTimer = Timer.periodic(
+      _amplitudeTimerInterval,
+      (timer) => _updateAmplitudeAtInterval(),
+    );
   }
 }

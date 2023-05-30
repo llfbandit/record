@@ -3,16 +3,15 @@ Audio recorder from microphone to a given file path.
 No external dependencies:
 
 - On Android, AudioRecord is used.  
-- On iOS, AVAudioRecorder is used.  
-- On macOS, AVCaptureSession is used.  
+- On iOS and macOS, AVCaptureSession is used.  
+- On Windows, MediaFoundation is used.
 - On web, well... your browser!
 
 External dependencies:
-- On Windows and linux, encoding is provided by [fmedia](https://stsaz.github.io/fmedia/).  
-- On linux, fmedia must be installed separately.
+- On linux, encoding is provided by [fmedia](https://stsaz.github.io/fmedia/), fmedia must be installed separately.
 
 ## Options
-- bit rate (where applicable)
+- bit rate
 - sampling rate
 - encoder
 - Number of channels
@@ -49,11 +48,12 @@ External dependencies:
 | Feature          | Android        | iOS             | web     | Windows    | macOS  | linux
 |------------------|----------------|-----------------|---------|------------|-------|-----------
 | pause/resume     | ✔️             |   ✔️           | ✔️     |      ✔️    | ✔️    |  ✔️
-| amplitude(dBFS)  | ✔️             |   ✔️           |         |            |  ✔️   |
+| amplitude(dBFS)  | ✔️             |   ✔️           |  ✔️     |    ✔️     |  ✔️   |
 | permission check | ✔️             |   ✔️           |  ✔️    |            |  ✔️   |
 | num of channels  | ✔️             |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | device selection | (auto BT/mic)  | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| auto gain        | ✔️             |                 |         |            |       |  
+| auto gain        | ✔️             | (auto?)         |         |            |       |  
+| echo suppresion  | ✔️             |                 |         |            |       |  
 | noise suppresion | ✔️             |                 |         |            |       |  
 
 ## File
@@ -61,41 +61,30 @@ External dependencies:
 |-----------------|----------------|---------|---------|---------|---------|---------
 | aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
 | aacEld          | ✔️            |   ✔️    |  ?      |         |  ✔️    | 
-| aacHe           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
-| amrNb           | ✔️            |   ✔️    |  ?      |         |  ✔️    |  
+| aacHe           | ✔️            |   ✔️    |  ?      |         |  ✔️    |  ✔️ 
+| amrNb           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  
 | amrWb           | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
-| opus            | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
-| vorbisOgg       | ?(optional)   |          |  ?      |  ✔️     |        |   ✔️  
-| wav             |  ✔️           |         |  ?      |   ✔️     |        |   ✔️ 
+| opus            | ✔️            |   ✔️    |  ?      |         |  ✔️    |  ✔️ 
+| vorbisOgg       | ?(optional)   |          |  ?      |         |        |   ✔️  
+| wav             |  ✔️           |         |  ?      |        |        |   ✔️ 
 | flac            |  ✔️           |    ✔️    |  ?      |  ✔️     |   ✔️  |   ✔️
-| pcm8bit         | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
-| pcm16bit        | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
+| pcm8bit         | ✔️            |   ✔️    |  ?      |    ✔️   |  ✔️   |  
+| pcm16bit        | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️   |  
 
 ## Stream
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
 |-----------------|----------------|---------|---------|---------|---------|---------
-| aacLc           | ✔️*            |       |  **      |       |      |  
-| aacEld          | ✔️*            |       |  **      |       |      | 
-| aacHe           | ✔️*            |       |  **      |       |      |  
-| pcm8bit         | ✔️            |       |   **     |       |     |  
-| pcm16bit        | ✔️            |       |   **     |       |     |  
+| aacLc           | ✔️*            |       |  **      |         |         |  
+| aacEld          | ✔️*            |       |  **      |         |         | 
+| aacHe           | ✔️*            |       |  **      |         |         |  
+| pcm8bit         | ✔️            |  ✔️    |   **    |   ✔️    |  ✔️     |  
+| pcm16bit        | ✔️            |  ✔️    |   **    |  ✔️     | ✔️     |  
 
 \* AAC is streamed with raw AAC with ADTS headers, so it can be saved as file.  
 ** web platform may allow more encoders.  
 
 
-For every encoder, you should be really careful with given sampling rates.
-
-If a given encoder is not supported when starting recording on platform, the fallbacks are:  
-
-| Platform    | encoder                                                      
-|-------------|--------------------------------------------------------------
-| Android     | AAC LC                                                       
-| iOS         | AAC LC                                                       
-| web         | OPUS OGG (not guaranteed => choice is made by the browser)   
-| Windows     | AAC LC                                                       
-| macOS       | AAC LC                                                       
-| linux       | AAC LC                                                       
+For every encoder, you should be really careful with given sample/bit rates.                                                   
 
 ## Encoding API levels documentation
 ### Android
@@ -124,7 +113,7 @@ if (await record.hasPermission()) {
 bool isRecording = await record.isRecording();
 
 // Stop recording
-await record.stop();
+final path = await record.stop();
 ```
 
 ## Warnings

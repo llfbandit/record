@@ -1,18 +1,21 @@
-## Unreleased
-
-* TODO feat: Add amplitude on web.
-* TODO feat: Add Multiple instance.
-
 ## 5.0.0-dev1
-* BREAK: `Record` has been renamed to `AudioRecorder` to avoid clash with incoming dart v3.
-* BREAK: path is now required on all IO platforms. Set an empty String on web platform.
-* BREAK: Android SDK minimum version is 21.
-* BREAK: `start` and `startStream` method parameters are now wrapped in `RecordConfig` object.
+* Chore:
+    * Massively reworked platform implementations.  
+    * Android now uses MediaCodec and written with kotlin.
+    * iOS, macOS code is now merged.
+    * Windows now uses MediaFoundation (fmedia dependency removed).
 
-* chore: Massively reworked platform implementations.
+* Features:
+    * feat: Add Multiple instance support.
+    * feat: Add streaming feature (PCM).
+    * feat: Add Noise suppressor and auto gain where available.
+    * feat: Add amplitude on web.
 
-* feat: Add streaming feature.
-* feat: Add Noise suppressor and auto gain where available.
+* Breaking changes:
+    * BREAK: `Record` has been renamed to `AudioRecorder` to avoid clash with incoming dart v3.
+    * BREAK: path is now required on all IO platforms. Set an empty String on web platform.
+    * BREAK: Android SDK minimum version is 21.
+    * BREAK: `start` and `startStream` method parameters are now wrapped in `RecordConfig` object.
 
 ## 4.4.4
 * chore: Update linter rules.

@@ -35,8 +35,6 @@ class _AudioRecorderState extends State<_AudioRecorder> {
 
     _recordSub = _audioRecorder.onStateChanged().listen((recordState) {
       setState(() => _recordState = recordState);
-    }, onError: (error) {
-      debugPrint(error);
     });
 
     _amplitudeSub = _audioRecorder
@@ -51,7 +49,7 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   Future<void> _start() async {
     try {
       if (await _audioRecorder.hasPermission()) {
-        const encoder = AudioEncoder.aacLc;
+        const encoder = AudioEncoder.pcm16bit;
 
         // We don't do anything with this but printing
         final isSupported = await _audioRecorder.isEncoderSupported(
@@ -63,29 +61,26 @@ class _AudioRecorderState extends State<_AudioRecorder> {
         final devs = await _audioRecorder.listInputDevices();
         debugPrint(devs.toString());
 
-        final config = RecordConfig(
-          encoder: encoder,
-          noiseCancel: true,
-        );
+        const config = RecordConfig(encoder: encoder);
 
         // Record to file
-        // String path;
-        // if (kIsWeb) {
-        //   path = '';
-        // } else {
-        //   final dir = await getApplicationDocumentsDirectory();
-        //   path = p.join(dir.path, 'test.m4a');
-        // }
-        // await _audioRecorder.start(config, path: path);
+        String path;
+        if (kIsWeb) {
+          path = '';
+        } else {
+          final dir = await getApplicationDocumentsDirectory();
+          path = p.join(dir.path, 'test.m4a');
+        }
+        await _audioRecorder.start(config, path: path);
 
         // Record to stream
-        final stream = await _audioRecorder.startStream(config);
-        stream.listen(
-          // ignore: avoid_print
-          (data) => print(data),
-          // ignore: avoid_print
-          onDone: () => print('onDone'),
-        );
+        // final stream = await _audioRecorder.startStream(config);
+        // stream.listen(
+        //   // ignore: avoid_print
+        //   (data) => print(data),
+        //   // ignore: avoid_print
+        //   onDone: () => print('onDone'),
+        // );
 
         _recordDuration = 0;
 

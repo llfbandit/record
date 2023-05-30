@@ -8,9 +8,7 @@
 .buildlog/
 .history
 .svn/
-
-# FVM
-.fvm/flutter_sdk
+migrate_working_dir/
 
 # IntelliJ related
 *.iml
