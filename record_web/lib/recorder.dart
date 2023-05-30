@@ -21,7 +21,7 @@ class Recorder {
   // Completer to get data & stop events before `stop()` method ends
   Completer<String>? _onStopCompleter;
   StreamController<RecordState>? _stateStreamCtrl;
-  StreamController<List<int>>? _recordStreamCtrl;
+  StreamController<Uint8List>? _recordStreamCtrl;
 
   // Amplitude
   double _maxAmplitude = _kMinAmplitude;
@@ -57,27 +57,31 @@ class Recorder {
   }
 
   Future<void> pause() async {
-    _mediaRecorder?.pause();
+    if (_mediaRecorder?.state == 'recording') {
+      _mediaRecorder?.pause();
 
-    try {
-      _audioCtx?.suspend();
-    } catch (e) {
-      debugPrint(e.toString());
+      try {
+        _audioCtx?.suspend();
+      } catch (e) {
+        debugPrint(e.toString());
+      }
+
+      _updateState(RecordState.pause);
     }
-
-    _updateState(RecordState.pause);
   }
 
   Future<void> resume() async {
-    _mediaRecorder?.resume();
+    if (_mediaRecorder?.state == 'paused') {
+      _mediaRecorder?.resume();
 
-    try {
-      _audioCtx?.resume();
-    } catch (e) {
-      debugPrint(e.toString());
+      try {
+        _audioCtx?.resume();
+      } catch (e) {
+        debugPrint(e.toString());
+      }
+
+      _updateState(RecordState.record);
     }
-
-    _updateState(RecordState.record);
   }
 
   Future<void> start(
@@ -87,10 +91,10 @@ class Recorder {
     return _start(config);
   }
 
-  Future<Stream<List<int>>> startStream(
+  Future<Stream<Uint8List>> startStream(
     RecordConfig config,
   ) async {
-    await _start(config);
+    await _start(config, true);
 
     _recordStreamCtrl = StreamController();
     return _recordStreamCtrl!.stream;
@@ -176,7 +180,7 @@ class Recorder {
       isStream ? _onDataAvailableStream : _onDataAvailable,
     );
     _mediaRecorder?.addEventListener('stop', _onStop);
-    _mediaRecorder?.start();
+    _mediaRecorder?.start(200); // Will trigger dataavailable every 200ms
 
     _createAudioContext(stream);
 
@@ -232,8 +236,12 @@ class Recorder {
   }
 
   void _onDataAvailable(html.Event event) {
-    if (event is html.BlobEvent && event.data != null) {
-      _chunks.add(event.data!);
+    if (event is! html.BlobEvent) return;
+
+    final data = event.data;
+
+    if (data != null && data.size > 0) {
+      _chunks.add(data);
     }
   }
 
@@ -241,20 +249,21 @@ class Recorder {
     final streamCtrl = _recordStreamCtrl;
     if (streamCtrl == null) return;
 
-    if (event is html.BlobEvent) {
-      final data = event.data;
-      if (data == null) return;
+    if (event is! html.BlobEvent) return;
 
+    final data = event.data;
+    if (data != null && data.size > 0) {
       final fileReader = html.FileReader();
-      fileReader.readAsArrayBuffer(data);
 
       fileReader.onLoad.listen((event) {
         final result = fileReader.result;
 
-        if (result is List<int>) {
+        if (result is Uint8List) {
           streamCtrl.add(result);
         }
       });
+
+      fileReader.readAsArrayBuffer(data.slice());
     }
   }
 

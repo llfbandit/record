@@ -59,32 +59,32 @@ External dependencies:
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
 |-----------------|----------------|---------|---------|---------|---------|---------
-| aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
-| aacEld          | ✔️            |   ✔️    |  ?      |         |  ✔️    | 
-| aacHe           | ✔️            |   ✔️    |  ?      |         |  ✔️    |  ✔️ 
+| aacLc           | ✔️            |   ✔️    |  ✔️     |   ✔️    |  ✔️    |  ✔️ 
+| aacEld          | ✔️            |   ✔️    |        |         |  ✔️    | 
+| aacHe           | ✔️            |   ✔️    |        |         |  ✔️    |  ✔️ 
 | amrNb           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  
 | amrWb           | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
-| opus            | ✔️            |   ✔️    |  ?      |         |  ✔️    |  ✔️ 
-| vorbisOgg       | ?(optional)   |          |  ?      |         |        |   ✔️  
-| wav             |  ✔️           |         |  ?      |    ✔️    |        |   ✔️ 
+| opus            | ✔️            |   ✔️    |  ✔️      |         |  ✔️    |  ✔️ 
+| wav             |  ✔️           |         |   ?     |    ✔️    |        |   ✔️ 
 | flac            |  ✔️           |    ✔️    |  ?      |  ✔️     |   ✔️  |   ✔️
-| pcm8bit         | ✔️            |   ✔️    |  ?      |    ✔️   |  ✔️   |  
-| pcm16bit        | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️   |  
+| pcm8bit         | ✔️            |   ✔️    |  ✔️      |    ✔️   |  ✔️   |  
+| pcm16bit        | ✔️            |   ✔️    |  ✔️      |   ✔️    |  ✔️   |  
 
 ## Stream
-| Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
-|-----------------|----------------|---------|---------|---------|---------|---------
-| aacLc           | ✔️*            |       |  **      |         |         |  
-| aacEld          | ✔️*            |       |  **      |         |         | 
-| aacHe           | ✔️*            |       |  **      |         |         |  
-| pcm8bit         | ✔️            |  ✔️    |   **    |   ✔️    |  ✔️     |  
-| pcm16bit        | ✔️            |  ✔️    |   **    |  ✔️     | ✔️     |  
+| Encoder         | Android    | iOS     | web     | Windows | macOS   | linux
+|-----------------|------------|---------|---------|---------|---------|---------
+| aacLc           | ✔️*        |       |          |         |         |  
+| aacEld          | ✔️*        |       |          |         |         | 
+| aacHe           | ✔️*        |       |          |         |         |  
+| pcm8bit         | ✔️        |  ✔️    |   ✔️    |   ✔️    |  ✔️     |  
+| pcm16bit        | ✔️        |  ✔️    |   ✔️    |  ✔️     | ✔️     |  
 
 \* AAC is streamed with raw AAC with ADTS headers, so it can be saved as file.  
 ** web platform may allow more encoders.  
 
 
-For every encoder, you should be really careful with given sample/bit rates.                                                   
+For every encoder, you should be really careful with given sample/bit rates.  
+For example, Opus can't be recorded at 44100Hz.
 
 ## Encoding API levels documentation
 ### Android

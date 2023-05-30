@@ -63,7 +63,7 @@ class RecordPluginWebWrapper extends RecordPlatform {
   }
 
   @override
-  Future<Stream<List<int>>> startStream(
+  Future<Stream<Uint8List>> startStream(
     String recorderId,
     RecordConfig config,
   ) {
