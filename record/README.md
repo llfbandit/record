@@ -45,16 +45,16 @@ External dependencies:
 - min SDK: 10.15
 
 ## Platform feature parity matrix
-| Feature          | Android        | iOS             | web     | Windows    | macOS  | linux
-|------------------|----------------|-----------------|---------|------------|-------|-----------
-| pause/resume     | ✔️             |   ✔️           | ✔️     |      ✔️    | ✔️    |  ✔️
-| amplitude(dBFS)  | ✔️             |   ✔️           |  ✔️     |    ✔️     |  ✔️   |
-| permission check | ✔️             |   ✔️           |  ✔️    |            |  ✔️   |
-| num of channels  | ✔️             |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| device selection | (auto BT/mic)  | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| auto gain        | ✔️             | (auto?)         |         |            |       |  
-| echo suppresion  | ✔️             |                 |         |            |       |  
-| noise suppresion | ✔️             |                 |         |            |       |  
+| Feature          | Android       | iOS             | web     | Windows    | macOS  | linux
+|------------------|---------------|-----------------|---------|------------|-------|-----------
+| pause/resume     | ✔️            |   ✔️           | ✔️     |      ✔️    | ✔️    |  ✔️
+| amplitude(dBFS)  | ✔️            |   ✔️           |  ✔️     |    ✔️     |  ✔️   |
+| permission check | ✔️            |   ✔️           |  ✔️    |            |  ✔️   |
+| num of channels  | ✔️            |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| device selection | (auto BT/mic) | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| auto gain        | ✔️            |(already active?)| ✔️      |            |       |  
+| echo suppresion  | ✔️            |                 | ✔️      |            |       |  
+| noise suppresion | ✔️            |                 | ✔️      |            |       |  
 
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux

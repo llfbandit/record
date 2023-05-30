@@ -164,6 +164,16 @@ class Recorder {
         constraints,
       );
       if (_mediaStream != null) {
+        final audioTracks = _mediaStream!.getAudioTracks();
+
+        for (var track in audioTracks) {
+          track.applyConstraints({
+            'autoGainControl': config.autoGain,
+            'echoCancellation': config.echoCancel,
+            'noiseSuppression': config.noiseCancel,
+          });
+        }
+
         _onStart(_mediaStream!, isStream);
       } else {
         debugPrint('Audio recording not supported.');
