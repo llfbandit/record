@@ -150,6 +150,7 @@ class Recorder {
       'bitsPerSecond': config.bitRate,
       'sampleRate': config.samplingRate,
       'channelCount': config.numChannels,
+      'sampleSize': config.encoder == AudioEncoder.pcm8bit ? 8 : 16,
     };
 
     // Try to assign dedicated mime type.
