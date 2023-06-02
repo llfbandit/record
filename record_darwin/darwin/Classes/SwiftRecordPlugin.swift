@@ -147,6 +147,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       }
       result(devs)
     case "dispose":
+      recorders.removeValue(forKey: recorderId)
       recorder.dispose()
       result(nil)
     default:
