@@ -9,7 +9,7 @@ namespace record_windows
 		std::string encoderName = "aacLc";
 		std::string deviceId = NULL;
 		int bitRate = 128000;
-		int samplingRate = 44100;
+		int sampleRate = 44100;
 		int numChannels = 2;
 		bool autoGain = false;
 		bool echoCancel = false;
@@ -19,7 +19,7 @@ namespace record_windows
 			const std::string& encoderName,
 			const std::string& deviceId,
 			int bitRate,
-			int samplingRate,
+			int sampleRate,
 			int numChannels,
 			bool autoGain,
 			bool echoCancel,
@@ -27,7 +27,7 @@ namespace record_windows
 			: encoderName(encoderName),
 			deviceId(deviceId),
 			bitRate(bitRate),
-			samplingRate(samplingRate),
+			sampleRate(sampleRate),
 			numChannels(numChannels),
 			autoGain(autoGain),
 			echoCancel(echoCancel),

@@ -97,7 +97,7 @@ class RecordLinux extends RecordPlatform {
         '--background',
         '--record',
         '--out=$path',
-        '--rate=${config.samplingRate}',
+        '--rate=${config.sampleRate}',
         '--channels=${config.numChannels}',
         '--globcmd=listen',
         '--gain=6.0',
@@ -296,7 +296,7 @@ class RecordLinux extends RecordPlatform {
     }
 
     int? channels;
-    int? samplingRate;
+    int? sampleRate;
     if (secondLine != null) {
       final match = RegExp(
         r'(?:.*Default Format: )(\d+) channel, (\d+) Hz',
@@ -309,7 +309,7 @@ class RecordLinux extends RecordPlatform {
 
         // Sampling rate
         final samplingStr = match.group(2);
-        samplingRate = samplingStr != null ? int.tryParse(samplingStr) : null;
+        sampleRate = samplingStr != null ? int.tryParse(samplingStr) : null;
       }
     }
 
@@ -317,7 +317,7 @@ class RecordLinux extends RecordPlatform {
       id: id,
       label: label,
       channels: channels,
-      samplingRate: samplingRate,
+      sampleRate: sampleRate,
     );
   }
 

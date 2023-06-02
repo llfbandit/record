@@ -15,7 +15,7 @@ class PcmFormat : Format() {
 
         val format = MediaFormat().apply {
             setString(MediaFormat.KEY_MIME, mimeTypeAudio)
-            setInteger(MediaFormat.KEY_SAMPLE_RATE, config.samplingRate)
+            setInteger(MediaFormat.KEY_SAMPLE_RATE, config.sampleRate)
             setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.numChannels)
             setInteger(KEY_X_FRAME_SIZE_IN_BYTES, frameSize)
         }

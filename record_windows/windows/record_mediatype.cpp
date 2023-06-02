@@ -27,7 +27,7 @@ namespace record_windows
 		}
 		if (SUCCEEDED(hr))
 		{
-			hr = pMediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_pConfig->samplingRate);
+			hr = pMediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_pConfig->sampleRate);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -106,7 +106,7 @@ namespace record_windows
 		}
 		if (SUCCEEDED(hr))
 		{
-			hr = pMediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_pConfig->samplingRate);
+			hr = pMediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_pConfig->sampleRate);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -130,7 +130,7 @@ namespace record_windows
 		}
 		if (SUCCEEDED(hr))
 		{
-			hr = pMediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_pConfig->samplingRate);
+			hr = pMediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_pConfig->sampleRate);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -175,7 +175,7 @@ namespace record_windows
 		}
 		// Calculate derived values.
 		UINT32 blockAlign = m_pConfig->numChannels * (bitsPerSample / 8);
-		UINT32 bytesPerSecond = blockAlign * m_pConfig->samplingRate;
+		UINT32 bytesPerSecond = blockAlign * m_pConfig->sampleRate;
 
 		if (SUCCEEDED(hr))
 		{
@@ -183,7 +183,7 @@ namespace record_windows
 		}
 		if (SUCCEEDED(hr))
 		{
-			hr = pMediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_pConfig->samplingRate);
+			hr = pMediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_pConfig->sampleRate);
 		}
 		if (SUCCEEDED(hr))
 		{

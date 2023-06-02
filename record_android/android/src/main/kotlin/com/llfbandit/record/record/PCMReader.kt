@@ -127,10 +127,10 @@ class PCMReader(
         }
 
     @Throws(Exception::class)
-    private fun getMinBufferSize(samplingRate: Int, channelConfig: Int, audioFormat: Int): Int {
+    private fun getMinBufferSize(sampleRate: Int, channelConfig: Int, audioFormat: Int): Int {
         // Get min size of the buffer for writings
         val bufferSize = AudioRecord.getMinBufferSize(
-            samplingRate,
+            sampleRate,
             channelConfig,
             audioFormat
         )

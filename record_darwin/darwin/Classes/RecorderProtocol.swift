@@ -14,7 +14,7 @@ enum RecordState: Int {
 class RecordConfig {
   let encoder: String
   let bitRate: Int
-  let samplingRate: Int
+  let sampleRate: Int
   let numChannels: Int
   let device: [String: Any]?
   let autoGain: Bool
@@ -23,7 +23,7 @@ class RecordConfig {
   
   init(encoder: String,
        bitRate: Int,
-       samplingRate: Int,
+       sampleRate: Int,
        numChannels: Int,
        device: [String : Any]? = nil,
        autoGain: Bool = false,
@@ -32,7 +32,7 @@ class RecordConfig {
   ) {
     self.encoder = encoder
     self.bitRate = bitRate
-    self.samplingRate = samplingRate
+    self.sampleRate = sampleRate
     self.numChannels = numChannels
     self.device = device
     self.autoGain = autoGain
@@ -160,7 +160,7 @@ extension RecorderProtocol {
   func getInputSettings(config: RecordConfig) -> [String : Any] {
     let format = AVAudioFormat(
       commonFormat: AVAudioCommonFormat.pcmFormatInt16,
-      sampleRate: (config.samplingRate < 48000) ? Double(config.samplingRate) : 48000.0,
+      sampleRate: (config.sampleRate < 48000) ? Double(config.sampleRate) : 48000.0,
       channels: UInt32((config.numChannels > 2) ? 2 : config.numChannels),
       interleaved: false
     )
@@ -178,7 +178,7 @@ extension RecorderProtocol {
       settings = [
         AVFormatIDKey : kAudioFormatMPEG4AAC,
         AVEncoderBitRateKey: config.bitRate,
-        AVSampleRateKey: config.samplingRate,
+        AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
@@ -186,7 +186,7 @@ extension RecorderProtocol {
       settings = [
         AVFormatIDKey : kAudioFormatMPEG4AAC_ELD_V2,
         AVEncoderBitRateKey: config.bitRate,
-        AVSampleRateKey: config.samplingRate,
+        AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
@@ -194,7 +194,7 @@ extension RecorderProtocol {
       settings = [
         AVFormatIDKey : kAudioFormatMPEG4AAC_HE_V2,
         AVEncoderBitRateKey: config.bitRate,
-        AVSampleRateKey: config.samplingRate,
+        AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
@@ -226,7 +226,7 @@ extension RecorderProtocol {
       settings = [
         AVFormatIDKey : kAudioFormatOpus,
         AVEncoderBitRateKey: config.bitRate,
-        AVSampleRateKey: config.samplingRate,
+        AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
@@ -234,7 +234,7 @@ extension RecorderProtocol {
       settings = [
         AVFormatIDKey : kAudioFormatFLAC,
         AVEncoderBitRateKey: config.bitRate,
-        AVSampleRateKey: config.samplingRate,
+        AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
@@ -244,7 +244,7 @@ extension RecorderProtocol {
         AVLinearPCMBitDepthKey: 8,
         AVLinearPCMIsFloatKey: false,
         AVLinearPCMIsBigEndianKey: false,
-        AVSampleRateKey: config.samplingRate,
+        AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
       ]
       keepSampleRate = true
@@ -254,7 +254,7 @@ extension RecorderProtocol {
         AVLinearPCMBitDepthKey: 16,
         AVLinearPCMIsFloatKey: false,
         AVLinearPCMIsBigEndianKey: false,
-        AVSampleRateKey: config.samplingRate,
+        AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
       ]
       keepSampleRate = true
@@ -262,7 +262,7 @@ extension RecorderProtocol {
       settings = [
         AVFormatIDKey : kAudioFormatMPEG4AAC,
         AVEncoderBitRateKey: config.bitRate,
-        AVSampleRateKey: config.samplingRate,
+        AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]

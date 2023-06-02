@@ -6,7 +6,7 @@ import 'package:record_platform_interface/src/types/types.dart';
 ///
 /// `bitRate`*: The audio encoding bit rate in bits per second.
 ///
-/// `samplingRate`*: The sampling rate for audio in samples per second.
+/// `sampleRate`*: The sampling rate for audio in samples per second.
 ///
 /// `numChannels`: The numbers of channels for the recording.
 /// 1 = mono, 2 = stereo.
@@ -25,7 +25,7 @@ import 'package:record_platform_interface/src/types/types.dart';
 class RecordConfig {
   final AudioEncoder encoder;
   final int bitRate;
-  final int samplingRate;
+  final int sampleRate;
   final int numChannels;
   final InputDevice? device;
   final bool autoGain;
@@ -35,7 +35,7 @@ class RecordConfig {
   const RecordConfig({
     this.encoder = AudioEncoder.aacLc,
     this.bitRate = 128000,
-    this.samplingRate = 44100,
+    this.sampleRate = 44100,
     this.numChannels = 2,
     this.device,
     this.autoGain = false,
@@ -47,7 +47,7 @@ class RecordConfig {
     return {
       'encoder': encoder.name,
       'bitRate': bitRate,
-      'samplingRate': samplingRate,
+      'sampleRate': sampleRate,
       'numChannels': numChannels,
       'device': device?.toMap(),
       'autoGain': autoGain,

@@ -181,7 +181,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
     let config = RecordConfig(
       encoder: encoder,
       bitRate: args["bitRate"] as? Int ?? 128000,
-      samplingRate: args["samplingRate"] as? Int ?? 44100,
+      sampleRate: args["sampleRate"] as? Int ?? 44100,
       numChannels: args["numChannels"] as? Int ?? 2,
       device: args["device"] as? [String : Any],
       autoGain: args["autoGain"] as? Bool ?? false,

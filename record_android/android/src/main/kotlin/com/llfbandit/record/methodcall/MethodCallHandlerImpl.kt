@@ -114,7 +114,7 @@ class MethodCallHandlerImpl(
             call.argument("path"),
             Utils.firstNonNull(call.argument("encoder"), "aacLc"),
             Utils.firstNonNull(call.argument("bitRate"), 128000),
-            Utils.firstNonNull(call.argument("samplingRate"), 44100),
+            Utils.firstNonNull(call.argument("sampleRate"), 44100),
             Utils.firstNonNull(call.argument("numChannels"), 2),
             //call.argument("device"),
             Utils.firstNonNull(call.argument("autoGain"), false),

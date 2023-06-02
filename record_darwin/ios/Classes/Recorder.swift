@@ -179,7 +179,7 @@ class Recorder: NSObject, RecorderProtocol, AVCaptureAudioDataOutputSampleBuffer
     }
     
     do {
-      try audioSession.setPreferredSampleRate((config.samplingRate <= 48000) ? Double(config.samplingRate) : 48000.0)
+      try audioSession.setPreferredSampleRate((config.sampleRate <= 48000) ? Double(config.sampleRate) : 48000.0)
     } catch {
       throw RecorderError.start(message: "Failed to start recording", details: "setPreferredSampleRate: \(error.localizedDescription)")
     }

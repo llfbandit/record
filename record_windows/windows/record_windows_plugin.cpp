@@ -218,8 +218,8 @@ namespace record_windows {
 		GetValueFromEncodableMap(args, "encoder", encoderName);
 		int bitRate;
 		GetValueFromEncodableMap(args, "bitRate", bitRate);
-		int samplingRate;
-		GetValueFromEncodableMap(args, "samplingRate", samplingRate);
+		int sampleRate;
+		GetValueFromEncodableMap(args, "sampleRate", sampleRate);
 		int numChannels;
 		GetValueFromEncodableMap(args, "numChannels", numChannels);
 		EncodableMap device;
@@ -239,7 +239,7 @@ namespace record_windows {
 			encoderName,
 			deviceId,
 			bitRate,
-			samplingRate,
+			sampleRate,
 			numChannels,
 			autoGain,
 			echoCancel,

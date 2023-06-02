@@ -16,7 +16,7 @@ class FlacFormat : Format() {
     override fun getMediaFormat(config: RecordConfig): MediaFormat {
         val format = MediaFormat().apply {
             setString(MediaFormat.KEY_MIME, mimeTypeAudio)
-            setInteger(MediaFormat.KEY_SAMPLE_RATE, nearestValue(sampleRates, config.samplingRate))
+            setInteger(MediaFormat.KEY_SAMPLE_RATE, nearestValue(sampleRates, config.sampleRate))
             setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.numChannels)
 
             // Specifics
