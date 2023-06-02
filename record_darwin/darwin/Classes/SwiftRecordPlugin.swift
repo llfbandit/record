@@ -186,7 +186,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       device: args["device"] as? [String : Any],
       autoGain: args["autoGain"] as? Bool ?? false,
       echoCancel: args["echoCancel"] as? Bool ?? false,
-      noiseCancel: args["noiseCancel"] as? Bool ?? false
+      noiseSuppress: args["noiseSuppress"] as? Bool ?? false
     )
     
     return config

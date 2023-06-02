@@ -13,7 +13,7 @@ namespace record_windows
 		int numChannels = 2;
 		bool autoGain = false;
 		bool echoCancel = false;
-		bool noiseCancel = false;
+		bool noiseSuppress = false;
 
 		RecordConfig(
 			const std::string& encoderName,
@@ -23,7 +23,7 @@ namespace record_windows
 			int numChannels,
 			bool autoGain,
 			bool echoCancel,
-			bool noiseCancel)
+			bool noiseSuppress)
 			: encoderName(encoderName),
 			deviceId(deviceId),
 			bitRate(bitRate),
@@ -31,7 +31,7 @@ namespace record_windows
 			numChannels(numChannels),
 			autoGain(autoGain),
 			echoCancel(echoCancel),
-			noiseCancel(noiseCancel)
+			noiseSuppress(noiseSuppress)
 		{
 		}
 	};

@@ -179,7 +179,7 @@ class Recorder {
           track.applyConstraints({
             'autoGainControl': config.autoGain,
             'echoCancellation': config.echoCancel,
-            'noiseSuppression': config.noiseCancel,
+            'noiseSuppression': config.noiseSuppress,
           });
         }
 

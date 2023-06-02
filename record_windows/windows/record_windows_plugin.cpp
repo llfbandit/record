@@ -232,8 +232,8 @@ namespace record_windows {
 		GetValueFromEncodableMap(args, "autoGain", autoGain);
 		bool echoCancel;
 		GetValueFromEncodableMap(args, "echoCancel", echoCancel);
-		bool noiseCancel;
-		GetValueFromEncodableMap(args, "noiseCancel", noiseCancel);
+		bool noiseSuppress;
+		GetValueFromEncodableMap(args, "noiseSuppress", noiseSuppress);
 
 		auto config = std::make_unique<RecordConfig>(
 			encoderName,
@@ -243,7 +243,7 @@ namespace record_windows {
 			numChannels,
 			autoGain,
 			echoCancel,
-			noiseCancel
+			noiseSuppress
 		);
 
 		return config;

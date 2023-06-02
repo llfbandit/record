@@ -8,7 +8,7 @@ class InputDevice {
   /// The number of channels for the device.
   final int? channels;
 
-  /// The sampling for the device.
+  /// The sample rate for the device.
   final int? sampleRate;
 
   const InputDevice({

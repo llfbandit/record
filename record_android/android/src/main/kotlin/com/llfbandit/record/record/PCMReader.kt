@@ -150,7 +150,7 @@ class PCMReader(
     }
 
     private fun enableNoiseSuppressor() {
-        if (config.noiseCancel && NoiseSuppressor.isAvailable()) {
+        if (config.noiseSuppress && NoiseSuppressor.isAvailable()) {
             noiseSuppressor = NoiseSuppressor.create(reader.audioSessionId)
             noiseSuppressor?.enabled = true
         }

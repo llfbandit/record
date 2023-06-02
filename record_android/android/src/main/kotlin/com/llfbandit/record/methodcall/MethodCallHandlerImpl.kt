@@ -119,7 +119,7 @@ class MethodCallHandlerImpl(
             //call.argument("device"),
             Utils.firstNonNull(call.argument("autoGain"), false),
             Utils.firstNonNull(call.argument("echoCancel"), false),
-            Utils.firstNonNull(call.argument("noiseCancel"), false)
+            Utils.firstNonNull(call.argument("noiseSuppress"), false)
         )
     }
 }

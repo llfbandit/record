@@ -19,7 +19,7 @@ class RecordConfig {
   let device: [String: Any]?
   let autoGain: Bool
   let echoCancel: Bool
-  let noiseCancel: Bool
+  let noiseSuppress: Bool
   
   init(encoder: String,
        bitRate: Int,
@@ -28,7 +28,7 @@ class RecordConfig {
        device: [String : Any]? = nil,
        autoGain: Bool = false,
        echoCancel: Bool = false,
-       noiseCancel: Bool = false
+       noiseSuppress: Bool = false
   ) {
     self.encoder = encoder
     self.bitRate = bitRate
@@ -37,7 +37,7 @@ class RecordConfig {
     self.device = device
     self.autoGain = autoGain
     self.echoCancel = echoCancel
-    self.noiseCancel = noiseCancel
+    self.noiseSuppress = noiseSuppress
   }
 }
 

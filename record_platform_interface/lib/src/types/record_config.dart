@@ -6,7 +6,7 @@ import 'package:record_platform_interface/src/types/types.dart';
 ///
 /// `bitRate`*: The audio encoding bit rate in bits per second.
 ///
-/// `sampleRate`*: The sampling rate for audio in samples per second.
+/// `sampleRate`*: The sample rate for audio in samples per second.
 ///
 /// `numChannels`: The numbers of channels for the recording.
 /// 1 = mono, 2 = stereo.
@@ -18,7 +18,7 @@ import 'package:record_platform_interface/src/types/types.dart';
 ///
 /// `echoCancel`*: The recorder will try to recuce echo.
 ///
-/// `noiseCancel`*: The recorder will try to skip initial audio until
+/// `noiseSuppress`*: The recorder will try to skip initial audio until
 /// input signal level goes above a certain amount of DB.
 ///
 /// `*`: May not be considered on all platforms/formats.
@@ -30,7 +30,7 @@ class RecordConfig {
   final InputDevice? device;
   final bool autoGain;
   final bool echoCancel;
-  final bool noiseCancel;
+  final bool noiseSuppress;
 
   const RecordConfig({
     this.encoder = AudioEncoder.aacLc,
@@ -40,7 +40,7 @@ class RecordConfig {
     this.device,
     this.autoGain = false,
     this.echoCancel = false,
-    this.noiseCancel = false,
+    this.noiseSuppress = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -52,7 +52,7 @@ class RecordConfig {
       'device': device?.toMap(),
       'autoGain': autoGain,
       'echoCancel': echoCancel,
-      'noiseCancel': noiseCancel,
+      'noiseSuppress': noiseSuppress,
     };
   }
 }
