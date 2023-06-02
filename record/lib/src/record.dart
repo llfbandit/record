@@ -10,6 +10,9 @@ const _uuid = Uuid();
 class AudioRecorder {
   StreamController<Amplitude>? _amplitudeStreamCtrl;
 
+  final _stateStreamCtrl = StreamController<RecordState>.broadcast();
+  late final StreamSubscription _stateStreamSubscription;
+
   Timer? _amplitudeTimer;
   late Duration _amplitudeTimerInterval;
 
@@ -26,6 +29,13 @@ class AudioRecorder {
   Future<void> _create() async {
     try {
       await RecordPlatform.instance.create(_recorderId);
+
+      _stateStreamSubscription =
+          RecordPlatform.instance.onStateChanged(_recorderId).listen(
+                _stateStreamCtrl.add,
+                onError: _stateStreamCtrl.addError,
+              );
+
       _createCompleter.complete();
     } catch (e, stackTrace) {
       _createCompleter.completeError(e, stackTrace);
@@ -92,7 +102,8 @@ class AudioRecorder {
   }
 
   /// Checks and requests for audio record permission.
-  Future<bool> hasPermission() {
+  Future<bool> hasPermission() async {
+    await _createCompleter.future;
     return RecordPlatform.instance.hasPermission(_recorderId);
   }
 
@@ -102,7 +113,8 @@ class AudioRecorder {
   ///
   /// On web, and in general, you should already have permission before
   /// accessing this method otherwise the list may return an empty list.
-  Future<List<InputDevice>> listInputDevices() {
+  Future<List<InputDevice>> listInputDevices() async {
+    await _createCompleter.future;
     return RecordPlatform.instance.listInputDevices(_recorderId);
   }
 
@@ -114,7 +126,8 @@ class AudioRecorder {
   }
 
   /// Checks if the given encoder is supported on the current platform.
-  Future<bool> isEncoderSupported(AudioEncoder encoder) {
+  Future<bool> isEncoderSupported(AudioEncoder encoder) async {
+    await _createCompleter.future;
     return RecordPlatform.instance.isEncoderSupported(_recorderId, encoder);
   }
 
@@ -122,15 +135,14 @@ class AudioRecorder {
   Future<void> dispose() {
     _amplitudeStreamCtrl?.close();
     _amplitudeTimer?.cancel();
+    _stateStreamSubscription.cancel();
     return RecordPlatform.instance.dispose(_recorderId);
   }
 
   /// Listen to recorder states [RecordState].
   ///
   /// Provides pause, resume and stop states.
-  Stream<RecordState> onStateChanged() {
-    return RecordPlatform.instance.onStateChanged(_recorderId);
-  }
+  Stream<RecordState> onStateChanged() => _stateStreamCtrl.stream;
 
   /// Request for amplitude at given [interval].
   Stream<Amplitude> onAmplitudeChanged(Duration interval) {
