@@ -167,27 +167,42 @@ class Recorder: NSObject, RecorderProtocol, AVCaptureAudioDataOutputSampleBuffer
     
     return audioOut
   }
-  
+
   private func setupAudioSession(_ config: RecordConfig) throws {
+    let audioSession = AVAudioSession.sharedInstance()
+    let options: AVAudioSession.CategoryOptions = [.allowBluetooth]
+    
     do {
-      let audioSession = AVAudioSession.sharedInstance()
-      
-      try audioSession.setCategory(.record, mode: .measurement, options: [.allowBluetooth])
-      try audioSession.setPreferredSampleRate((config.samplingRate <= 48000) ? Double(config.samplingRate) : 48000.0)
-      
-      try audioSession.setActive(true) // Must be done before setting channels & buffer duration
-      
-      try audioSession.setPreferredInputNumberOfChannels((config.numChannels > 2) ? 2 : config.numChannels)
-      try audioSession.setPreferredIOBufferDuration(1.0 / (audioSession.sampleRate * 2048))
-      
-      NotificationCenter.default.addObserver(
-        forName: AVAudioSession.interruptionNotification,
-        object: nil,
-        queue: nil,
-        using: onAudioSessionInterruption)
+      try audioSession.setCategory(.record, options: options)
     } catch {
-      throw RecorderError.start(message: "Failed to start recording", details: error.localizedDescription)
+      throw RecorderError.start(message: "Failed to start recording", details: "setCategory: \(error.localizedDescription)")
     }
+    
+    do {
+      try audioSession.setPreferredSampleRate((config.samplingRate <= 48000) ? Double(config.samplingRate) : 48000.0)
+    } catch {
+      throw RecorderError.start(message: "Failed to start recording", details: "setPreferredSampleRate: \(error.localizedDescription)")
+    }
+    
+    do {
+      try audioSession.setActive(true) // Must be done before setting channels & buffer duration
+    } catch {
+      throw RecorderError.start(message: "Failed to start recording", details: "setActive: \(error.localizedDescription)")
+    }
+    
+    do {
+      try audioSession.setPreferredInputNumberOfChannels(
+        (config.numChannels > audioSession.inputNumberOfChannels) ? audioSession.inputNumberOfChannels : max(1, config.numChannels)
+      )
+    } catch {
+      throw RecorderError.start(message: "Failed to start recording", details: "setPreferredInputNumberOfChannels: \(error.localizedDescription)")
+    }
+    
+    NotificationCenter.default.addObserver(
+      forName: AVAudioSession.interruptionNotification,
+      object: nil,
+      queue: nil,
+      using: onAudioSessionInterruption)
   }
   
   private func createRecordingSession(_ config: RecordConfig,

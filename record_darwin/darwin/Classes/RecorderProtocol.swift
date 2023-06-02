@@ -244,7 +244,6 @@ extension RecorderProtocol {
         AVLinearPCMBitDepthKey: 8,
         AVLinearPCMIsFloatKey: false,
         AVLinearPCMIsBigEndianKey: false,
-        AVLinearPCMIsNonInterleaved: true,
         AVSampleRateKey: config.samplingRate,
         AVNumberOfChannelsKey: config.numChannels,
       ]
@@ -255,7 +254,6 @@ extension RecorderProtocol {
         AVLinearPCMBitDepthKey: 16,
         AVLinearPCMIsFloatKey: false,
         AVLinearPCMIsBigEndianKey: false,
-        AVLinearPCMIsNonInterleaved: true,
         AVSampleRateKey: config.samplingRate,
         AVNumberOfChannelsKey: config.numChannels,
       ]
