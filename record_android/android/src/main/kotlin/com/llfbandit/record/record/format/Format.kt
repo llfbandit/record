@@ -1,6 +1,7 @@
 package com.llfbandit.record.record.format
 
 import android.media.MediaFormat
+import android.util.Log
 import com.llfbandit.record.record.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
 import com.llfbandit.record.record.encoder.EncoderListener
@@ -26,9 +27,6 @@ sealed class Format {
 
     /**
      * Create an encoder that produces [MediaFormat] output.
-     *
-     * @throws Exception if the device does not support encoding with the parameters set in
-     * [mediaFormat] or if configuring the encoder fails.
      */
     fun getEncoder(
         config: RecordConfig,
@@ -57,16 +55,23 @@ sealed class Format {
         var idx = 0
 
         for (c in 1 until values.size) {
-            val cdistance = abs(values[c] - value)
-            if (cdistance < distance) {
+            val cDistance = abs(values[c] - value)
+            if (cDistance < distance) {
                 idx = c
-                distance = cdistance
+                distance = cDistance
             }
         }
+
+        if (value != values[idx]) {
+            Log.d(TAG, "Available values: $values")
+            Log.d(TAG, "Adjusted to: $value")
+        }
+
         return values[idx]
     }
 
     companion object {
         const val KEY_X_FRAME_SIZE_IN_BYTES = "x-frame-size-in-bytes"
+        private val TAG = Format::class.java.simpleName
     }
 }

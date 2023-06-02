@@ -29,7 +29,7 @@ class AacFormat : Format() {
 
     private var sampleRate: Int = 44100
     private var numChannels: Int = 2
-    private var aacProfile: Int = 2
+    private var aacProfile: Int = MediaCodecInfo.CodecProfileLevel.AACObjectLC
 
     override fun getMediaFormat(config: RecordConfig): MediaFormat {
         val format = MediaFormat().apply {

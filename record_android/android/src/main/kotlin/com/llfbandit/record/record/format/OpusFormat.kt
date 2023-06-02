@@ -28,7 +28,7 @@ class OpusFormat : Format() {
 
     override fun getContainer(path: String?): IContainerWriter {
         if (path == null) {
-            throw IllegalArgumentException("Path not provided")
+            throw IllegalArgumentException("Path not provided. Stream is not supported.")
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             throw IllegalAccessException("Opus OGG requires min API version: " + Build.VERSION_CODES.Q)
