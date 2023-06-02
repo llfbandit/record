@@ -27,7 +27,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
   // MARK: Plugin
   private var binaryMessenger: FlutterBinaryMessenger
   
-  private var recorders = [String: Recorder]()
+  private var recorders = [String: RecorderProtocol]()
   
   init(binaryMessenger: FlutterBinaryMessenger) {
     self.binaryMessenger = binaryMessenger
@@ -36,7 +36,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
   public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
     dispose()
   }
-  
+
   func dispose() {
     for (_, recorder) in recorders {
       recorder.dispose()
@@ -205,7 +205,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
     recorders[recorderId] = recorder
   }
   
-  private func getRecorder(recorderId: String) -> Recorder? {
+  private func getRecorder(recorderId: String) -> RecorderProtocol? {
     return recorders[recorderId]
   }
 }
