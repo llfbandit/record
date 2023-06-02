@@ -118,6 +118,14 @@ class RecordMethodChannel extends RecordPlatform {
   }
 
   @override
+  Future<void> cancel(String recorderId) async {
+    _methodChannel.invokeMethod(
+      'cancel',
+      {'recorderId': recorderId},
+    );
+  }
+
+  @override
   Future<void> dispose(String recorderId) async {
     await _methodChannel.invokeMethod(
       'dispose',

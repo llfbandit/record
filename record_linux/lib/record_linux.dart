@@ -126,6 +126,19 @@ class RecordLinux extends RecordPlatform {
   }
 
   @override
+  Future<void> cancel(String recorderId) async {
+    final path = await stop(recorderId);
+
+    if (path != null) {
+      final file = File(path);
+
+      if (file.existsSync()) {
+        file.deleteSync();
+      }
+    }
+  }
+
+  @override
   Future<List<InputDevice>> listInputDevices(String recorderId) async {
     final outStreamCtrl = StreamController<List<int>>();
 

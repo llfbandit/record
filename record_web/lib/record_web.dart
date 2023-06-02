@@ -76,6 +76,11 @@ class RecordPluginWebWrapper extends RecordPlatform {
   }
 
   @override
+  Future<void> cancel(String recorderId) {
+    return _getRecorder(recorderId).cancel();
+  }
+
+  @override
   Future<List<InputDevice>> listInputDevices(String recorderId) {
     return _getRecorder(recorderId).listInputDevices();
   }

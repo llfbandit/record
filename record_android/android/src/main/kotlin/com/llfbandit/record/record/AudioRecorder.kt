@@ -13,6 +13,7 @@ import com.llfbandit.record.record.format.PcmFormat
 import com.llfbandit.record.record.format.WaveFormat
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
 import com.llfbandit.record.record.stream.RecorderStateStreamHandler
+import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -51,6 +52,13 @@ class AudioRecorder(
      */
     fun stop() {
         recorderThread?.stopRecording()
+    }
+
+    /**
+     * Stops the recording and delete file.
+     */
+    fun cancel() {
+        recorderThread?.cancelRecording()
     }
 
     /**
@@ -134,6 +142,7 @@ class AudioRecorder(
 
         // Signals whether a recording is paused (true) or not (false).
         private val isPaused = AtomicBoolean(false)
+        private var hasBeenCanceled = false
 
         private val completion = CountDownLatch(1)
 
@@ -159,17 +168,21 @@ class AudioRecorder(
             reader?.stop()
             reader?.release()
 
+            if (hasBeenCanceled) {
+                deleteFile()
+            }
+
             updateState(RecordState.STOP)
 
             completion.countDown()
         }
 
         fun isRecording(): Boolean {
-            return isRecording.get()
+            return audioEncoder != null && isRecording.get()
         }
 
         fun isPaused(): Boolean {
-            return isPaused.get()
+            return audioEncoder != null && isPaused.get()
         }
 
         fun pauseRecording() {
@@ -187,6 +200,15 @@ class AudioRecorder(
         fun stopRecording() {
             if (isRecording()) {
                 audioEncoder?.stop()
+            }
+        }
+
+        fun cancelRecording() {
+            if (isRecording()) {
+                hasBeenCanceled = true
+                audioEncoder?.stop()
+            } else {
+                deleteFile()
             }
         }
 
@@ -245,6 +267,18 @@ class AudioRecorder(
                     isRecording.set(false)
                     isPaused.set(false)
                     onStop()
+                }
+            }
+        }
+
+        private fun deleteFile() {
+            val path = config.path
+
+            if (path != null) {
+                val file = File(path)
+
+                if (file.exists()) {
+                    file.delete()
                 }
             }
         }

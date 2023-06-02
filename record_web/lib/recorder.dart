@@ -110,6 +110,14 @@ class Recorder {
     return _onStopCompleter?.future;
   }
 
+  Future<void> cancel() async {
+    final url = await stop();
+
+    if (url != null) {
+      html.Url.revokeObjectUrl(url);
+    }
+  }
+
   Future<List<InputDevice>> listInputDevices() async {
     final devices = <InputDevice>[];
 

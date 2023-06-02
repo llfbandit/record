@@ -158,6 +158,24 @@ namespace record_windows {
 				ErrorFromHR(hr, *result);
 			}
 		}
+		else if (method_call.method_name().compare("cancel") == 0)
+		{
+			auto recordingPath = recorder->GetRecordingPath();
+			HRESULT hr = recorder->Stop();
+
+			if (SUCCEEDED(hr))
+			{
+				if (!recordingPath.empty()) {
+					std::wstring wsPath = std::wstring(recordingPath.begin(), recordingPath.end());
+					DeleteFile(wsPath.c_str());
+				}
+
+				result->Success(EncodableValue());
+			}
+			else {
+				ErrorFromHR(hr, *result);
+			}
+		}
 		else if (method_call.method_name().compare("dispose") == 0)
 		{
 			recorder->Dispose();

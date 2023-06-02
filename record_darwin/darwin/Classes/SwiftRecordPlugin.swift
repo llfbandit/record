@@ -91,7 +91,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       guard let config = getConfig(args, result: result) else {
         return
       }
-      
+
       do {
         try recorder.startStream(config: config)
         result(nil)
@@ -103,6 +103,10 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
     case "stop":
       let path = recorder.stop()
       result(path)
+    case "cancel":
+      let path = recorder.stop()
+      recorder.deleteFile(path: path)
+      result(nil)
     case "pause":
       recorder.pause()
       result(nil)

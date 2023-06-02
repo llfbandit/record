@@ -106,4 +106,7 @@ abstract class RecordPlatform extends PlatformInterface {
   Stream<RecordState> onStateChanged(String recorderId) =>
       throw UnimplementedError(
           'onStateChanged not implemented on the current platform.');
+
+  /// Stops the recording if needed and remove current file.
+  Future<void> cancel(String recorderId);
 }

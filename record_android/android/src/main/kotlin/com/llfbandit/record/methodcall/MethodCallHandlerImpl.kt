@@ -80,6 +80,7 @@ class MethodCallHandlerImpl(
             "resume" -> recorder.resume(result)
             "isPaused" -> recorder.isPaused(result)
             "isRecording" -> recorder.isRecording(result)
+            "cancel" -> recorder.cancel(result)
             "hasPermission" -> permissionManager.hasPermission(result::success)
             "getAmplitude" -> recorder.getAmplitude(result)
             "listInputDevices" -> result.success(null)

@@ -99,6 +99,15 @@ internal class RecorderWrapper(recorderId: String, messenger: BinaryMessenger) {
         }
     }
 
+    fun cancel(result: MethodChannel.Result) {
+        try {
+            recorder?.cancel()
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("record", e.message, e.cause)
+        }
+    }
+
     private fun startRecording(config: RecordConfig, result: MethodChannel.Result) {
         this.config = config
 
