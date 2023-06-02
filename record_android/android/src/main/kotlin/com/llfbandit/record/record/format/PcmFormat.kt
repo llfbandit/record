@@ -25,10 +25,6 @@ class PcmFormat : Format() {
 
 
     override fun getContainer(path: String?): IContainerWriter {
-        if (path == null) {
-            throw IllegalArgumentException("Path not provided. Stream is not supported.")
-        }
-
         return RawContainer(path)
     }
 }

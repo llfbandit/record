@@ -3,13 +3,22 @@ package com.llfbandit.record.record.container
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.system.Os
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 
-class RawContainer(path: String) : IContainerWriter {
-    private val file = createFile(path)
+class RawContainer(private val path: String?) : IContainerWriter {
+    private var file: RandomAccessFile? = null
 
     private var isStarted = false
     private var track = -1
+
+    init {
+        if (path != null) {
+            file = createFile(path)
+        }
+    }
+
+    override fun isStream(): Boolean = path == null
 
     override fun start() {
         if (isStarted) {
@@ -25,7 +34,7 @@ class RawContainer(path: String) : IContainerWriter {
         }
 
         isStarted = false
-        file.close()
+        file?.close()
     }
 
     override fun release() {
@@ -59,6 +68,19 @@ class RawContainer(path: String) : IContainerWriter {
             throw IllegalStateException("Invalid track: $trackIndex")
         }
 
-        Os.write(file.fd, byteBuffer)
+        if (file != null) {
+            Os.write(file!!.fd, byteBuffer)
+        }
+    }
+
+    override fun writeStream(
+        trackIndex: Int,
+        byteBuffer: ByteBuffer,
+        bufferInfo: MediaCodec.BufferInfo
+    ): ByteArray {
+        val buffer = ByteArray(bufferInfo.size)
+        byteBuffer[buffer, bufferInfo.offset, bufferInfo.size]
+
+        return buffer
     }
 }
