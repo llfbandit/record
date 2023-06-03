@@ -276,8 +276,7 @@ extension RecorderProtocol {
       throw RecorderError.start(message: "Failed to start recording", details: "Output format initialization failure.")
     }
     guard let converter = AVAudioConverter(from: inFormat, to: outFormat) else {
-      return settings
-      //throw RecorderError.start(message: "Failed to start recording", details: "Format conversion isn’t possible. Format or configuration is not supported.")
+      throw RecorderError.start(message: "Failed to start recording", details: "Format conversion isn’t possible. Format or configuration is not supported.")
     }
     
     if let sampleRate = settings[AVSampleRateKey] as? NSNumber,
