@@ -104,9 +104,16 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       let path = recorder.stop()
       result(path)
     case "cancel":
-      let path = recorder.stop()
-      recorder.deleteFile(path: path)
-      result(nil)
+      do {
+        if let path = recorder.stop() {
+          try recorder.deleteFile(path: path)
+        }
+        result(nil)
+      } catch RecorderError.start(let message, let details) {
+        result(FlutterError(code: "record", message: message, details: details))
+      } catch {
+        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+      }
     case "pause":
       recorder.pause()
       result(nil)
