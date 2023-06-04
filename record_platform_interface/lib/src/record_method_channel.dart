@@ -8,8 +8,6 @@ class RecordMethodChannel extends RecordPlatform {
   // Channel handlers
   final _methodChannel = const MethodChannel('com.llfbandit.record/messages');
 
-  final _eventRecordChannels = <String, StreamController<Uint8List>>{};
-
   @override
   Future<void> create(String recorderId) {
     return _methodChannel.invokeMethod<void>(
@@ -77,24 +75,8 @@ class RecordMethodChannel extends RecordPlatform {
     String recorderId,
     RecordConfig config,
   ) async {
-    await _stopListeningRecordStream(recorderId);
-
     final eventRecordChannel = EventChannel(
       'com.llfbandit.record/eventsRecord/$recorderId',
-    );
-
-    final recordStreamCtrl = StreamController<Uint8List>();
-    _eventRecordChannels[recorderId] = recordStreamCtrl;
-
-    final recordStream = eventRecordChannel
-        .receiveBroadcastStream()
-        .map<Uint8List>((data) => data);
-
-    recordStream.listen(
-      (data) {
-        if (recordStreamCtrl.isClosed) return;
-        recordStreamCtrl.add(data);
-      },
     );
 
     await _methodChannel.invokeMethod('startStream', {
@@ -102,7 +84,9 @@ class RecordMethodChannel extends RecordPlatform {
       ...config.toMap(),
     });
 
-    return recordStreamCtrl.stream;
+    return eventRecordChannel
+        .receiveBroadcastStream()
+        .map<Uint8List>((data) => data);
   }
 
   @override
@@ -111,8 +95,6 @@ class RecordMethodChannel extends RecordPlatform {
       'stop',
       {'recorderId': recorderId},
     );
-
-    await _stopListeningRecordStream(recorderId);
 
     return outputPath;
   }
@@ -131,7 +113,6 @@ class RecordMethodChannel extends RecordPlatform {
       'dispose',
       {'recorderId': recorderId},
     );
-    await _stopListeningRecordStream(recorderId);
   }
 
   @override
@@ -182,10 +163,5 @@ class RecordMethodChannel extends RecordPlatform {
     return eventChannel.receiveBroadcastStream().map<RecordState>(
           (state) => RecordState.values.firstWhere((e) => e.index == state),
         );
-  }
-
-  Future<void> _stopListeningRecordStream(String recorderId) async {
-    await _eventRecordChannels[recorderId]?.close();
-    _eventRecordChannels.remove(recorderId);
   }
 }

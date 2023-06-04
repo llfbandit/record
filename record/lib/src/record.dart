@@ -6,12 +6,15 @@ import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
 
-/// Audio recorder API
+/// Audio recorder
 class AudioRecorder {
   StreamController<Amplitude>? _amplitudeStreamCtrl;
 
   final _stateStreamCtrl = StreamController<RecordState>.broadcast();
   late final StreamSubscription _stateStreamSubscription;
+
+  StreamController<Uint8List>? _recordStreamCtrl;
+  StreamSubscription? _recordStreamSubscription;
 
   Timer? _amplitudeTimer;
   late Duration _amplitudeTimerInterval;
@@ -62,7 +65,25 @@ class AudioRecorder {
   /// full recorded data.
   Future<Stream<Uint8List>> startStream(RecordConfig config) async {
     await _createCompleter.future;
-    return RecordPlatform.instance.startStream(_recorderId, config);
+    await _stopRecordStream();
+
+    final stream = await RecordPlatform.instance.startStream(
+      _recorderId,
+      config,
+    );
+
+    _recordStreamCtrl = StreamController<Uint8List>.broadcast();
+
+    _recordStreamSubscription = stream.listen(
+      (data) {
+        final streamCtrl = _recordStreamCtrl;
+        if (streamCtrl == null || streamCtrl.isClosed) return;
+
+        streamCtrl.add(data);
+      },
+    );
+
+    return _recordStreamCtrl!.stream;
   }
 
   /// Stops recording session and release internal recorder resource.
@@ -71,7 +92,12 @@ class AudioRecorder {
   Future<String?> stop() async {
     await _createCompleter.future;
     _amplitudeTimer?.cancel();
-    return RecordPlatform.instance.stop(_recorderId);
+
+    final path = await RecordPlatform.instance.stop(_recorderId);
+
+    await _stopRecordStream();
+
+    return path;
   }
 
   /// Pauses recording session.
@@ -132,11 +158,14 @@ class AudioRecorder {
   }
 
   /// Dispose the recorder
-  Future<void> dispose() {
+  Future<void> dispose() async {
     _amplitudeStreamCtrl?.close();
     _amplitudeTimer?.cancel();
     _stateStreamSubscription.cancel();
-    return RecordPlatform.instance.dispose(_recorderId);
+
+    await RecordPlatform.instance.dispose(_recorderId);
+
+    await _stopRecordStream();
   }
 
   /// Listen to recorder states [RecordState].
@@ -184,5 +213,11 @@ class AudioRecorder {
       _amplitudeTimerInterval,
       (timer) => _updateAmplitudeAtInterval(),
     );
+  }
+
+  Future<void> _stopRecordStream() async {
+    await _recordStreamSubscription?.cancel();
+    await _recordStreamCtrl?.close();
+    _recordStreamCtrl = null;
   }
 }
