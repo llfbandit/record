@@ -25,12 +25,12 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
   }
   
   // MARK: Plugin
-  private var binaryMessenger: FlutterBinaryMessenger
+  private var m_binaryMessenger: FlutterBinaryMessenger
   
-  private var recorders = [String: RecorderProtocol]()
+  private var m_recorders = [String: Recorder]()
   
   init(binaryMessenger: FlutterBinaryMessenger) {
-    self.binaryMessenger = binaryMessenger
+    self.m_binaryMessenger = binaryMessenger
   }
   
   public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
@@ -38,10 +38,10 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
   }
 
   func dispose() {
-    for (_, recorder) in recorders {
+    for (_, recorder) in m_recorders {
       recorder.dispose()
     }
-    recorders = [:]
+    m_recorders = [:]
   }
   
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -82,7 +82,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       do {
         try recorder.start(config: config, path: path)
         result(nil)
-      } catch RecorderError.start(let message, let details) {
+      } catch RecorderError.error(let message, let details) {
         result(FlutterError(code: "record", message: message, details: details))
       } catch {
         result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
@@ -95,7 +95,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       do {
         try recorder.startStream(config: config)
         result(nil)
-      } catch RecorderError.start(let message, let details) {
+      } catch RecorderError.error(let message, let details) {
         result(FlutterError(code: "record", message: message, details: details))
       } catch {
         result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
@@ -109,7 +109,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
           try recorder.deleteFile(path: path)
         }
         result(nil)
-      } catch RecorderError.start(let message, let details) {
+      } catch RecorderError.error(let message, let details) {
         result(FlutterError(code: "record", message: message, details: details))
       } catch {
         result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
@@ -118,14 +118,8 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       recorder.pause()
       result(nil)
     case "resume":
-      do {
-        try recorder.resume()
-        result(nil)
-      } catch RecorderError.start(let message, let details) {
-        result(FlutterError(code: "record", message: message, details: details))
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
-      }
+      recorder.resume()
+      result(nil)
     case "isPaused":
       let isPaused = recorder.isPaused()
       result(isPaused)
@@ -154,7 +148,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       }
       result(devs)
     case "dispose":
-      recorders.removeValue(forKey: recorderId)
+      m_recorders.removeValue(forKey: recorderId)
       recorder.dispose()
       result(nil)
     default:
@@ -201,11 +195,11 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
   }
   
   private func createRecorder(recorderId: String) {
-    let stateEventChannel = FlutterEventChannel(name: "com.llfbandit.record/events/\(recorderId)", binaryMessenger: binaryMessenger)
+    let stateEventChannel = FlutterEventChannel(name: "com.llfbandit.record/events/\(recorderId)", binaryMessenger: m_binaryMessenger)
     let stateEventHandler = StateStreamHandler()
     stateEventChannel.setStreamHandler(stateEventHandler)
     
-    let recordEventChannel = FlutterEventChannel(name: "com.llfbandit.record/eventsRecord/\(recorderId)", binaryMessenger: binaryMessenger)
+    let recordEventChannel = FlutterEventChannel(name: "com.llfbandit.record/eventsRecord/\(recorderId)", binaryMessenger: m_binaryMessenger)
     let recordEventHandler = RecordStreamHandler()
     recordEventChannel.setStreamHandler(recordEventHandler)
     
@@ -214,11 +208,11 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       recordEventHandler: recordEventHandler
     )
   
-    recorders[recorderId] = recorder
+    m_recorders[recorderId] = recorder
   }
   
-  private func getRecorder(recorderId: String) -> RecorderProtocol? {
-    return recorders[recorderId]
+  private func getRecorder(recorderId: String) -> Recorder? {
+    return m_recorders[recorderId]
   }
 }
 

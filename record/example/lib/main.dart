@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -49,7 +48,7 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   Future<void> _start() async {
     try {
       if (await _audioRecorder.hasPermission()) {
-        const encoder = AudioEncoder.pcm16bit;
+        const encoder = AudioEncoder.aacLc;
 
         // We don't do anything with this but printing
         final isSupported = await _audioRecorder.isEncoderSupported(
@@ -79,7 +78,7 @@ class _AudioRecorderState extends State<_AudioRecorder> {
         //   // ignore: avoid_print
         //   (data) => print(data),
         //   // ignore: avoid_print
-        //   onDone: () => print('onDone'),
+        //   onDone: () => print('End of stream'),
         // );
 
         _recordDuration = 0;

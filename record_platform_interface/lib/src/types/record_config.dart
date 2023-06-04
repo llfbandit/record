@@ -14,12 +14,11 @@ import 'package:record_platform_interface/src/types/types.dart';
 /// `device`: The device to be used for recording. If null, default device
 /// will be selected.
 ///
-/// `autoGain`*: The recorder will try to auto adjust redording volume.
+/// `autoGain`*: The recorder will try to auto adjust recording volume in a limited range.
 ///
-/// `echoCancel`*: The recorder will try to recuce echo.
+/// `echoCancel`*: The recorder will try to reduce echo.
 ///
-/// `noiseSuppress`*: The recorder will try to skip initial audio until
-/// input signal level goes above a certain amount of DB.
+/// `noiseSuppress`*: The recorder will try to negates the input noise.
 ///
 /// `*`: May not be considered on all platforms/formats.
 class RecordConfig {
