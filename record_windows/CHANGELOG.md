@@ -1,3 +1,6 @@
+## 1.0.0-beta.1+1
+* fix: Error messages are not readable from dart side.
+
 ## 1.0.0-beta.1
 * chore: Windows now uses MediaFoundation shipped with all 10 & 11 versions
 * chore: Change signature of `start` method.
