@@ -15,16 +15,14 @@ const mimeTypes = {
     'audio/webm; codecs=opus',
   ],
 
-  AudioEncoder.vorbisOgg: [
-    'audio/vorbis',
-    'audio/ogg',
-    'audio/ogg; codecs=vorbis',
-    'audio/webm; codecs=vorbis',
-  ],
-
   AudioEncoder.flac: ['audio/flac', 'audio/x-flac'],
 
-  AudioEncoder.wav: ['audio/wav', 'audio/wav; codecs=1'],
+  AudioEncoder.wav: [
+    'audio/wav',
+    'audio/wav; codecs=1',
+    'audio/vnd.wave; codec=1',
+  ],
 
+  AudioEncoder.pcm8bit: ['audio/pcm', 'audio/webm; codecs=pcm'],
   AudioEncoder.pcm16bit: ['audio/pcm', 'audio/webm; codecs=pcm'],
 };

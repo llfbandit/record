@@ -1,3 +1,7 @@
+## 0.6.0
+* chore: Change signature of `start` method.
+* chore: Add `startStream` method.
+
 ## 0.5.0
 * feat: `onStateChanged()` implementation.
 

@@ -9,6 +9,7 @@ flutter/
 # Visual Studio build-related files.
 x64/
 x86/
+.vs/
 
 # Visual Studio cache files
 # files ending in .cache can be ignored

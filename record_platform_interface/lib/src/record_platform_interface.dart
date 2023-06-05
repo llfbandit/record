@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
-import 'package:record_platform_interface/src/method_channel_record.dart';
-import 'package:record_platform_interface/src/types/types.dart';
+import 'package:record_platform_interface/src/record_method_channel.dart';
+
+import '../record_platform_interface.dart';
 
 /// The interface that implementations of Record must implement.
 ///
@@ -17,7 +21,7 @@ abstract class RecordPlatform extends PlatformInterface {
   /// Constructs a [RecordPlatform].
   RecordPlatform() : super(token: _token);
 
-  static RecordPlatform _instance = MethodChannelRecord();
+  static RecordPlatform _instance = RecordMethodChannel();
 
   /// The default instance of [RecordPlatform] to use.
   ///
@@ -32,78 +36,77 @@ abstract class RecordPlatform extends PlatformInterface {
     _instance = instance;
   }
 
+  /// Create a recorder
+  Future<void> create(String recorderId);
+
   /// Starts new recording session.
   ///
-  /// [path]: The output path file. If not provided will use temp folder.
-  /// Ignored on web platform, output path is retrieve on stop.
+  /// [path]: The output path file. Required on all IO platforms.
+  /// On `web`: This parameter is ignored.
   ///
-  /// [encoder]: The audio encoder to be used for recording.
-  /// Ignored on web platform.
+  /// Output path can be retrieves when [stop] method is called.
+  Future<void> start(String recorderId, RecordConfig config,
+      {required String path});
+
+  /// Same as [start] with output stream instead of a path.
   ///
-  /// [bitRate]: The audio encoding bit rate in bits per second.
-  ///
-  /// [samplingRate]: The sampling rate for audio in samples per second.
-  /// Ignored on web platform.
-  ///
-  /// [numChannels]: The numbers of channels for the recording.
-  /// 1 = mono, 2 = stereo, etc.
-  ///
-  /// [device]: The device to be used for recording. If null, default device
-  /// will be selected.
-  Future<void> start({
-    String? path,
-    AudioEncoder encoder = AudioEncoder.aacLc,
-    int bitRate = 128000,
-    int samplingRate = 44100,
-    int numChannels = 2,
-    InputDevice? device,
-  });
+  /// When stopping the record, you must rely on stream close event to get
+  /// full recorded data.
+  Future<Stream<Uint8List>> startStream(
+          String recorderId, RecordConfig config) =>
+      throw UnimplementedError(
+          'startStream not implemented on the current platform.');
 
   /// Stops recording session and release internal recorder resource.
+  ///
   /// Returns the output path.
-  Future<String?> stop();
+  Future<String?> stop(String recorderId);
 
   /// Pauses recording session.
   ///
-  /// Note: Usable on Android API >= 24(Nougat). Does nothing otherwise.
-  Future<void> pause();
+  /// Note `Android`: Usable on API >= 24(Nougat). Does nothing otherwise.
+  Future<void> pause(String recorderId);
 
   /// Resumes recording session after [pause].
   ///
-  /// Note: Usable on Android API >= 24(Nougat). Does nothing otherwise.
-  Future<void> resume();
+  /// Note `Android`: Usable on API >= 24(Nougat). Does nothing otherwise.
+  Future<void> resume(String recorderId);
 
   /// Checks if there's valid recording session.
   /// So if session is paused, this method will still return [true].
-  Future<bool> isRecording();
+  Future<bool> isRecording(String recorderId);
 
   /// Checks if recording session is paused.
-  Future<bool> isPaused();
+  Future<bool> isPaused(String recorderId);
 
   /// Checks and requests for audio record permission.
-  Future<bool> hasPermission();
+  Future<bool> hasPermission(String recorderId);
 
   /// Dispose the recorder
-  Future<void> dispose();
+  Future<void> dispose(String recorderId);
 
   /// Gets current average & max amplitudes (dBFS)
   /// Always returns zeros on unsupported platforms
-  Future<Amplitude> getAmplitude();
+  Future<Amplitude> getAmplitude(String recorderId);
 
   /// Checks if the given encoder is supported on the current platform.
-  Future<bool> isEncoderSupported(AudioEncoder encoder);
+  Future<bool> isEncoderSupported(String recorderId, AudioEncoder encoder);
 
   /// Lists capture/input devices available on the platform.
   ///
   /// On Android and iOS, an empty list will be returned.
   ///
   /// On web, and in general, you should already have permission before
-  /// accessing this method otherwise the list may return empty.
-  Future<List<InputDevice>> listInputDevices();
+  /// accessing this method otherwise the list may return an empty list.
+  Future<List<InputDevice>> listInputDevices(String recorderId);
 
   /// Listen to recorder states [RecordState].
   ///
   /// Provides pause, resume and stop states.
-  Stream<RecordState> onStateChanged() => throw UnimplementedError(
-      'onStateChanged not implemented on the current platform.');
+  Stream<RecordState> onStateChanged(String recorderId) =>
+      throw UnimplementedError(
+          'onStateChanged not implemented on the current platform.');
+
+  /// Stops the recording if needed and remove current file.
+  Future<void> cancel(String recorderId);
 }

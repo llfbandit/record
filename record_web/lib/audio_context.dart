@@ -59,4 +59,7 @@ extension AnalyserNodeExt on AnalyserNode {
 
   external num get frequencyBinCount;
   external getFloatFrequencyData(Float32List array);
+
+  external num get smoothingTimeConstant;
+  external set smoothingTimeConstant(num value);
 }

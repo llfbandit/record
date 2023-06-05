@@ -8,27 +8,37 @@ class InputDevice {
   /// The number of channels for the device.
   final int? channels;
 
-  /// The sampling for the device.
-  final int? samplingRate;
+  /// The sample rate for the device.
+  final int? sampleRate;
 
   const InputDevice({
     required this.id,
     required this.label,
     this.channels,
-    this.samplingRate,
+    this.sampleRate,
   });
 
   factory InputDevice.fromMap(Map map) => InputDevice(
         id: map['id'],
         label: map['label'],
         channels: map['channels'],
-        samplingRate: map['samplingRate'],
+        sampleRate: map['sampleRate'],
       );
 
   Map<String, dynamic> toMap() => {
         'id': id,
         'label': label,
         'channels': channels,
-        'samplingRate': samplingRate,
+        'sampleRate': sampleRate,
       };
+
+  @override
+  String toString() {
+    return '''
+      id: $id
+      label: $label
+      channels: $channels
+      sampleRate: $sampleRate
+      ''';
+  }
 }

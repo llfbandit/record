@@ -1,3 +1,32 @@
+## 5.0.0-dev1
+**Testers needed to reach release !**
+***
+
+* Chore:
+    * Massively reworked platform implementations.
+    * Android now uses MediaCodec. Package is now written with kotlin (well...).
+    * iOS, macOS code now shares almost the same codebase. Unified under record_darwin package.
+    * Windows now uses MediaFoundation shipped with all 10 & 11 versions (no more fmedia executable, yeah! Even if do appreciate the work of stsaz).
+
+* Features:
+    * feat: Add multiple instance support.
+    * feat: Add PCM streaming feature & AAC on Android only (for now).
+    * feat: Add auto gain control, noise suppressor and echo cancellation where available.
+    * feat: Add amplitude on web.
+    * feat: Add best effort to adjust sample and bit rates to supported values (Android, iOS, macOS).
+    * feat: Add cancel() to stop and remove the file if any.
+
+* Fix:
+    * iOS: Should pause/resume recording when interrupted by the system.
+
+* Breaking changes:
+    * BREAK: `Record` has been renamed to `AudioRecorder` to avoid confusion with dart v3.
+    * BREAK: path is now required on all IO platforms. Set an empty String on web platform.
+    There no more temp file generation.
+    * BREAK: `start` and `startStream` method parameters are now wrapped in `RecordConfig` object.
+    * BREAK: `samplingRate` has been renamed to `sampleRate`.
+    * BREAK: vorbis support has been removed. Too few underlying support.
+
 ## 4.4.4
 * chore: Update linter rules.
 * chore: Update dependencies.
