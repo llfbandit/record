@@ -1,3 +1,11 @@
+## 1.0.0-beta.1
+* chore: Windows now uses MediaFoundation shipped with all 10 & 11 versions
+* chore: Change signature of `start` method.
+* feat: Add multiple instance support.
+* feat: Add `startStream` method.
+* feat: Add `cancel` method.
+* feat: Add amplitude.
+
 ## 0.7.1
 - fix: Read all output streams to not leak system resources.
 

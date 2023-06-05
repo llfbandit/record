@@ -1,3 +1,11 @@
+## 1.0.0-beta.1
+* chore: Change signature of `start` method.
+* feat: Add multiple instance support.
+* feat: Add amplitude.
+* feat: Add `startStream` method.
+* feat: Add `cancel` method.
+* fix: Add duration metadata in created blob.
+
 ## 0.5.0
 - feat: `onStateChanged()` implementation.
 

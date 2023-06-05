@@ -3,7 +3,7 @@ Audio recorder from microphone to a given file path or stream.
 No external dependencies:
 
 - On Android, AudioRecord is used.
-- On iOS and macOS, AVCaptureSession is used.
+- On iOS and macOS, AVFoundation is used.
 - On Windows, MediaFoundation is used.
 - On web, well... your browser! (and its underlying platform).
 
@@ -19,7 +19,7 @@ External dependencies:
 | num of channels  | ✔️            |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | device selection | (auto BT/mic) | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | auto gain        | ✔️            |(always active?)| ✔️      |            |       |  
-| echo suppresion  | ✔️            |                 | ✔️      |            |       |  
+| echo cancel      | ✔️            |                 | ✔️      |            |       |  
 | noise suppresion | ✔️            |                 | ✔️      |            |       |  
 
 ## File
@@ -27,13 +27,13 @@ External dependencies:
 |-----------------|----------------|---------|---------|---------|---------|---------
 | aacLc           | ✔️            |   ✔️    |  ✔️     |   ✔️    |  ✔️    |  ✔️ 
 | aacEld          | ✔️            |   ✔️    |   ?     |         |  ✔️    | 
-| aacHe           | ✔️            |   ✔️    |   ?     |         |  ✔️    |  ✔️ 
-| amrNb           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  
-| amrWb           | ✔️            |   ✔️    |  ?      |          |  ✔️   |  
-| opus            | ✔️            |   ✔️    |  ?      |         |  ✔️    |  ✔️ 
-| wav             |  ✔️           |         |   ?     |    ✔️    |        |   ✔️ 
+| aacHe           | ✔️            |         |   ?     |         |         |  ✔️ 
+| amrNb           | ✔️            |         |  ?      |   ✔️    |         |  
+| amrWb           | ✔️            |         |  ?      |          |        |  
+| opus            | ✔️            |         |  ?      |         |         |  ✔️ 
+| wav             |  ✔️           |   ✔️    |   ?     |    ✔️    |   ✔️  |   ✔️ 
 | flac            |  ✔️           |    ✔️    |  ?      |  ✔️     |   ✔️  |   ✔️
-| pcm8bit         | ✔️            |   ✔️    |  ✔️      |    ✔️   |  ✔️   |  
+| pcm8bit         | ✔️            |         |  ?      |    ✔️   |       |  
 | pcm16bit        | ✔️            |   ✔️    |  ✔️      |   ✔️    |  ✔️   |  
 
 ## Stream
@@ -42,15 +42,18 @@ External dependencies:
 | aacLc       *   | ✔️        |         |          |         |         |  
 | aacEld      *   | ✔️        |         |          |         |         | 
 | aacHe       *   | ✔️        |         |          |         |         |  
-| pcm8bit         | ✔️        |  ✔️    |   ✔️    |   ✔️    |  ✔️     |  
+| pcm8bit         | ✔️        |         |   ✔️    |   ✔️    |        |  
 | pcm16bit        | ✔️        |  ✔️    |   ✔️    |  ✔️     | ✔️     |  
 
 \* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file.  
+
+All audio output is with 16bits depth (pcm8bit excepted).
 
 For every encoder, you should be really careful with given sample/bit rates.  
 For example, Opus can't be recorded at 44100Hz.
 
 ## Usage
+
 ```dart
 import 'package:record/record.dart';
 
@@ -60,12 +63,9 @@ final record = AudioRecorder();
 if (await record.hasPermission()) {
   // Start recording to file
   await record.start(const RecordConfig(), path: 'aFullPath/myFile.m4a');
-  // Start recording to stream
-  final stream = await record.startStream(const RecordConfig());
+  // ... or to stream
+  final stream = await record.startStream(const RecordConfig(AudioEncoder.pcm16bit));
 }
-
-// Get the state of the recorder
-bool isRecording = await record.isRecording();
 
 // Stop recording...
 final path = await record.stop();
@@ -80,8 +80,6 @@ record.dispose(); // As always, don't forget this one.
 ### Android
 ```xml
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
-<!-- Optional, you'll have to check this permission by yourself. -->
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 ```
 * [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
 
@@ -90,14 +88,14 @@ record.dispose(); // As always, don't forget this one.
 ### iOS
 ```xml
 <key>NSMicrophoneUsageDescription</key>
-<string>Some message to make Apple AppStore rule makers happy</string>
+<string>Some message to describe why you need this permission</string>
 ```
 - min SDK: 11.0
 
 ### macOS
 ```xml
 <key>NSMicrophoneUsageDescription</key>
-<string>Some message to make Apple AppStore rule makers happy</string>
+<string>Some message to describe why you need this permission</string>
 ```
 
 - In capabilities, activate "Audio input" in debug AND release schemes
@@ -106,6 +104,6 @@ record.dispose(); // As always, don't forget this one.
 
 ## Roadmap
 - Gain value in config.
-- More support of PCM/WAV format.
+- Fill parity matrix where applicable.
 - AAC / ADTS streaming on more platforms.
 - Bug fixes.

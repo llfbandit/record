@@ -1,3 +1,9 @@
+## 0.5.0
+* chore: Change signature of `start` method.
+* feat: Add multiple instance support.
+* feat: Add `startStream` method.
+* feat: Add `cancel` method.
+
 ## 0.4.1
 - fix: Read all output streams to not leak system resources.
 

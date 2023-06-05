@@ -47,10 +47,10 @@ packages:
     dependency: transitive
     description:
       name: lints
-      sha256: "6b0206b0bf4f04961fc5438198ccb3a885685cd67d4d4a32cc20ad7f8adbe015"
+      sha256: "0a217c6c989d21039f1498c3ed9f3ed71b354e69873f13a8dfc3c9fe76f1b452"
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.0"
+    version: "2.1.1"
   material_color_utilities:
     dependency: transitive
     description:
@@ -78,10 +78,11 @@ packages:
   record_platform_interface:
     dependency: "direct main"
     description:
-      path: "../record_platform_interface"
-      relative: true
-    source: path
-    version: "0.7.0"
+      name: record_platform_interface
+      sha256: "33b0cd8a7d3770dae2596da0571f6767452795dd08202927d13b442c0470bff7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -96,5 +97,5 @@ packages:
     source: hosted
     version: "2.1.4"
 sdks:
-  dart: ">=3.0.0-417 <4.0.0"
+  dart: ">=3.0.0 <4.0.0"
   flutter: ">=2.8.1"

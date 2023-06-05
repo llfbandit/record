@@ -1,21 +1,21 @@
 name: record_darwin
 description: iOS and macOS implementations for record package called by record_platform_interface.
-version: 1.0.0
+version: 1.0.0-beta.1
 homepage: https://github.com/llfbandit/record/tree/master/record_darwin
 
 environment:
-  sdk: ">=2.15.1"
+  sdk: ">=2.15.1 <4.0.0"
   flutter: ">=2.8.1"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  record_platform_interface: ^0.6.0
+  record_platform_interface: ^1.0.0
 
-dependency_overrides:
-  record_platform_interface:
-    path: ../record_platform_interface
+# dependency_overrides:
+#   record_platform_interface:
+#     path: ../record_platform_interface
 
 flutter:
   plugin:

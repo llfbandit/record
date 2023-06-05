@@ -94,45 +94,51 @@ packages:
   record_android:
     dependency: "direct main"
     description:
-      path: "../record_android"
-      relative: true
-    source: path
-    version: "1.0.0"
+      name: record_android
+      sha256: "27763736df31c4cd3702deef1140bda6b6220d62c5fdfada8b6d4acce2da3017"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0-beta.1"
   record_darwin:
     dependency: "direct main"
     description:
-      path: "../record_darwin"
-      relative: true
-    source: path
-    version: "1.0.0"
+      name: record_darwin
+      sha256: e6fe081f532ef4d80767488110f9fa7800008c66945ab8c9407ff6e9308c0bf6
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0-beta.1"
   record_linux:
     dependency: "direct main"
     description:
-      path: "../record_linux"
-      relative: true
-    source: path
-    version: "0.4.1"
+      name: record_linux
+      sha256: "3dd8ae62a2cdb2d2100a0f37447f11f540c67adc59b629704c603e0d9288adc5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.0"
   record_platform_interface:
     dependency: "direct main"
     description:
-      path: "../record_platform_interface"
-      relative: true
-    source: path
-    version: "0.7.0"
+      name: record_platform_interface
+      sha256: "33b0cd8a7d3770dae2596da0571f6767452795dd08202927d13b442c0470bff7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   record_web:
     dependency: "direct main"
     description:
-      path: "../record_web"
-      relative: true
-    source: path
-    version: "0.5.0"
+      name: record_web
+      sha256: ae0e6af10484d78c1f1bc08bbf32477c1da915eeeaa522a7180a843f332a29a7
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0-beta.1"
   record_windows:
     dependency: "direct main"
     description:
-      path: "../record_windows"
-      relative: true
-    source: path
-    version: "0.7.1"
+      name: record_windows
+      sha256: f8e175a2c84ed7096e3fa5fe36b7c7a25f6d54c389406c61311d98b668bfa566
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0-beta.1"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -164,3 +170,4 @@ packages:
     version: "2.1.4"
 sdks:
   dart: ">=3.0.0-417 <4.0.0"
+  flutter: ">=2.8.1"
