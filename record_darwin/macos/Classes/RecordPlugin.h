@@ -1,1 +1,4 @@
-../../darwin/Classes/RecordPlugin.h
+#import <FlutterMacOS/FlutterMacOS.h>
+
+@interface RecordPlugin : NSObject<FlutterPlugin>
+@end
