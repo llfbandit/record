@@ -30,3 +30,6 @@ flutter:
       web:
         pluginClass: RecordPluginWeb
         fileName: 'record_web.dart'
+
+  assets:
+    - assets/webm_duration_fix.js

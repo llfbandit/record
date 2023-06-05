@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:js' as js;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:js/js_util.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
+import 'package:record_web/audio_context.dart';
+import 'package:record_web/import_js_library.dart';
 import 'package:record_web/mime_types.dart';
-
-import 'audio_context.dart';
+import 'package:record_web/webm_duration_fix.dart';
 
 const _kMaxAmplitude = 0.0;
 const _kMinAmplitude = -160.0;
@@ -27,6 +30,13 @@ class Recorder {
   double _maxAmplitude = _kMinAmplitude;
   AudioContext? _audioCtx;
   AnalyserNode? _analyser;
+
+  Recorder() {
+    ImportJsLibrary.import(
+      url: "./assets/webm_duration_fix.js",
+      flutterPluginName: "record_web",
+    );
+  }
 
   Future<void> dispose() async {
     _mediaRecorder?.stop();
@@ -286,11 +296,17 @@ class Recorder {
     }
   }
 
-  void _onStop(html.Event event) {
+  Future<void> _onStop(html.Event event) async {
     String? audioUrl;
 
     if (_chunks.isNotEmpty) {
-      final blob = html.Blob(_chunks);
+      var blob = await promiseToFuture<html.Blob>(
+        fixWebmDuration(
+            html.Blob(_chunks),
+            js.JsObject.jsify({
+              "type": _mediaRecorder?.mimeType ?? 'audio/webm',
+            })),
+      );
       audioUrl = html.Url.createObjectUrl(blob);
     }
 
