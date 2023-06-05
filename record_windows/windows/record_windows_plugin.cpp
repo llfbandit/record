@@ -23,10 +23,15 @@ namespace record_windows {
 
 	void ErrorFromHR(HRESULT hr, MethodResult<EncodableValue>& result)
 	{
-		auto errorText = std::system_category().message(hr);
-		printf("Record: (0x%X)\n%s\n", hr, errorText.c_str());
+		_com_error err(hr);
 
-		result.Error("Record", errorText); // TODO Fix FormatException: Missing extension byte (at offset 9)
+		std::wstring wstr(err.ErrorMessage());
+
+		int size = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+		std::string errorText = std::string(size, 0);
+		WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, &wstr[0], (int)wstr.size(), &errorText[0], size, NULL, NULL);
+
+		result.Error("Record", "", EncodableValue(errorText));
 	}
 
 	// static, Register the plugin
