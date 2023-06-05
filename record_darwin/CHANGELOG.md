@@ -1,3 +1,6 @@
+## 1.0.0-beta.1+4
+* fix: Just don't publish it from Windows.
+
 ## 1.0.0-beta.1+3
 * fix: Use hard link instead of soft.
 
