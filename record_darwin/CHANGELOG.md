@@ -1,2 +1,5 @@
+## 1.0.0-beta.1+1
+* fix: podspec is now plain file. Symbolic link seems to not be resolved for podspec.
+
 ## 1.0.0-beta.1
 * core: Initial release
