@@ -427,7 +427,7 @@ namespace record_windows
 		if (bytesPerSample == 2) { // PCM 16 bits
 			for (int i = 0; i < size; i += 2) {
 				short big;
-				big = chunk[i] << 8 | chunk[i + 1];
+				big = chunk[i + 1] << 8 | chunk[i];
 
 				int curSample = std::abs(big);
 				if (curSample > maxSample) {
