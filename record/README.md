@@ -83,7 +83,7 @@ record.dispose(); // As always, don't forget this one.
 ```
 * [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
 
-- min SDK: 19 (may be higher depending of the chosen encoder)
+- min SDK: 21 (may be higher depending of the chosen encoder)
 
 ### iOS
 ```xml
