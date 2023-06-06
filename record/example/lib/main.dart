@@ -68,7 +68,10 @@ class _AudioRecorderState extends State<_AudioRecorder> {
           path = '';
         } else {
           final dir = await getApplicationDocumentsDirectory();
-          path = p.join(dir.path, 'test.m4a');
+          path = p.join(
+            dir.path,
+            'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
+          );
         }
         await _audioRecorder.start(config, path: path);
 
