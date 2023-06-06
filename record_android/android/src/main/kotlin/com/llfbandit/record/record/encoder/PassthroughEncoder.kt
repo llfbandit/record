@@ -81,7 +81,11 @@ class PassthroughEncoder(
                         0
                     }
 
-                    container.writeSampleData(trackIndex, buffer, bufferInfo)
+                    if (!container.isStream()) {
+                        container.writeSampleData(trackIndex, buffer, bufferInfo)
+                    } else {
+                        listener.onEncoderStream(container.writeStream(trackIndex, buffer, bufferInfo))
+                    }
 
                     numFrames += frames
                 }
