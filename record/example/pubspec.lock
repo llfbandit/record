@@ -264,7 +264,7 @@ packages:
       path: "../../record_android"
       relative: true
     source: path
-    version: "1.0.0-beta.1"
+    version: "1.0.0-beta.1+1"
   record_darwin:
     dependency: "direct overridden"
     description:

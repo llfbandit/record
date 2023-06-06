@@ -1,3 +1,5 @@
+// https://stackoverflow.com/questions/47331364/record-as-ogg-using-mediarecorder-in-chrome/57837816#57837816
+
 import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
@@ -10,6 +12,7 @@ import 'package:record_web/audio_context.dart';
 import 'package:record_web/import_js_library.dart';
 import 'package:record_web/mime_types.dart';
 import 'package:record_web/webm_duration_fix.dart';
+import 'package:record_web/webm_duration_fix_js.dart';
 
 const _kMaxAmplitude = 0.0;
 const _kMinAmplitude = -160.0;
@@ -25,6 +28,7 @@ class Recorder {
   Completer<String>? _onStopCompleter;
   StreamController<RecordState>? _stateStreamCtrl;
   StreamController<Uint8List>? _recordStreamCtrl;
+  final _elapsedTime = Stopwatch();
 
   // Amplitude
   double _maxAmplitude = _kMinAmplitude;
@@ -32,9 +36,9 @@ class Recorder {
   AnalyserNode? _analyser;
 
   Recorder() {
-    ImportJsLibrary.import(
-      url: "./assets/webm_duration_fix.js",
-      flutterPluginName: "record_web",
+    ImportJsLibrary().import(
+      jsFixWebmDurationContent(),
+      jsFixWebmDurationContentId(),
     );
   }
 
@@ -69,6 +73,7 @@ class Recorder {
   Future<void> pause() async {
     if (_mediaRecorder?.state == 'recording') {
       _mediaRecorder?.pause();
+      _elapsedTime.stop();
 
       try {
         _audioCtx?.suspend();
@@ -83,6 +88,7 @@ class Recorder {
   Future<void> resume() async {
     if (_mediaRecorder?.state == 'paused') {
       _mediaRecorder?.resume();
+      _elapsedTime.start();
 
       try {
         _audioCtx?.resume();
@@ -154,6 +160,49 @@ class Recorder {
     return devices;
   }
 
+  Future<bool> isEncoderSupported(AudioEncoder encoder) {
+    final type = _getSupportedMimeType(encoder);
+
+    return Future.value(type != null ? true : false);
+  }
+
+  Future<Amplitude> getAmplitude() async {
+    try {
+      final amp = _getMaxAmplitude().clamp(_kMinAmplitude, _kMaxAmplitude);
+
+      if (_maxAmplitude < amp) {
+        _maxAmplitude = amp;
+      }
+      return Amplitude(current: amp, max: _maxAmplitude);
+    } catch (e) {
+      return Amplitude(current: _kMinAmplitude, max: _maxAmplitude);
+    }
+  }
+
+  Stream<RecordState> onStateChanged() {
+    _stateStreamCtrl ??= StreamController(
+      onCancel: () {
+        _stateStreamCtrl?.close();
+        _stateStreamCtrl = null;
+      },
+    );
+
+    return _stateStreamCtrl!.stream;
+  }
+
+  String? _getSupportedMimeType(AudioEncoder encoder) {
+    final types = mimeTypes[encoder];
+    if (types == null) return null;
+
+    for (var type in types) {
+      if (html.MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _start(RecordConfig config, [bool isStream = false]) async {
     _mediaRecorder?.stop();
     _reset();
@@ -209,54 +258,14 @@ class Recorder {
       isStream ? _onDataAvailableStream : _onDataAvailable,
     );
     _mediaRecorder?.addEventListener('stop', _onStop);
+
+    _elapsedTime.start();
+
     _mediaRecorder?.start(200); // Will trigger dataavailable every 200ms
 
     _createAudioContext(stream);
 
     _updateState(RecordState.record);
-  }
-
-  Future<bool> isEncoderSupported(AudioEncoder encoder) {
-    final type = _getSupportedMimeType(encoder);
-
-    return Future.value(type != null ? true : false);
-  }
-
-  Future<Amplitude> getAmplitude() async {
-    try {
-      final amp = _getMaxAmplitude().clamp(_kMinAmplitude, _kMaxAmplitude);
-
-      if (_maxAmplitude < amp) {
-        _maxAmplitude = amp;
-      }
-      return Amplitude(current: amp, max: _maxAmplitude);
-    } catch (e) {
-      return Amplitude(current: _kMinAmplitude, max: _maxAmplitude);
-    }
-  }
-
-  Stream<RecordState> onStateChanged() {
-    _stateStreamCtrl ??= StreamController(
-      onCancel: () {
-        _stateStreamCtrl?.close();
-        _stateStreamCtrl = null;
-      },
-    );
-
-    return _stateStreamCtrl!.stream;
-  }
-
-  String? _getSupportedMimeType(AudioEncoder encoder) {
-    final types = mimeTypes[encoder];
-    if (types == null) return null;
-
-    for (var type in types) {
-      if (html.MediaRecorder.isTypeSupported(type)) {
-        return type;
-      }
-    }
-
-    return null;
   }
 
   void _onError(dynamic error) {
@@ -299,13 +308,17 @@ class Recorder {
   Future<void> _onStop(html.Event event) async {
     String? audioUrl;
 
+    debugPrint('Container/codec chosen: ${_mediaRecorder?.mimeType}');
+
     if (_chunks.isNotEmpty) {
+      _elapsedTime.stop();
+
       var blob = await promiseToFuture<html.Blob>(
         fixWebmDuration(
-            html.Blob(_chunks),
-            js.JsObject.jsify({
-              "type": _mediaRecorder?.mimeType ?? 'audio/webm',
-            })),
+          html.Blob(_chunks, _mediaRecorder?.mimeType ?? 'audio/webm'),
+          _elapsedTime.elapsedMilliseconds,
+          js.JsObject.jsify({"logger": false}),
+        ),
       );
       audioUrl = html.Url.createObjectUrl(blob);
     }
@@ -316,6 +329,9 @@ class Recorder {
   }
 
   void _reset() {
+    _elapsedTime.stop();
+    _elapsedTime.reset();
+
     _mediaRecorder?.removeEventListener('dataavailable', _onDataAvailable);
     _mediaRecorder?.removeEventListener('onstop', _onStop);
     _mediaRecorder = null;

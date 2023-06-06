@@ -68,23 +68,29 @@ class AudioPlayerState extends State<AudioPlayer> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Row(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            _buildControl(),
-            _buildSlider(constraints.maxWidth),
-            IconButton(
-              icon: const Icon(Icons.delete,
-                  color: Color(0xFF73748D), size: _deleteBtnSize),
-              onPressed: () {
-                if (_audioPlayer.state == ap.PlayerState.playing) {
-                  stop().then((value) => widget.onDelete());
-                } else {
-                  widget.onDelete();
-                }
-              },
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                _buildControl(),
+                _buildSlider(constraints.maxWidth),
+                IconButton(
+                  icon: const Icon(Icons.delete,
+                      color: Color(0xFF73748D), size: _deleteBtnSize),
+                  onPressed: () {
+                    if (_audioPlayer.state == ap.PlayerState.playing) {
+                      stop().then((value) => widget.onDelete());
+                    } else {
+                      widget.onDelete();
+                    }
+                  },
+                ),
+              ],
             ),
+            Text('${_duration ?? 0.0}'),
           ],
         );
       },
