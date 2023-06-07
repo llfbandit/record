@@ -25,7 +25,7 @@ class Recorder {
   // Audio data
   List<html.Blob> _chunks = [];
   // Completer to get data & stop events before `stop()` method ends
-  Completer<String>? _onStopCompleter;
+  Completer<String?>? _onStopCompleter;
   StreamController<RecordState>? _stateStreamCtrl;
   StreamController<Uint8List>? _recordStreamCtrl;
   final _elapsedTime = Stopwatch();
@@ -43,9 +43,8 @@ class Recorder {
   }
 
   Future<void> dispose() async {
-    _mediaRecorder?.stop();
+    await stop();
     _stateStreamCtrl?.close();
-    _recordStreamCtrl?.close();
     _reset();
   }
 
@@ -66,8 +65,7 @@ class Recorder {
   }
 
   Future<bool> isRecording() async {
-    final state = _mediaRecorder?.state;
-    return state == 'recording' || state == 'paused';
+    return _isRecording();
   }
 
   Future<void> pause() async {
@@ -117,13 +115,17 @@ class Recorder {
   }
 
   Future<String?> stop() async {
-    _onStopCompleter = Completer();
+    if (_isRecording()) {
+      _onStopCompleter = Completer();
 
-    _mediaRecorder?.stop();
+      _mediaRecorder?.stop();
 
-    _updateState(RecordState.stop);
+      _updateState(RecordState.stop);
 
-    return _onStopCompleter?.future;
+      return _onStopCompleter!.future;
+    }
+
+    return null;
   }
 
   Future<void> cancel() async {
@@ -251,19 +253,26 @@ class Recorder {
     }
   }
 
+  bool _isRecording() {
+    final state = _mediaRecorder?.state;
+    return state == 'recording' || state == 'paused';
+  }
+
   void _onStart(html.MediaStream stream, [bool isStream = false]) {
-    _mediaRecorder = html.MediaRecorder(stream);
-    _mediaRecorder?.addEventListener(
+    final mediaRecorder = html.MediaRecorder(stream);
+    mediaRecorder.addEventListener(
       'dataavailable',
       isStream ? _onDataAvailableStream : _onDataAvailable,
     );
-    _mediaRecorder?.addEventListener('stop', _onStop);
+    mediaRecorder.addEventListener('stop', _onStop);
 
     _elapsedTime.start();
 
-    _mediaRecorder?.start(200); // Will trigger dataavailable every 200ms
+    mediaRecorder.start(200); // Will trigger dataavailable every 200ms
 
     _createAudioContext(stream);
+
+    _mediaRecorder = mediaRecorder;
 
     _updateState(RecordState.record);
   }
@@ -296,7 +305,7 @@ class Recorder {
       fileReader.onLoad.listen((event) {
         final result = fileReader.result;
 
-        if (result is Uint8List) {
+        if (result is Uint8List && !streamCtrl.isClosed) {
           streamCtrl.add(result);
         }
       });
@@ -342,6 +351,7 @@ class Recorder {
     if (tracks != null) {
       for (var track in tracks) {
         track.stop();
+        _mediaStream?.removeTrack(track);
       }
 
       _mediaStream = null;

@@ -1,3 +1,7 @@
+## 1.0.0-beta.1+1
+* fix: `stop` is completing with required String.
+* fix: Sync stop with current stream.
+
 ## 1.0.0-beta.1
 * chore: Change signature of `start` method.
 * feat: Add multiple instance support.
