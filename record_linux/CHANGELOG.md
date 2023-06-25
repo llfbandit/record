@@ -1,3 +1,6 @@
+## 0.6.0
+* chore: Update platform interface.
+
 ## 0.5.0
 * chore: Change signature of `start` method.
 * feat: Add multiple instance support.
