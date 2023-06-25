@@ -2,6 +2,7 @@ package com.llfbandit.record.record.format
 
 import android.media.MediaCodecList
 import android.media.MediaFormat
+import com.llfbandit.record.record.AudioEncoder
 
 object AudioFormats {
     fun isEncoderSupported(mimeType: String?): Boolean {
@@ -27,12 +28,12 @@ object AudioFormats {
 
     fun getMimeType(encoder: String?): String? {
         return when (encoder) {
-            "aacLc", "aacEld", "aacHe" -> MediaFormat.MIMETYPE_AUDIO_AAC
-            "amrNb" -> MediaFormat.MIMETYPE_AUDIO_AMR_NB
-            "amrWb" -> MediaFormat.MIMETYPE_AUDIO_AMR_WB
-            "wav", "pcm16bit", "pcm8bit" -> MediaFormat.MIMETYPE_AUDIO_RAW
-            "opus" -> MediaFormat.MIMETYPE_AUDIO_OPUS
-            "flac" -> MediaFormat.MIMETYPE_AUDIO_FLAC
+            AudioEncoder.aacLc, AudioEncoder.aacEld, AudioEncoder.aacHe -> MediaFormat.MIMETYPE_AUDIO_AAC
+            AudioEncoder.amrNb -> MediaFormat.MIMETYPE_AUDIO_AMR_NB
+            AudioEncoder.amrWb -> MediaFormat.MIMETYPE_AUDIO_AMR_WB
+            AudioEncoder.wav, AudioEncoder.pcm16bits -> MediaFormat.MIMETYPE_AUDIO_RAW
+            AudioEncoder.opus -> MediaFormat.MIMETYPE_AUDIO_OPUS
+            AudioEncoder.flac -> MediaFormat.MIMETYPE_AUDIO_FLAC
             else -> null
         }
     }

@@ -1,3 +1,6 @@
+## 1.0.0-beta.2
+* chore: Cleanup/improve some code.
+
 ## 1.0.0-beta.1+1
 * fix: Error messages are not readable from dart side.
 

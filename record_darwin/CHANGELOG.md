@@ -1,3 +1,6 @@
+## 1.0.0-beta.2
+* chore: Update platform interface.
+
 ## 1.0.0-beta.1+4
 * fix: Just don't publish it from Windows.
 

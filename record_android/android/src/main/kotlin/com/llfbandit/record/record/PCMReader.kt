@@ -63,13 +63,7 @@ class PCMReader(
             audioBuffer.duplicate()[buffer, 0, resultBytes]
 
             // Update amplitude
-            amplitude =
-                getAmplitude(
-                    buffer,
-                    resultBytes,
-                    if (reader.audioFormat == AudioFormat.ENCODING_PCM_8BIT) 1 else 2
-                )
-
+            amplitude = getAmplitude(buffer, resultBytes)
         }
         return resultBytes
     }
@@ -110,11 +104,7 @@ class PCMReader(
 
     private val audioFormat: Int
         get() {
-            return if ("pcm8bit" == config.encoder) {
-                AudioFormat.ENCODING_PCM_8BIT
-            } else {
-                AudioFormat.ENCODING_PCM_16BIT
-            }
+            return AudioFormat.ENCODING_PCM_16BIT
         }
 
     private val channels: Int
@@ -175,28 +165,21 @@ class PCMReader(
         return str.toString()
     }
 
-    private fun getAmplitude(chunk: ByteArray, size: Int, bytesPerSample: Int): Double {
+    // Assuming the input is signed int 16
+    private fun getAmplitude(chunk: ByteArray, size: Int): Double {
         var maxSample = -160
 
-        if (bytesPerSample == 2) { // PCM 16 bits
-            val byteBuffer = ByteBuffer.wrap(chunk, 0, size)
-            val buf = ShortArray(size / 2)
-            byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()[buf]
-            for (b in buf) {
-                val curSample = abs(b.toInt())
-                if (curSample > maxSample) {
-                    maxSample = curSample
-                }
+        val byteBuffer = ByteBuffer.wrap(chunk, 0, size)
+        val buf = ShortArray(size / 2)
+        byteBuffer.order(ByteOrder.nativeOrder()).asShortBuffer()[buf]
+
+        for (b in buf) {
+            val curSample = abs(b.toInt())
+            if (curSample > maxSample) {
+                maxSample = curSample
             }
-            return 20 * log10(maxSample / 32767.0) // 16 signed bits 2^15
-        } else  /* if (bytesPerSample == 1) */ { // PCM 8 bits
-            for (i in 0 until size) {
-                val curSample = Math.abs(chunk[i].toInt())
-                if (curSample > maxSample) {
-                    maxSample = curSample
-                }
-            }
-            return 20 * log10(maxSample / 127.0) // 8 signed bits 2^7
         }
+
+        return 20 * log10(maxSample / 32767.0) // 16 signed bits 2^15 - 1
     }
 }

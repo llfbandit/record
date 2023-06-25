@@ -1,6 +1,6 @@
 name: record
 description: Audio recorder from microphone to a given file path with multiple codecs, bit rate and sampling rate options.
-version: 5.0.0-beta.1
+version: 5.0.0-beta.2
 homepage: https://github.com/llfbandit/record/tree/master/record
 
 environment:
@@ -13,12 +13,12 @@ dependencies:
 
   uuid: ^3.0.0
 
-  record_platform_interface: ^1.0.0
-  record_web: ^1.0.0-beta.1
-  record_windows: ^1.0.0-beta.1
-  record_linux: '>=0.5.0 < 2.0.0'
-  record_android: ^1.0.0-beta.1
-  record_darwin: ^1.0.0-beta.1
+  record_platform_interface: ^1.0.1
+  record_web: ^1.0.0-beta.2
+  record_windows: ^1.0.0-beta.2
+  record_linux: '>=0.5.0 < 1.0.0'
+  record_android: ^1.0.0-beta.2
+  record_darwin: ^1.0.0-beta.2
 
 # dependency_overrides:
 #   record_platform_interface:

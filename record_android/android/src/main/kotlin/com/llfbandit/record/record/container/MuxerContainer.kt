@@ -1,4 +1,4 @@
-package com.llfbandit.record.record.container;
+package com.llfbandit.record.record.container
 
 import android.media.MediaCodec
 import android.media.MediaFormat

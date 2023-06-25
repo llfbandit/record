@@ -1,3 +1,6 @@
+## 1.0.1
+* chore: Rename `pcm16bit` to `pcm16bits`.
+
 ## 1.0.0
 * chore: Change signature of `start` method.
 * chore: Add `startStream` method.

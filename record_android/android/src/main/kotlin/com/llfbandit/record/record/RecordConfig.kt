@@ -17,3 +17,17 @@ class RecordConfig(
         this.numChannels = 2.coerceAtMost(1.coerceAtLeast(numChannels))
     }
 }
+
+class AudioEncoder {
+    companion object {
+        const val aacLc = "aacLc"
+        const val aacEld = "aacEld"
+        const val aacHe = "aacHe"
+        const val amrNb = "amrNb"
+        const val amrWb = "amrWb"
+        const val flac = "flac"
+        const val pcm16bits = "pcm16bits"
+        const val opus = "opus"
+        const val wav = "wav"
+    }
+}

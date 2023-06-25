@@ -72,7 +72,7 @@ class AudioRecorder {
       config,
     );
 
-    _recordStreamCtrl = StreamController<Uint8List>.broadcast();
+    _recordStreamCtrl = StreamController.broadcast();
 
     _recordStreamSubscription = stream.listen(
       (data) {
@@ -219,5 +219,19 @@ class AudioRecorder {
     await _recordStreamSubscription?.cancel();
     await _recordStreamCtrl?.close();
     _recordStreamCtrl = null;
+  }
+
+  /// Utility method to get PCM data as signed int 16 bits values
+  List<int> convertBytesToInt16(Uint8List bytes) {
+    final values = <int>[];
+
+    final data = ByteData.view(bytes.buffer);
+
+    for (var i = 0; i < bytes.length; i += 2) {
+      int short = data.getInt16(i, Endian.host);
+      values.add(short);
+    }
+
+    return values;
   }
 }

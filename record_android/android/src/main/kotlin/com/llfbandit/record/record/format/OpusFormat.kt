@@ -31,7 +31,7 @@ class OpusFormat : Format() {
             throw IllegalArgumentException("Path not provided. Stream is not supported.")
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            throw IllegalAccessException("Opus OGG requires min API version: " + Build.VERSION_CODES.Q)
+            throw IllegalAccessException("Opus requires min API version: " + Build.VERSION_CODES.Q)
         }
 
         return MuxerContainer(path, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG)

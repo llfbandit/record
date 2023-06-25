@@ -45,8 +45,6 @@ namespace record_windows {
 
 		HRESULT CreateRecorder(std::string recorderId);
 		Recorder* GetRecorder(std::string recorderId);
-
-		HRESULT isEncoderSupported(std::string encoderName, MethodResult<EncodableValue>& result);
 		HRESULT ListInputDevices(MethodResult<EncodableValue>& result);
 
 		std::unique_ptr<RecordConfig> InitRecordConfig(const EncodableMap* args);

@@ -10,7 +10,7 @@ class PcmFormat : Format() {
     override val passthrough: Boolean = true
 
     override fun getMediaFormat(config: RecordConfig): MediaFormat {
-        val bitsPerSample = if (config.encoder == "pcm8bit") 8 else 16
+        val bitsPerSample = 16
         val frameSize = config.numChannels * bitsPerSample / 8
 
         val format = MediaFormat().apply {

@@ -207,7 +207,18 @@ namespace record_windows {
 				result->Error("Bad arguments", "Expected encoder name.");
 				return;
 			}
-			isEncoderSupported(encoderName, *result);
+
+			bool supported = false;
+			HRESULT hr = recorder->isEncoderSupported(encoderName, &supported);
+
+			if (SUCCEEDED(hr))
+			{
+				result->Success(EncodableValue(supported));
+			}
+			else
+			{
+				ErrorFromHR(hr, *result);
+			}
 		}
 		else if (method_call.method_name().compare("listInputDevices") == 0)
 		{
@@ -356,62 +367,6 @@ namespace record_windows {
 		SafeRelease(pDeviceAttributes);
 		CoTaskMemFree(ppDevices);
 
-		return hr;
-	}
-
-	HRESULT RecordWindowsPlugin::isEncoderSupported(const std::string encoderName, MethodResult<EncodableValue>& result)
-	{
-		MFT_REGISTER_TYPE_INFO typeLookup = {};
-		typeLookup.guidMajorType = MFMediaType_Audio;
-
-		if (encoderName == "aacLc") typeLookup.guidSubtype = MFAudioFormat_AAC;
-		else if (encoderName == "aacEld") typeLookup.guidSubtype = MFAudioFormat_AAC;
-		else if (encoderName == "aacHe") typeLookup.guidSubtype = MFAudioFormat_AAC;
-		else if (encoderName == "amrNb") typeLookup.guidSubtype = MFAudioFormat_AMR_NB;
-		else if (encoderName == "amrWb") typeLookup.guidSubtype = MFAudioFormat_AMR_WB;
-		else if (encoderName == "opus") typeLookup.guidSubtype = MFAudioFormat_Opus;
-		else if (encoderName == "vorbisOgg") typeLookup.guidSubtype = MFAudioFormat_Vorbis;
-		else if (encoderName == "flac") typeLookup.guidSubtype = MFAudioFormat_FLAC;
-		else if (encoderName == "pcm8bit") typeLookup.guidSubtype = MFAudioFormat_PCM;
-		else if (encoderName == "pcm16bit") typeLookup.guidSubtype = MFAudioFormat_PCM;
-		else {
-			result.Success(EncodableValue(false));
-			return S_OK;
-		}
-
-		// Enumerate all codecs except for codecs with field-of-use restrictions.
-		// Sort the results.
-		DWORD dwFlags =
-			(MFT_ENUM_FLAG_ALL & (~MFT_ENUM_FLAG_FIELDOFUSE)) |
-			MFT_ENUM_FLAG_SORTANDFILTER;
-
-		IMFActivate** ppMFTActivate = NULL;		// array of IMFActivate interface pointers
-		UINT32 numMFTActivate;
-
-		// Gets a list of output formats from an audio encoder.
-		HRESULT hr = MFTEnumEx(
-			MFT_CATEGORY_AUDIO_ENCODER,
-			dwFlags,
-			NULL,
-			&typeLookup,
-			&ppMFTActivate,
-			&numMFTActivate
-		);
-
-		if (SUCCEEDED(hr))
-		{
-			result.Success(EncodableValue(numMFTActivate != 0));
-		}
-		else
-		{
-			ErrorFromHR(hr, result);
-		}
-
-		for (UINT32 i = 0; i < numMFTActivate; i++)
-		{
-			SafeRelease(ppMFTActivate[i]);
-		}
-		CoTaskMemFree(ppMFTActivate);
 		return hr;
 	}
 }  // namespace record_windows
