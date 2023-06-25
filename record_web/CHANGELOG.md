@@ -1,3 +1,8 @@
+## 1.0.0-beta.2
+* fix: PCM streaming.
+* fix: Don't record if encoder is not supported.
+* feat: Add WAVE encoder support (16bits).
+
 ## 1.0.0-beta.1+1
 * fix: `stop` is completing with required String.
 * fix: Sync stop with current stream.

@@ -1,3 +1,5 @@
+import 'dart:html' as html;
+
 import 'package:record_platform_interface/record_platform_interface.dart';
 
 const mimeTypes = {
@@ -23,6 +25,18 @@ const mimeTypes = {
     'audio/vnd.wave; codec=1',
   ],
 
-  AudioEncoder.pcm8bit: ['audio/pcm', 'audio/webm; codecs=pcm'],
-  AudioEncoder.pcm16bit: ['audio/pcm', 'audio/webm; codecs=pcm'],
+  AudioEncoder.pcm16bits: ['audio/pcm', 'audio/webm; codecs=pcm'],
 };
+
+String? getSupportedMimeType(AudioEncoder encoder) {
+  final types = mimeTypes[encoder];
+  if (types == null) return null;
+
+  for (var type in types) {
+    if (html.MediaRecorder.isTypeSupported(type)) {
+      return type;
+    }
+  }
+
+  return null;
+}
