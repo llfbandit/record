@@ -71,7 +71,7 @@ namespace record_windows
 								m_recordEventHandler->Success(std::make_unique<flutter::EncodableValue>(bytes));
 							}
 
-							GetAmplitude(pChunk, size, (m_pConfig->encoderName == "pcm8bit") ? 1 : 2);
+							GetAmplitude(pChunk, size, 2);
 
 							pBuffer->Unlock();
 						}

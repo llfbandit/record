@@ -65,7 +65,15 @@ namespace record_windows
 
 	HRESULT Recorder::Start(std::unique_ptr<RecordConfig> config, std::string path)
 	{
-		HRESULT hr = InitRecording(std::move(config));
+		bool supported = false;
+		HRESULT hr = isEncoderSupported(config->encoderName, &supported);
+
+		if (FAILED(hr) || !supported)
+		{
+			return E_NOTIMPL;
+		}
+
+		hr = InitRecording(std::move(config));
 
 		if (SUCCEEDED(hr))
 		{
@@ -94,6 +102,11 @@ namespace record_windows
 
 	HRESULT Recorder::StartStream(std::unique_ptr<RecordConfig> config)
 	{
+		if (config->encoderName != AudioEncoder().pcm16bits)
+		{
+			return E_NOTIMPL;
+		}
+
 		HRESULT hr = InitRecording(std::move(config));
 
 		if (SUCCEEDED(hr))
@@ -421,31 +434,30 @@ namespace record_windows
 		};
 	}
 
-	void Recorder::GetAmplitude(BYTE* chunk, int size, int bytesPerSample) {
+	void Recorder::GetAmplitude(BYTE* chunk, DWORD size, int bytesPerSample) {
 		int maxSample = -160;
 
 		if (bytesPerSample == 2) { // PCM 16 bits
-			for (int i = 0; i < size; i += 2) {
-				short big;
-				big = chunk[i + 1] << 8 | chunk[i];
+			auto values = convertBytesToInt16(chunk, size);
 
-				int curSample = std::abs(big);
+			for (DWORD i = 0; i < size; i++) {
+				int curSample = std::abs(values[i]);
 				if (curSample > maxSample) {
 					maxSample = curSample;
 				}
 			}
 
-			m_amplitude = 20 * std::log10(maxSample / 32767.0); // 16 signed bits 2^15
+			m_amplitude = 20 * std::log10(maxSample / 32767.0); // 16 signed bits 2^15 - 1
 		}
 		else /* if (bytesPerSample == 1) */ { // PCM 8 bits
-			for (int i = 0; i < size; i++) {
+			for (DWORD i = 0; i < size; i++) {
 				byte curSample = chunk[i];
 				if (curSample > maxSample) {
 					maxSample = curSample;
 				}
 			}
 
-			m_amplitude = 20 * std::log10(maxSample / 255.0); // 8 unsigned bits 2^8
+			m_amplitude = 20 * std::log10(maxSample / 256.0); // 8 unsigned bits 2^8
 		}
 
 		if (m_amplitude > m_maxAmplitude) {
@@ -456,5 +468,78 @@ namespace record_windows
 	std::string Recorder::GetRecordingPath()
 	{
 		return m_recordingPath;
+	}
+
+	std::vector<int16_t> Recorder::convertBytesToInt16(BYTE* bytes, DWORD size)
+	{
+		// Convert to int16
+		std::vector<int16_t> values(size / 2);
+
+		int n = 1;
+		if (*(char*)&n == 1) {
+			// We're on little endian host
+			for (DWORD i = 0; i < size; i += 2) {
+				values.push_back(int16_t(bytes[i] << 0 | bytes[i + 1] << 8));
+			}
+		}
+		else {
+			// We're on big endian host
+			for (DWORD i = 0; i < size; i += 2) {
+				values.push_back(int16_t(bytes[i + 1] | bytes[i] << 8));
+			}
+		}
+
+		return values;
+	}
+
+	HRESULT Recorder::isEncoderSupported(const std::string encoderName, bool* supported)
+	{
+		MFT_REGISTER_TYPE_INFO typeLookup = {};
+		typeLookup.guidMajorType = MFMediaType_Audio;
+
+		if (encoderName == AudioEncoder().aacLc) typeLookup.guidSubtype = MFAudioFormat_AAC;
+		/*else if (encoderName == AudioEncoder().aacEld) typeLookup.guidSubtype = MFAudioFormat_AAC;
+		else if (encoderName == AudioEncoder().aacHe) typeLookup.guidSubtype = MFAudioFormat_AAC;*/
+		else if (encoderName == AudioEncoder().amrNb) typeLookup.guidSubtype = MFAudioFormat_AMR_NB;
+		else if (encoderName == AudioEncoder().amrWb) typeLookup.guidSubtype = MFAudioFormat_AMR_WB;
+		else if (encoderName == AudioEncoder().opus) typeLookup.guidSubtype = MFAudioFormat_Opus;
+		else if (encoderName == AudioEncoder().flac) typeLookup.guidSubtype = MFAudioFormat_FLAC;
+		else if (encoderName == AudioEncoder().pcm16bits) typeLookup.guidSubtype = MFAudioFormat_PCM;
+		else {
+			*supported = false;
+			return S_OK;
+		}
+
+		// Enumerate all codecs except for codecs with field-of-use restrictions.
+		// Sort the results.
+		DWORD dwFlags =
+			(MFT_ENUM_FLAG_ALL & (~MFT_ENUM_FLAG_FIELDOFUSE)) |
+			MFT_ENUM_FLAG_SORTANDFILTER;
+
+		IMFActivate** ppMFTActivate = NULL;		// array of IMFActivate interface pointers
+		UINT32 numMFTActivate;
+
+		// Gets a list of output formats from an audio encoder.
+		HRESULT hr = MFTEnumEx(
+			MFT_CATEGORY_AUDIO_ENCODER,
+			dwFlags,
+			NULL,
+			&typeLookup,
+			&ppMFTActivate,
+			&numMFTActivate
+		);
+
+		if (SUCCEEDED(hr))
+		{
+			*supported = numMFTActivate != 0;
+		}
+
+		for (UINT32 i = 0; i < numMFTActivate; i++)
+		{
+			SafeRelease(ppMFTActivate[i]);
+		}
+		CoTaskMemFree(ppMFTActivate);
+
+		return hr;
 	}
 };

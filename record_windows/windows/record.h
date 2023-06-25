@@ -42,6 +42,7 @@ namespace record_windows
 		HRESULT Dispose();
 		std::map<std::string, double> GetAmplitude();
 		std::string GetRecordingPath();
+		HRESULT isEncoderSupported(std::string encoderName, bool* supported);
 		
 		// IUnknown methods
 		STDMETHODIMP QueryInterface(REFIID iid, void** ppv);
@@ -69,7 +70,8 @@ namespace record_windows
 		HRESULT InitRecording(std::unique_ptr<RecordConfig> config);
 		void UpdateState(RecordState state);
 		HRESULT EndRecording();
-		void GetAmplitude(BYTE* chunk, int size, int bytesPerSample);
+		void GetAmplitude(BYTE* chunk, DWORD size, int bytesPerSample);
+		std::vector<int16_t> convertBytesToInt16(BYTE* bytes, DWORD size);
 
 		long                m_nRefCount;        // Reference count.
 		CritSec				m_critsec;

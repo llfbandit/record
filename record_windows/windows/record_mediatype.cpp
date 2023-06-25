@@ -23,7 +23,7 @@ namespace record_windows
 		}
 		if (SUCCEEDED(hr))
 		{
-			hr = pMediaType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, (m_pConfig->encoderName == "pcm8bit") ? 8 : 16);
+			hr = pMediaType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -69,8 +69,7 @@ namespace record_windows
 			else if (m_pConfig->encoderName == "amrNb") hr = CreateAmrNbProfile(pMediaType);
 			else if (m_pConfig->encoderName == "amrWb") hr = CreateAmrNbProfile(pMediaType);
 			else if (m_pConfig->encoderName == "flac") hr = CreateFlacProfile(pMediaType);
-			else if (m_pConfig->encoderName == "pcm8bit") hr = CreatePcmProfile(pMediaType);
-			else if (m_pConfig->encoderName == "pcm16bit") hr = CreatePcmProfile(pMediaType);
+			else if (m_pConfig->encoderName == "pcm16bits") hr = CreatePcmProfile(pMediaType);
 			else if (m_pConfig->encoderName == "wav") hr = CreatePcmProfile(pMediaType);
 			else hr = E_NOTIMPL;
 		}
@@ -167,7 +166,7 @@ namespace record_windows
 	{
 		HRESULT hr = pMediaType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
 
-		auto bitsPerSample = (m_pConfig->encoderName == "pcm8bit") ? 8 : 16;
+		auto bitsPerSample = 16;
 
 		if (SUCCEEDED(hr))
 		{
