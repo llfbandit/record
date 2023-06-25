@@ -238,13 +238,13 @@ class AudioRecorder(
 
         private fun selectFormat(): Format {
             when (config.encoder) {
-                "aacLc", "aacEld", "aacHe" -> return AacFormat()
-                "amrNb" -> return AmrNbFormat()
-                "amrWb" -> return AmrWbFormat()
-                "flac" -> return FlacFormat()
-                "pcm16bit", "pcm8bit" -> return PcmFormat()
-                "opus" -> return OpusFormat()
-                "wav" -> return WaveFormat()
+                AudioEncoder.aacLc, AudioEncoder.aacEld, AudioEncoder.aacHe -> return AacFormat()
+                AudioEncoder.amrNb -> return AmrNbFormat()
+                AudioEncoder.amrWb -> return AmrWbFormat()
+                AudioEncoder.flac -> return FlacFormat()
+                AudioEncoder.pcm16bits -> return PcmFormat()
+                AudioEncoder.opus -> return OpusFormat()
+                AudioEncoder.wav -> return WaveFormat()
             }
             throw Exception("Unknown format: " + config.encoder)
         }

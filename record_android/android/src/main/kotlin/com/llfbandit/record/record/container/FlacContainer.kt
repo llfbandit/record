@@ -139,7 +139,6 @@ class FlacContainer(path: String) : IContainerWriter {
     }
 
     companion object {
-        private val TAG = FlacContainer::class.java.simpleName
         private val FLAC_MAGIC = ubyteArrayOf(0x66u, 0x4cu, 0x61u, 0x43u) // fLaC
     }
 }

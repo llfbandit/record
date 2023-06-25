@@ -17,7 +17,7 @@ class RecorderRecordStreamHandler : EventChannel.StreamHandler {
         eventSink = null
     }
 
-    fun sendRecordChunkEvent(buffer: ByteArray?) {
+    fun sendRecordChunkEvent(buffer: ByteArray) {
         activity?.runOnUiThread {
             eventSink?.success(buffer)
         }

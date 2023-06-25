@@ -3,6 +3,7 @@ package com.llfbandit.record.record.format
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import com.llfbandit.record.record.AudioEncoder
 import com.llfbandit.record.record.RecordConfig
 import com.llfbandit.record.record.container.AdtsContainer
 import com.llfbandit.record.record.container.IContainerWriter
@@ -40,17 +41,17 @@ class AacFormat : Format() {
 
             // Specifics
             when (config.encoder) {
-                "aacLc" -> setInteger(
+                AudioEncoder.aacLc -> setInteger(
                     MediaFormat.KEY_AAC_PROFILE,
                     MediaCodecInfo.CodecProfileLevel.AACObjectLC
                 )
 
-                "aacEld" -> setInteger(
+                AudioEncoder.aacEld -> setInteger(
                     MediaFormat.KEY_AAC_PROFILE,
                     MediaCodecInfo.CodecProfileLevel.AACObjectELD
                 )
 
-                "aacHe" -> setInteger(
+                AudioEncoder.aacHe -> setInteger(
                     MediaFormat.KEY_AAC_PROFILE,
                     MediaCodecInfo.CodecProfileLevel.AACObjectHE
                 )

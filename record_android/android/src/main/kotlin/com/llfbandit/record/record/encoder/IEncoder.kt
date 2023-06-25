@@ -1,9 +1,5 @@
 package com.llfbandit.record.record.encoder
 
-interface OnStopListener {
-    fun onStop()
-}
-
 interface IEncoder {
     /**
      * Start the encoder process.
