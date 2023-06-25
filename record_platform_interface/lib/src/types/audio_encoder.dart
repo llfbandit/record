@@ -51,13 +51,8 @@ enum AudioEncoder {
   /// Suggested file extension: `wav`
   wav,
 
-  /// Linear PCM 8 bit per sample
-  ///
-  /// Suggested file extension: `pcm`
-  pcm8bit,
-
   /// Linear PCM 16 bit per sample
   ///
   /// Suggested file extension: `pcm`
-  pcm16bit,
+  pcm16bits,
 }
