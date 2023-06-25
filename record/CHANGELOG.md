@@ -1,3 +1,10 @@
+## 5.0.0-beta.2
+* chore: remove pcm8bit.
+* fix(web): Multiple issues on web platform.
+* feat(web): Add WAVE encoder support (16 bits).
+* feat: add utility method to convert Uint8List to signed int 16 bits.
+* chore: throw exception when encoder is not supported.
+
 ## 5.0.0-beta.1
 **Testers needed to reach release !**
 ***
