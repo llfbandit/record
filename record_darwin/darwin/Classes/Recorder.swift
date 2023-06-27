@@ -47,35 +47,47 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     
     try deleteFile(path: path)
     
+    if !isEncoderSupported(config.encoder) {
+      throw RecorderError.error(message: "Failed to start recording", details: "\(config.encoder) not supported.")
+    }
+    
     let dev = try getRecordingInputDevice(config: config)
     
     let result = try createRecordingSession(config, dev: dev)
     
     let writer = try createWriter(config: config, path: path)
-    
+
     // start recording
-    writer.startWriting()
-    result.session.startRunning()
-    
-    m_config = config
-    m_dev = dev
-    m_path = path
-    updateState(RecordState.record)
+    DispatchQueue.global(qos: .background).async {
+      writer.startWriting()
+      result.session.startRunning()
+
+      self.m_config = config
+      self.m_dev = dev
+      self.m_path = path
+      self.updateState(RecordState.record)
+    }
   }
   
   func startStream(config: RecordConfig) throws {
     stopRecording()
+    
+    if config.encoder != AudioEncoder.pcm16bits.rawValue {
+      throw RecorderError.error(message: "Failed to start recording", details: "\(config.encoder) not supported in streaming mode.")
+    }
     
     let dev = try getRecordingInputDevice(config: config)
     
     let result = try createRecordingSession(config, dev: dev)
     
     // start recording
-    result.session.startRunning()
-    
-    m_config = config
-    m_dev = dev
-    updateState(RecordState.record)
+    DispatchQueue.global(qos: .background).async {
+      result.session.startRunning()
+
+      self.m_config = config
+      self.m_dev = dev
+      self.updateState(RecordState.record)
+    }
   }
   
   func stop() -> String? {
@@ -183,7 +195,7 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
 #else
     audioOut.audioSettings = getInputSettings(config: config)
 #endif
-    
+
     // Add output
     let audioCaptureQueue = DispatchQueue(label: "com.llfbandit.record.queue", attributes: [])
     audioOut.setSampleBufferDelegate(self, queue: audioCaptureQueue)
@@ -289,7 +301,7 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     if m_path != nil {
       writeToFile(sampleBuffer)
     } else {
-      writeToStream(sampleBuffer)
+      writeToStream(sampleBuffer, numChannels: connection.audioChannels.count)
     }
   }
   
@@ -367,37 +379,49 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
    }
    }*/
   
-  private func writeToStream(_ sampleBuffer: CMSampleBuffer) {
+  private func writeToStream(_ sampleBuffer: CMSampleBuffer, numChannels: Int) {
     guard let eventSink = m_recordEventHandler.eventSink else {
       return
     }
-    
-    guard let config = m_config else {
-      return
-    }
-    
-    let audioBuffer = AudioBuffer(mNumberChannels: UInt32(config.numChannels), mDataByteSize: 0, mData: nil)
-    var audioBufferList = AudioBufferList(mNumberBuffers: UInt32(config.numChannels), mBuffers: audioBuffer)
-    var blockBuffer: CMBlockBuffer?
-    
-    CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
-      sampleBuffer,
-      bufferListSizeNeededOut: nil,
-      bufferListOut: &audioBufferList,
-      bufferListSize: MemoryLayout<AudioBufferList>.size(ofValue: audioBufferList),
-      blockBufferAllocator: nil,
-      blockBufferMemoryAllocator: nil,
-      flags: UInt32(kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment),
-      blockBufferOut: &blockBuffer)
-    
-    guard let bufferData = audioBufferList.mBuffers.mData else {
-      return
-    }
-    
-    let data = Data(bytesNoCopy: bufferData, count: Int(audioBufferList.mBuffers.mDataByteSize), deallocator: .none)
-    
-    if !data.isEmpty {
-      eventSink(FlutterStandardTypedData(bytes: data))
+
+    if #available(macOS 10.15, iOS 13.0, *) {
+      do {
+        guard let data = try sampleBuffer.dataBuffer?.dataBytes() else {
+          return
+        }
+
+        if !data.isEmpty {
+          eventSink(FlutterStandardTypedData(bytes: data))
+        }
+      } catch {
+        print(error)
+        _ = stop()
+      }
+    } else {
+      // Fallback on earlier versions
+      let audioBuffer = AudioBuffer(mNumberChannels: UInt32(numChannels), mDataByteSize: 0, mData: nil)
+      var audioBufferList = AudioBufferList(mNumberBuffers: 1, mBuffers: audioBuffer)
+      var blockBuffer: CMBlockBuffer?
+      
+      CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+        sampleBuffer,
+        bufferListSizeNeededOut: nil,
+        bufferListOut: &audioBufferList,
+        bufferListSize: MemoryLayout<AudioBufferList>.size(ofValue: audioBufferList),
+        blockBufferAllocator: nil,
+        blockBufferMemoryAllocator: nil,
+        flags: UInt32(kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment),
+        blockBufferOut: &blockBuffer)
+      
+      guard let bufferData = audioBufferList.mBuffers.mData else {
+        return
+      }
+
+      let data = Data(bytesNoCopy: bufferData, count: Int(audioBufferList.mBuffers.mDataByteSize), deallocator: .none)
+      
+      if !data.isEmpty {
+        eventSink(FlutterStandardTypedData(bytes: data))
+      }
     }
   }
   

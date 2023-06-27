@@ -1,3 +1,16 @@
+enum AudioEncoder: String {
+  case aacLc = "aacLc"
+  case aacEld = "aacEld"
+  case aacHe = "aacHe"
+  case amrNb = "amrNb"
+  case amrWb = "amrWb"
+  case opus = "opus"
+  case flac = "flac"
+  case pcm16bits = "pcm16bits"
+  case wav = "wav"
+}
+
+
 class RecordConfig {
   let encoder: String
   let bitRate: Int

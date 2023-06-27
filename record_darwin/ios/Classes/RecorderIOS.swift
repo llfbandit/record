@@ -52,14 +52,11 @@ extension Recorder {
         guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
         
         let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-        
-        do {
-          if options.contains(.shouldResume) {
-            try resume()
-          } else {
-            _ = stop()
-          }
-        } catch {
+
+        if options.contains(.shouldResume) {
+          resume()
+        } else {
+          _ = stop()
         }
       }
     }

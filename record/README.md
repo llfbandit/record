@@ -17,7 +17,7 @@ External dependencies:
 | amplitude(dBFS)  | ✔️            |   ✔️           |  ✔️     |    ✔️     |  ✔️   |
 | permission check | ✔️            |   ✔️           |  ✔️    |            |  ✔️   |
 | num of channels  | ✔️            |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| device selection | (auto BT/mic) | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| device selection |              | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | auto gain        | ✔️            |(always active?)| ✔️      |            |       |  
 | echo cancel      | ✔️            |                 | ✔️      |            |       |  
 | noise suppresion | ✔️            |                 | ✔️      |            |       |  
@@ -31,10 +31,12 @@ External dependencies:
 | amrNb           | ✔️            |         |  ?      |   ✔️    |         |  
 | amrWb           | ✔️            |         |  ?      |          |        |  
 | opus            | ✔️            |         |  ✔️      |         |         |  ✔️ 
-| wav             |  ✔️           |   ✔️    |   ?     |    ✔️    |   ✔️  |   ✔️ 
+| wav             |  ✔️           |   ✔️    |   ✔️     |    ✔️    |   ✔️  |   ✔️ 
 | flac            |  ✔️           |    ✔️    |  ?      |  ✔️     |   ✔️  |   ✔️
-| pcm8bit         | ✔️            |         |  ?      |    ✔️   |       |  
-| pcm16bit        | ✔️            |   ✔️    |  ✔️      |   ✔️    |  ✔️   |  
+| pcm16bits       | ✔️            |   ✔️    |  ✔️      |   ✔️    |  ✔️   |  
+
+\* Question marks (?) in web column mean that the formats are supported by the plugin
+but are not available in current (and tested) browsers (Chrome / Firefox).
 
 ## Stream
 | Encoder         | Android    | iOS     | web     | Windows | macOS   | linux
@@ -42,12 +44,11 @@ External dependencies:
 | aacLc       *   | ✔️        |         |          |         |         |  
 | aacEld      *   | ✔️        |         |          |         |         | 
 | aacHe       *   | ✔️        |         |          |         |         |  
-| pcm8bit         | ✔️        |         |   ✔️    |   ✔️    |        |  
-| pcm16bit        | ✔️        |  ✔️    |   ✔️    |  ✔️     | ✔️     |  
+| pcm16bits       | ✔️        |  ✔️    |   ✔️    |  ✔️     | ✔️     |  
 
-\* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file.  
+\* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file!  
 
-All audio output is with 16bits depth (pcm8bit excepted).
+__All audio output is with 16bits depth.__
 
 For every encoder, you should be really careful with given sample/bit rates.  
 For example, Opus can't be recorded at 44100Hz.
@@ -64,7 +65,7 @@ if (await record.hasPermission()) {
   // Start recording to file
   await record.start(const RecordConfig(), path: 'aFullPath/myFile.m4a');
   // ... or to stream
-  final stream = await record.startStream(const RecordConfig(AudioEncoder.pcm16bit));
+  final stream = await record.startStream(const RecordConfig(AudioEncoder.pcm16bits));
 }
 
 // Stop recording...
