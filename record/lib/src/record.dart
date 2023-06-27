@@ -221,7 +221,7 @@ class AudioRecorder {
     _recordStreamCtrl = null;
   }
 
-  /// Utility method to get PCM data as signed int 16 bits values
+  /// Utility method to get PCM data as signed 16 bits integers.
   List<int> convertBytesToInt16(Uint8List bytes) {
     final values = <int>[];
 

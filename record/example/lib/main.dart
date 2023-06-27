@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -49,7 +48,7 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   Future<void> _start() async {
     try {
       if (await _audioRecorder.hasPermission()) {
-        const encoder = AudioEncoder.pcm16bits;
+        const encoder = AudioEncoder.aacLc;
 
         // We don't do anything with this but printing
         final isSupported = await _audioRecorder.isEncoderSupported(
@@ -74,22 +73,22 @@ class _AudioRecorderState extends State<_AudioRecorder> {
             'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
           );
         }
-        // await _audioRecorder.start(config, path: path);
+        await _audioRecorder.start(config, path: path);
 
         // Record to stream
-        final file = File(path);
-        final stream = await _audioRecorder.startStream(config);
-        stream.listen(
-          (data) {
-            // ignore: avoid_print
-            print(
-              _audioRecorder.convertBytesToInt16(Uint8List.fromList(data)),
-            );
-            file.writeAsBytesSync(data, mode: FileMode.append);
-          },
-          // ignore: avoid_print
-          onDone: () => print('End of stream'),
-        );
+        // final file = File(path);
+        // final stream = await _audioRecorder.startStream(config);
+        // stream.listen(
+        //   (data) {
+        //     // ignore: avoid_print
+        //     print(
+        //       _audioRecorder.convertBytesToInt16(Uint8List.fromList(data)),
+        //     );
+        //     file.writeAsBytesSync(data, mode: FileMode.append);
+        //   },
+        //   // ignore: avoid_print
+        //   onDone: () => print('End of stream'),
+        // );
 
         _recordDuration = 0;
 

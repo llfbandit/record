@@ -50,7 +50,7 @@ but are not available in current (and tested) browsers (Chrome / Firefox).
 
 __All audio output is with 16bits depth.__
 
-For every encoder, you should be really careful with given sample/bit rates.  
+With every encoders, you should be really careful with given sample/bit rates.  
 For example, Opus can't be recorded at 44100Hz.
 
 ## Usage
@@ -104,6 +104,7 @@ record.dispose(); // As always, don't forget this one.
 - min SDK: 10.15
 
 ## Roadmap
+- Better linux support with "native" framework/library (can someone help?).
 - Gain value in config.
 - Fill parity matrix where applicable.
 - AAC / ADTS streaming on more platforms.

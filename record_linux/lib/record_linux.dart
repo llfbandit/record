@@ -91,6 +91,11 @@ class RecordLinux extends RecordPlatform {
     final file = File(path);
     if (file.existsSync()) await file.delete();
 
+    final supported = await isEncoderSupported(recorderId, config.encoder);
+    if (!supported) {
+      throw Exception('${config.encoder} is not supported.');
+    }
+
     await _callFMedia(
       [
         '--notui',
