@@ -1,3 +1,6 @@
+## 1.0.0-beta.2+1
+* fix: stop procedure.
+
 ## 1.0.0-beta.2
 * chore: Update platform interface.
 * fix(iOS): start AVCaptureSession from background thread.

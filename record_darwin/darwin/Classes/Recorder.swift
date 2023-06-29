@@ -94,7 +94,6 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     let path = m_path
     
     stopRecording()
-    updateState(RecordState.stop)
     
     return path
   }
@@ -148,20 +147,30 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     
     return amp
   }
-  
+
   private func stopRecording() {
-    m_audioSession?.stopRunning()
-    m_audioSession = nil
+    m_writerInput?.markAsFinished()
+
+    if let audioWriter = m_audioWriter {
+      audioWriter.finishWriting(completionHandler: { [weak self] in
+        self?._reset()
+        self?.updateState(RecordState.stop)
+      })
+    } else {
+      _reset()
+      updateState(RecordState.stop)
+    }
+  }
+
+  private func _reset() {
+    m_writerInput = nil
+    m_audioWriter = nil
     
     m_audioOutput?.setSampleBufferDelegate(nil, queue: nil)
     m_audioOutput = nil
     
-    m_writerInput?.markAsFinished()
-    m_writerInput = nil
-    
-    m_audioWriter?.finishWriting(completionHandler: {
-      self.m_audioWriter = nil
-    })
+    m_audioSession?.stopRunning()
+    m_audioSession = nil
     
     m_dev = nil
     
