@@ -27,7 +27,6 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
   Amplitude? _amplitude;
-  String? _recordedPath;
 
   @override
   void initState() {
@@ -103,33 +102,32 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   }
 
   Future<void> _stop() async {
-    _recordedPath = await _audioRecorder.stop();
+    final path = await _audioRecorder.stop();
+
+    if (path != null) {
+      widget.onStop(path);
+    }
   }
 
   Future<void> _pause() => _audioRecorder.pause();
 
-  Future<void> _resume()  => _audioRecorder.resume();
+  Future<void> _resume() => _audioRecorder.resume();
 
   void _updateRecordState(RecordState recordState) {
     setState(() => _recordState = recordState);
 
     switch (recordState) {
-        case RecordState.pause:
-          _timer?.cancel();
-          break;
-        case RecordState.record:
-          _startTimer();
-          break;
-        case RecordState.stop:
-          _timer?.cancel();
-          _recordDuration = 0;
-
-          if (_recordedPath != null) {
-            widget.onStop(_recordedPath!);
-          }
-          _recordedPath = null;
-          break;
-      }
+      case RecordState.pause:
+        _timer?.cancel();
+        break;
+      case RecordState.record:
+        _startTimer();
+        break;
+      case RecordState.stop:
+        _timer?.cancel();
+        _recordDuration = 0;
+        break;
+    }
   }
 
   @override
