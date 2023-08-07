@@ -200,6 +200,8 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     let audioOut = AVCaptureAudioDataOutput()
     
 #if os(iOS)
+    // Should allow to specify other sample rates, ...
+    session.automaticallyConfiguresApplicationAudioSession = false
     try initAVAudioSession(config: config)
 #else
     audioOut.audioSettings = getInputSettings(config: config)
