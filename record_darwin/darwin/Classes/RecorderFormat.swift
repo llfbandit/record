@@ -109,7 +109,7 @@ extension Recorder {
         AVFormatIDKey : kAudioFormatLinearPCM,
         AVLinearPCMBitDepthKey: 16,
         AVLinearPCMIsFloatKey: false,
-        //AVLinearPCMIsBigEndianKey: false,
+        AVLinearPCMIsBigEndianKey: false,
         AVLinearPCMIsNonInterleaved: false,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
