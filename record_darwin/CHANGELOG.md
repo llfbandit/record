@@ -1,3 +1,7 @@
+## 1.0.0-beta.2+2
+* fix: PCM custom settings.
+* fix: PCM big endian missing key.
+
 ## 1.0.0-beta.2+1
 * fix: stop procedure.
 
