@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import 'package:record_example/audio_player.dart';
+import 'package:record_example/wave_widget.dart';
 
 void main() => runApp(const MyApp());
 
@@ -27,6 +29,8 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
   Amplitude? _amplitude;
+  double phase = 0.0;
+  double ampl = 0.0;
 
   @override
   void initState() {
@@ -37,9 +41,12 @@ class _AudioRecorderState extends State<_AudioRecorder> {
     });
 
     _amplitudeSub = _audioRecorder
-        .onAmplitudeChanged(const Duration(milliseconds: 300))
+        .onAmplitudeChanged(const Duration(milliseconds: 100))
         .listen((amp) {
-      setState(() => _amplitude = amp);
+      phase -= 1.5;
+      _amplitude = amp;
+      ampl = pow(10, (amp.current + 15) / 20) + 0.0;
+      setState(() {});
     });
 
     super.initState();
@@ -152,6 +159,11 @@ class _AudioRecorderState extends State<_AudioRecorder> {
               Text('Current: ${_amplitude?.current ?? 0.0}'),
               Text('Max: ${_amplitude?.max ?? 0.0}'),
             ],
+            WaveWidget(
+              amplitude: ampl,
+              color: Colors.black,
+              phase: phase,
+            ),
           ],
         ),
       ),
