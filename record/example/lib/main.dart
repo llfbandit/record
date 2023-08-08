@@ -29,8 +29,7 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
   Amplitude? _amplitude;
-  double phase = 0.0;
-  double ampl = 0.0;
+  int ampl = 0;
 
   @override
   void initState() {
@@ -43,9 +42,8 @@ class _AudioRecorderState extends State<_AudioRecorder> {
     _amplitudeSub = _audioRecorder
         .onAmplitudeChanged(const Duration(milliseconds: 100))
         .listen((amp) {
-      phase -= 1.5;
       _amplitude = amp;
-      ampl = pow(10, (amp.current + 15) / 20) + 0.0;
+      ampl = (amp.current + 15).toInt(); //
       setState(() {});
     });
 
@@ -162,7 +160,6 @@ class _AudioRecorderState extends State<_AudioRecorder> {
             WaveWidget(
               amplitude: ampl,
               color: Colors.black,
-              phase: phase,
             ),
           ],
         ),

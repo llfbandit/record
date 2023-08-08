@@ -53,17 +53,51 @@ class WavePainter extends CustomPainter {
   }
 }
 
-class WaveWidget extends StatelessWidget {
-  final double amplitude;
+class WaveWidget extends StatefulWidget {
+  final int amplitude;
   final Color color;
-  final double phase;
 
   const WaveWidget({
     Key? key,
     required this.amplitude,
     required this.color,
-    required this.phase,
   }) : super(key: key);
+
+  @override
+  State<WaveWidget> createState() => _WaveWidgetState();
+}
+
+class _WaveWidgetState extends State<WaveWidget>
+    with SingleTickerProviderStateMixin {
+  late int latestAmp = 0;
+  double realAmp = 0.0;
+  double phase = 0.0;
+
+  late final AnimationController controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 100),
+  );
+
+  @override
+  void initState() {
+    latestAmp = widget.amplitude;
+    super.initState();
+  }
+
+  @override
+  void didUpdateWidget(covariant WaveWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final latestAmp = this.latestAmp;
+    final newAmp = widget.amplitude;
+    controller.reset();
+    final ani = IntTween(begin: latestAmp, end: newAmp).animate(controller);
+    ani.addListener(() {
+      realAmp = pow(10, (ani.value) / 20) + 0.0;
+      phase -= 1.5;
+      setState(() {});
+    });
+    controller.forward();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,8 +108,8 @@ class WaveWidget extends StatelessWidget {
       child: CustomPaint(
         painter: WavePainter(
           phase: phase,
-          normedAmplitude: amplitude * (1.5 - 0.8),
-          color: color,
+          normedAmplitude: realAmp * (1.5 - 0.8),
+          color: widget.color,
           frequency: 1.5,
           density: 1,
         ),
