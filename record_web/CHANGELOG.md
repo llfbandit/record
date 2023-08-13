@@ -1,3 +1,8 @@
+## 1.0.0-beta.2+1
+* fix: PCM float 32 to int 16 conversion.
+* fix: Wrong call in WAV encorder to get char code.
+* fix: Share init/reset code in delegates.
+
 ## 1.0.0-beta.2
 * fix: PCM streaming.
 * fix: Don't record if encoder is not supported.
