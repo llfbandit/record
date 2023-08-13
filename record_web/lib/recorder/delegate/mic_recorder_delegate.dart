@@ -15,6 +15,8 @@ import 'package:record_web/recorder/recorder.dart';
 class MicRecorderDelegate extends RecorderDelegate {
   final OnStateChanged onStateChanged;
 
+  // Media stream get from getUserMedia
+  MediaStream? _mediaStream;
   AudioContext? _context;
   StreamController<Uint8List>? _streamController;
   Encoder? _encoder;
@@ -93,36 +95,28 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<String?> stop() async {
-    final context = _context;
-    if (context != null && context.state != AudioContextState.closed) {
-      await context.close();
-    }
-
-    onStateChanged(RecordState.stop);
+    await resetContext(_context, _mediaStream);
+    _mediaStream = null;
+    _context = null;
 
     final blob = _encoder?.finish();
     _encoder = null;
     _maxAmplitude = kMinAmplitude;
     _amplitude = kMinAmplitude;
 
+    onStateChanged(RecordState.stop);
+
     return blob != null ? Url.createObjectURL(blob) : null;
   }
 
   Future<void> _start(RecordConfig config, {bool isStream = false}) async {
-    final mediaDevices = window.navigator.mediaDevices;
+    final mediaStream = await initMediaStream(config);
 
-    final constraints = MediaStreamConstraints(
-      audio: config.device == null
-          ? true
-          : {
-              'deviceId': {'exact': config.device!.id}
-            },
-    );
+    final context = AudioContext(AudioContextOptions(
+      sampleRate: config.sampleRate.toDouble(),
+    ));
 
-    final context = AudioContext();
-    final microphone = await mediaDevices.getUserMedia(constraints);
-
-    final source = context.createMediaStreamSource(microphone);
+    final source = context.createMediaStreamSource(mediaStream);
 
     await context.audioWorklet.addModule(
       '/assets/packages/record_web/assets/js/record.worklet.js',
@@ -155,36 +149,24 @@ class MicRecorderDelegate extends RecorderDelegate {
     );
 
     _context = context;
+    _mediaStream = mediaStream;
 
     onStateChanged(RecordState.record);
   }
 
   void _onMessage(MessageEvent event) {
-    // `data` is a float 32 array containing audio samples
-    final output = _convertFloat32toInt16(event.data);
+    final output = event.data;
+
     _encoder?.encode(output);
     _updateAmplitude(output);
   }
 
   void _onMessageStream(MessageEvent event) {
-    // `data` is a float 32 array containing audio samples
-    final output = _convertFloat32toInt16(event.data);
+    final output = event.data;
 
     final data = ByteData.sublistView(output);
     _streamController?.add(data.buffer.asUint8List());
     _updateAmplitude(output);
-  }
-
-  Int16List _convertFloat32toInt16(Float32List data) {
-    final output = Int16List(data.length);
-
-    for (var i = 0; i < data.length; i++) {
-      var sample32 = data[i].clamp(-1.0, 1.0);
-
-      output[i] = (sample32 * 0x7fff).toInt();
-    }
-
-    return output;
   }
 
   void _updateAmplitude(Int16List data) {

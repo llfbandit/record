@@ -95,35 +95,10 @@ class MediaRecorderDelegate extends RecorderDelegate {
     _mediaRecorder?.stop();
     _reset();
 
-    final constraints = MediaStreamConstraints(
-      audio: config.device == null
-          ? true
-          : {
-              'deviceId': {'exact': config.device!.id}
-            },
-    );
-
     try {
-      _mediaStream = await window.navigator.mediaDevices.getUserMedia(
-        constraints,
-      );
-      if (_mediaStream != null) {
-        final audioTracks = _mediaStream!.getAudioTracks();
+      _mediaStream = await initMediaStream(config);
 
-        for (var track in audioTracks) {
-          track.applyConstraints(MediaTrackConstraints(
-            autoGainControl: config.autoGain,
-            echoCancellation: config.echoCancel,
-            noiseSuppression: config.noiseSuppress,
-            sampleRate: config.sampleRate.toDouble(),
-            channelCount: config.numChannels.toDouble(),
-          ));
-        }
-
-        _onStart(_mediaStream!, config);
-      } else {
-        debugPrint('Audio recording not supported.');
-      }
+      _onStart(_mediaStream!, config);
     } catch (error) {
       _onError(error);
     }
@@ -237,7 +212,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
     _onStopCompleter?.complete(audioUrl);
   }
 
-  void _reset() {
+  Future<void> _reset() async {
     _elapsedTime.stop();
     _elapsedTime.reset();
 
@@ -247,28 +222,12 @@ class MediaRecorderDelegate extends RecorderDelegate {
     _mediaRecorder = null;
     _maxAmplitude = kMinAmplitude;
 
-    final tracks = _mediaStream?.getTracks();
-
-    if (tracks != null) {
-      for (var track in tracks) {
-        track.stop();
-        _mediaStream?.removeTrack(track);
-      }
-
-      _mediaStream = null;
-    }
+    await resetContext(_audioCtx, _mediaStream);
+    _mediaStream = null;
+    _audioCtx = null;
+    _analyser = null;
 
     _chunks = [];
-
-    try {
-      if (_audioCtx != null && _audioCtx!.state != AudioContextState.closed) {
-        _audioCtx?.close();
-      }
-      _audioCtx = null;
-      _analyser = null;
-    } catch (e) {
-      debugPrint(e.toString());
-    }
 
     _recordStreamCtrl?.close();
     _recordStreamCtrl = null;
