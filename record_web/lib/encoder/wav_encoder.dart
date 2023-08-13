@@ -60,10 +60,10 @@ class WavEncoder implements Encoder {
 }
 
 extension ByteDataExt on ByteData {
-  void setString(offset, str) {
+  void setString(int offset, String str) {
     var len = str.length;
     for (var i = 0; i < len; ++i) {
-      setUint8(offset + i, str.charCodeAt(i));
+      setUint8(offset + i, str.codeUnitAt(i));
     }
   }
 }
