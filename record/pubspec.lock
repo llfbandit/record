@@ -5,18 +5,18 @@ packages:
     dependency: transitive
     description:
       name: characters
-      sha256: "04a925763edad70e8443c99234dc3328f442e811f1d8fd1a72f1c8ad0f69a605"
+      sha256: e6a326c8af69605aec75ed6c187d06b349707a27fbff8222ca9cc2cff167975c
       url: "https://pub.dev"
     source: hosted
-    version: "1.3.0"
+    version: "1.2.1"
   collection:
     dependency: transitive
     description:
       name: collection
-      sha256: "4a07be6cb69c84d677a6c3096fcf960cc3285a8330b4603e0d463d15d9bd934c"
+      sha256: cfc915e6923fe5ce6e153b0723c753045de46de1b4d63771530504004a45fae0
       url: "https://pub.dev"
     source: hosted
-    version: "1.17.1"
+    version: "1.17.0"
   crypto:
     dependency: transitive
     description:
@@ -38,27 +38,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.1"
-  flutter_web_plugins:
-    dependency: transitive
-    description: flutter
-    source: sdk
-    version: "0.0.0"
   js:
     dependency: transitive
     description:
       name: js
-      sha256: f2c445dce49627136094980615a031419f7f3eb393237e4ecd97ac15dea343f3
+      sha256: "5528c2f391ededb7775ec1daa69e65a2d61276f7552de2b5f7b8d34ee9fd4ab7"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.7"
+    version: "0.6.5"
   lints:
     dependency: transitive
     description:
       name: lints
-      sha256: "0a217c6c989d21039f1498c3ed9f3ed71b354e69873f13a8dfc3c9fe76f1b452"
+      sha256: "5e4a9cd06d447758280a8ac2405101e0e2094d2a1dbdd3756aec3fe7775ba593"
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.1"
+    version: "2.0.1"
   material_color_utilities:
     dependency: transitive
     description:
@@ -71,18 +66,10 @@ packages:
     dependency: transitive
     description:
       name: meta
-      sha256: "3c74dbf8763d36539f114c799d8a2d87343b5067e9d796ca22b5eb8437090ee3"
+      sha256: "6c268b42ed578a53088d834796959e4a1814b5e9e164f147f580a386e5decf42"
       url: "https://pub.dev"
     source: hosted
-    version: "1.9.1"
-  path:
-    dependency: transitive
-    description:
-      name: path
-      sha256: "8829d8a55c13fc0e37127c29fedf290c102f4e40ae94ada574091fe0ff96c917"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.8.3"
+    version: "1.8.0"
   plugin_platform_interface:
     dependency: transitive
     description:
@@ -91,30 +78,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
-  record_android:
-    dependency: "direct main"
-    description:
-      name: record_android
-      sha256: "82bdcfadc8a79495c9be31a89b9ddbe027100f03585018bebeb40c6ef60c3b3e"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0-beta.2"
-  record_darwin:
-    dependency: "direct main"
-    description:
-      name: record_darwin
-      sha256: f5ba70c349dc9804fd321ebe818fa15d1b54373e2e545a09b36672e8b449668a
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0-beta.2"
-  record_linux:
-    dependency: "direct main"
-    description:
-      name: record_linux
-      sha256: ace08e89532653eab05eec610dd47ee2692b5bf1221b3fed64f3dd6d8e13221e
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.0"
   record_platform_interface:
     dependency: "direct main"
     description:
@@ -123,22 +86,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
-  record_web:
-    dependency: "direct main"
-    description:
-      name: record_web
-      sha256: dc41afa33a2dc10790cf0ba117d9314749c65d482157029f3c8d3d86c5690e6b
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0-beta.2"
-  record_windows:
-    dependency: "direct main"
-    description:
-      name: record_windows
-      sha256: a842b5a87320f5bfffe4d68c227b3b79840f76ccc281aedf13b5c80d64ac838f
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0-beta.2"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -169,5 +116,5 @@ packages:
     source: hosted
     version: "2.1.4"
 sdks:
-  dart: ">=3.0.0 <4.0.0"
+  dart: ">=2.19.0 <3.0.0"
   flutter: ">=2.8.1"
