@@ -8,6 +8,8 @@ import 'package:record/record.dart';
 
 import 'package:record_example/audio_player.dart';
 
+// import 'dart:html' as html;
+
 void main() => runApp(const MyApp());
 
 class _AudioRecorder extends StatefulWidget {
@@ -48,7 +50,7 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   Future<void> _start() async {
     try {
       if (await _audioRecorder.hasPermission()) {
-        const encoder = AudioEncoder.aacLc;
+        const encoder = AudioEncoder.wav;
 
         // We don't do anything with this but printing
         final isSupported = await _audioRecorder.isEncoderSupported(
@@ -107,6 +109,20 @@ class _AudioRecorderState extends State<_AudioRecorder> {
     if (path != null) {
       widget.onStop(path);
     }
+
+    // Simple download code for web testing
+    // final anchor = html.document.createElement('a') as html.AnchorElement
+    //   ..href = path
+    //   ..style.display = 'none'
+    //   ..download = 'audio.wav';
+    // html.document.body!.children.add(anchor);
+
+    // // download
+    // anchor.click();
+
+    // // cleanup
+    // html.document.body!.children.remove(anchor);
+    // html.Url.revokeObjectUrl(path!);
   }
 
   Future<void> _pause() => _audioRecorder.pause();

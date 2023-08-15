@@ -12,7 +12,7 @@ environment:
 dependencies:
   path: ^1.8.0
   path_provider: ^2.0.1
-  audioplayers: ^4.1.0
+  audioplayers: ^5.1.0
 
   flutter:
     sdk: flutter
@@ -23,8 +23,8 @@ dependencies:
 # dependency_overrides:
 #   record_platform_interface:
 #     path: ../../record_platform_interface
-#   record_web:
-#     path: ../../record_web
+  # record_web:
+  #   path: ../../record_web
 #   record_windows:
 #     path: ../../record_windows
 #   record_linux:

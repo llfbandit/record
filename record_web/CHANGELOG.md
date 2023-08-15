@@ -1,3 +1,7 @@
+## 1.0.0-beta.2+2
+* fix: PCM/WAV recording.
+* feat: float 32 to int 16 conversion is now done in web audio thread.
+
 ## 1.0.0-beta.2+1
 * fix: PCM float 32 to int 16 conversion.
 * fix: Wrong call in WAV encorder to get char code.

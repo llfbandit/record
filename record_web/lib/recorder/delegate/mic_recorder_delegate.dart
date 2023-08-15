@@ -122,7 +122,11 @@ class MicRecorderDelegate extends RecorderDelegate {
       '/assets/packages/record_web/assets/js/record.worklet.js',
     );
 
-    final recorder = AudioWorkletNode(context, 'recorder.worklet');
+    final recorder = AudioWorkletNode(
+      context,
+      'recorder.worklet',
+      AudioWorkletNodeOptions(numberOfOutputs: config.numChannels),
+    );
     source.connect(recorder).connect(context.destination);
 
     if (!isStream) {
@@ -155,6 +159,7 @@ class MicRecorderDelegate extends RecorderDelegate {
   }
 
   void _onMessage(MessageEvent event) {
+    // `data` is a int 16 array containing audio samples
     final output = event.data;
 
     _encoder?.encode(output);
@@ -162,6 +167,7 @@ class MicRecorderDelegate extends RecorderDelegate {
   }
 
   void _onMessageStream(MessageEvent event) {
+    // `data` is a int 16 array containing audio samples
     final output = event.data;
 
     final data = ByteData.sublistView(output);
