@@ -33,11 +33,10 @@ class AudioRecorder {
     try {
       await RecordPlatform.instance.create(_recorderId);
 
-      _stateStreamSubscription =
-          RecordPlatform.instance.onStateChanged(_recorderId).listen(
-                _stateStreamCtrl.add,
-                onError: _stateStreamCtrl.addError,
-              );
+      _stateStreamSubscription = RecordPlatform.instance.onStateChanged(_recorderId).listen(
+            _stateStreamCtrl.add,
+            onError: _stateStreamCtrl.addError,
+          );
 
       _createCompleter.complete();
     } catch (e, stackTrace) {
@@ -162,6 +161,7 @@ class AudioRecorder {
     _amplitudeStreamCtrl?.close();
     _amplitudeTimer?.cancel();
     _stateStreamSubscription.cancel();
+    _amplitudeStreamCtrl = null;
 
     await RecordPlatform.instance.dispose(_recorderId);
 
@@ -202,7 +202,8 @@ class AudioRecorder {
     }
 
     if (await shouldUpdate()) {
-      _amplitudeStreamCtrl?.add(await getAmplitude());
+      final amplitude = await getAmplitude();
+      _amplitudeStreamCtrl?.add(amplitude);
     }
   }
 
