@@ -15,6 +15,7 @@ namespace record_windows
 		const std::string opus = std::string("opus");
 		const std::string flac = std::string("flac");
 		const std::string pcm16bits = std::string("pcm16bits");
+		const std::string wav = std::string("wav");
 	};
 
 	struct RecordConfig

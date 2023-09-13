@@ -260,7 +260,7 @@ namespace record_windows
 			hr = m_pWriter->Finalize();
 		}
 
-		if (m_pConfig && m_pConfig->encoderName == "wav") {
+		if (m_pConfig && m_pConfig->encoderName == AudioEncoder().wav) {
 			FillWavHeader();
 		}
 
@@ -504,7 +504,10 @@ namespace record_windows
 		else if (encoderName == AudioEncoder().amrWb) typeLookup.guidSubtype = MFAudioFormat_AMR_WB;
 		else if (encoderName == AudioEncoder().opus) typeLookup.guidSubtype = MFAudioFormat_Opus;
 		else if (encoderName == AudioEncoder().flac) typeLookup.guidSubtype = MFAudioFormat_FLAC;
-		else if (encoderName == AudioEncoder().pcm16bits) typeLookup.guidSubtype = MFAudioFormat_PCM;
+		else if (encoderName == AudioEncoder().pcm16bits || encoderName == AudioEncoder().wav) {
+			*supported = true;
+			return S_OK;
+		}
 		else {
 			*supported = false;
 			return S_OK;

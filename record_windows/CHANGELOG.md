@@ -1,3 +1,6 @@
+## 1.0.0-beta.2+1
+* fix: regression on WAV & PCM recording.
+
 ## 1.0.0-beta.2
 * chore: Cleanup/improve some code.
 
