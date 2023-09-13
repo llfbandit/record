@@ -24,12 +24,7 @@ namespace record_windows {
 	void ErrorFromHR(HRESULT hr, MethodResult<EncodableValue>& result)
 	{
 		_com_error err(hr);
-
-		std::wstring wstr(err.ErrorMessage());
-
-		int size = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-		std::string errorText = std::string(size, 0);
-		WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, &wstr[0], (int)wstr.size(), &errorText[0], size, NULL, NULL);
+		std::string errorText = Utf8FromUtf16(err.ErrorMessage());
 
 		result.Error("Record", "", EncodableValue(errorText));
 	}
