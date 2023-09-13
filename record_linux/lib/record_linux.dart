@@ -96,6 +96,17 @@ class RecordLinux extends RecordPlatform {
       throw Exception('${config.encoder} is not supported.');
     }
 
+    String numChannels;
+    if (config.numChannels == 6) {
+      numChannels = '5.1';
+    } else if (config.numChannels == 8) {
+      numChannels = '7.1';
+    } else if (config.numChannels == 1 || config.numChannels == 2) {
+      numChannels = config.numChannels.toString();
+    } else {
+      throw Exception('${config.numChannels} config is not supported.');
+    }
+
     await _callFMedia(
       [
         '--notui',
@@ -103,7 +114,7 @@ class RecordLinux extends RecordPlatform {
         '--record',
         '--out=$path',
         '--rate=${config.sampleRate}',
-        '--channels=${config.numChannels}',
+        '--channels=$numChannels',
         '--globcmd=listen',
         '--gain=6.0',
         if (config.device != null) '--dev-capture=${config.device!.id}',

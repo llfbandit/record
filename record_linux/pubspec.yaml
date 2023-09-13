@@ -1,6 +1,6 @@
 name: record_linux
 description: Linux specific implementation for record package called by record_platform_interface.
-version: 0.6.0
+version: 0.7.0
 homepage: https://github.com/llfbandit/record/tree/master/record_linux
 
 environment:
@@ -17,7 +17,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^2.0.0
+  flutter_lints: ^2.0.3
 
 # The following section is specific to Flutter.
 flutter:

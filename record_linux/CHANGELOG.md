@@ -1,3 +1,6 @@
+## 0.7.0
+* fix: Allow recording with 5.1 & 7.1 channels (respectively 6 & 8).
+
 ## 0.6.0
 * chore: Update platform interface.
 
