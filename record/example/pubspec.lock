@@ -259,12 +259,11 @@ packages:
     source: path
     version: "5.0.0-beta.2"
   record_android:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: record_android
-      sha256: "82bdcfadc8a79495c9be31a89b9ddbe027100f03585018bebeb40c6ef60c3b3e"
-      url: "https://pub.dev"
-    source: hosted
+      path: "../../record_android"
+      relative: true
+    source: path
     version: "1.0.0-beta.2"
   record_darwin:
     dependency: transitive
@@ -275,36 +274,32 @@ packages:
     source: hosted
     version: "1.0.0-beta.2"
   record_linux:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: record_linux
-      sha256: ace08e89532653eab05eec610dd47ee2692b5bf1221b3fed64f3dd6d8e13221e
-      url: "https://pub.dev"
-    source: hosted
+      path: "../../record_linux"
+      relative: true
+    source: path
     version: "0.6.0"
   record_platform_interface:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: record_platform_interface
-      sha256: c5034d04fb2066dedac6d6b4352a8943dda0190bb50432311c53ae9b6a1901b7
-      url: "https://pub.dev"
-    source: hosted
+      path: "../../record_platform_interface"
+      relative: true
+    source: path
     version: "1.0.1"
   record_web:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: record_web
-      sha256: "1547658b3c25818f44b8182cce30a93b900218900d9f825456142f7be50efe40"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0-beta.2+1"
+      path: "../../record_web"
+      relative: true
+    source: path
+    version: "1.0.0-beta.2+2"
   record_windows:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: record_windows
-      sha256: a842b5a87320f5bfffe4d68c227b3b79840f76ccc281aedf13b5c80d64ac838f
-      url: "https://pub.dev"
-    source: hosted
+      path: "../../record_windows"
+      relative: true
+    source: path
     version: "1.0.0-beta.2"
   sky_engine:
     dependency: transitive

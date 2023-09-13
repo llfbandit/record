@@ -20,20 +20,6 @@ dependencies:
   record_android: ^1.0.0-beta.2
   record_darwin: ^1.0.0-beta.2
 
-# dependency_overrides:
-#   record_platform_interface:
-#     path: ../record_platform_interface
-#   record_web:
-#     path: ../record_web
-#   record_windows:
-#     path: ../record_windows
-#   record_linux:
-#     path: ../record_linux
-#   record_android:
-#     path: ../record_android
-#   record_darwin:
-#     path: ../record_darwin
-
 dev_dependencies:
   # https://pub.dev/packages/flutter_lints
   flutter_lints: ^2.0.0

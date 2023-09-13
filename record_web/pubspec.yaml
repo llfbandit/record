@@ -17,10 +17,6 @@ dependencies:
   js: ^0.6.5
   record_platform_interface: ^1.0.1
 
-# dependency_overrides:
-#   record_platform_interface:
-#     path: ../record_platform_interface
-
 dev_dependencies:
   flutter_lints: ^2.0.0
 

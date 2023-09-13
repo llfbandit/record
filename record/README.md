@@ -99,7 +99,12 @@ record.dispose(); // As always, don't forget this one.
 <string>Some message to describe why you need this permission</string>
 ```
 
-- In capabilities, activate "Audio input" in debug AND release schemes
+- In capabilities, activate "Audio input" in debug AND release schemes.  
+- or directly in *.entitlements files
+```xml
+<key>com.apple.security.device.audio-input</key>
+<true/>
+```
 
 - min SDK: 10.15
 

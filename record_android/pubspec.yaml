@@ -13,10 +13,6 @@ dependencies:
 
   record_platform_interface: ^1.0.1
 
-# dependency_overrides:
-#   record_platform_interface:
-#     path: ../record_platform_interface
-
 flutter:
   plugin:
     implements: record
