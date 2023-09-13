@@ -33,10 +33,11 @@ class AudioRecorder {
     try {
       await RecordPlatform.instance.create(_recorderId);
 
-      _stateStreamSubscription = RecordPlatform.instance.onStateChanged(_recorderId).listen(
-            _stateStreamCtrl.add,
-            onError: _stateStreamCtrl.addError,
-          );
+      final stream = RecordPlatform.instance.onStateChanged(_recorderId);
+      _stateStreamSubscription = stream.listen(
+        _stateStreamCtrl.add,
+        onError: _stateStreamCtrl.addError,
+      );
 
       _createCompleter.complete();
     } catch (e, stackTrace) {

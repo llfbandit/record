@@ -1,3 +1,6 @@
+## 5.0.0-beta.3
+* fix: Adding events to amplitude stream after close
+
 ## 5.0.0-beta.2
 * chore: remove `pcm8bit`. Virtually still available since we have pcm 16 bits.
 * chore: throw exception when encoder is not supported.
