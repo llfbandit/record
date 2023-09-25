@@ -42,7 +42,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
   @override
   Future<void> dispose() async {
     await stop();
-    _reset();
+    return _reset();
   }
 
   @override
@@ -93,12 +93,37 @@ class MediaRecorderDelegate extends RecorderDelegate {
     required String path,
   }) async {
     _mediaRecorder?.stop();
-    _reset();
+    await _reset();
 
     try {
-      _mediaStream = await initMediaStream(config);
+      final (mediaStream, adjustedConfig) = await initMediaStream(config);
 
-      _onStart(_mediaStream!, config);
+      _mediaStream = mediaStream;
+
+      // Try to assign dedicated mime type.
+      // If contrainst isn't set, browser will record with its default codec.
+      final mimeType = getSupportedMimeType(adjustedConfig.encoder);
+
+      final mediaRecorder = MediaRecorder(
+        mediaStream,
+        MediaRecorderOptions(
+          audioBitsPerSecond: adjustedConfig.bitRate,
+          bitsPerSecond: adjustedConfig.bitRate,
+          mimeType: mimeType,
+        ),
+      );
+      mediaRecorder.ondataavailable = jsu.allowInterop(_onDataAvailable);
+      mediaRecorder.onstop = jsu.allowInterop(_onStop);
+
+      _elapsedTime.start();
+
+      mediaRecorder.start(200); // Will trigger dataavailable every 200ms
+
+      _createAudioContext(mediaStream);
+
+      _mediaRecorder = mediaRecorder;
+
+      onStateChanged(RecordState.record);
     } catch (error) {
       _onError(error);
     }
@@ -141,33 +166,6 @@ class MediaRecorderDelegate extends RecorderDelegate {
   bool _isRecording() {
     final state = _mediaRecorder?.state;
     return state == RecordingState.recording || state == RecordingState.paused;
-  }
-
-  void _onStart(MediaStream stream, RecordConfig config) {
-    // Try to assign dedicated mime type.
-    // If contrainst isn't set, browser will record with its default codec.
-    final mimeType = getSupportedMimeType(config.encoder);
-
-    final mediaRecorder = MediaRecorder(
-      stream,
-      MediaRecorderOptions(
-        audioBitsPerSecond: config.bitRate,
-        bitsPerSecond: config.bitRate,
-        mimeType: mimeType,
-      ),
-    );
-    mediaRecorder.ondataavailable = jsu.allowInterop(_onDataAvailable);
-    mediaRecorder.onstop = jsu.allowInterop(_onStop);
-
-    _elapsedTime.start();
-
-    mediaRecorder.start(200); // Will trigger dataavailable every 200ms
-
-    _createAudioContext(stream);
-
-    _mediaRecorder = mediaRecorder;
-
-    onStateChanged(RecordState.record);
   }
 
   void _onError(dynamic error) {

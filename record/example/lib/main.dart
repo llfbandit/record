@@ -117,10 +117,8 @@ class _AudioRecorderState extends State<_AudioRecorder> {
     //   ..download = 'audio.wav';
     // html.document.body!.children.add(anchor);
 
-    // // download
     // anchor.click();
 
-    // // cleanup
     // html.document.body!.children.remove(anchor);
     // html.Url.revokeObjectUrl(path!);
   }

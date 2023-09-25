@@ -1,6 +1,6 @@
 name: record_web
 description: Web specific implementation for record package called by record_platform_interface.
-version: 1.0.0-beta.2+2
+version: 1.0.0-beta.2+3
 homepage: https://github.com/llfbandit/record/tree/master/record_web
 
 environment:
@@ -18,7 +18,7 @@ dependencies:
   record_platform_interface: ^1.0.1
 
 dev_dependencies:
-  flutter_lints: ^2.0.0
+  flutter_lints: ^2.0.3
 
 flutter:
   plugin:

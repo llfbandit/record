@@ -1,3 +1,8 @@
+## 1.0.0-beta.2+3
+* fix: sample rate / num channels config mismatching.
+* fix: media stream not properly closed.
+* feat: try to limit config according to capabilities (Chrome/Edge OK, Firefox 117 not implemented).
+
 ## 1.0.0-beta.2+2
 * fix: PCM/WAV recording.
 * feat: float 32 to int 16 conversion is now done in web audio thread.
