@@ -56,6 +56,8 @@ class AudioRecorder {
     required String path,
   }) async {
     await _createCompleter.future;
+    _amplitudeTimer?.cancel();
+    _startAmplitudeTimer();
     return RecordPlatform.instance.start(_recorderId, config, path: path);
   }
 
@@ -185,9 +187,6 @@ class AudioRecorder {
     );
 
     _amplitudeTimerInterval = interval;
-
-    _amplitudeTimer?.cancel();
-    _startAmplitudeTimer();
 
     return _amplitudeStreamCtrl!.stream;
   }
