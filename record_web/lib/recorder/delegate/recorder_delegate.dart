@@ -108,7 +108,7 @@ abstract class RecorderDelegate {
           capabilities.sampleRate.max,
         ),
         numChannels: min(
-          max(config.sampleRate, capabilities.channelCount.min),
+          max(config.numChannels, capabilities.channelCount.min),
           capabilities.channelCount.max,
         ),
       );

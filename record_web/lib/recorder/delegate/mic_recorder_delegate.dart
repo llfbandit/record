@@ -159,7 +159,7 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   void _onMessage(MessageEvent event) {
     // `data` is a int 16 array containing audio samples
-    final output = event.data;
+    final Int16List output = event.data;
 
     _encoder?.encode(output);
     _updateAmplitude(output);
@@ -167,10 +167,9 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   void _onMessageStream(MessageEvent event) {
     // `data` is a int 16 array containing audio samples
-    final output = event.data;
+    final Int16List output = event.data;
 
-    final data = ByteData.sublistView(output);
-    _streamController?.add(data.buffer.asUint8List());
+    _streamController?.add(output.buffer.asUint8List());
     _updateAmplitude(output);
   }
 
