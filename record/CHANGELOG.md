@@ -1,3 +1,7 @@
+## 5.0.0-beta.3+1
+* fix: Amplitude timer is not restarted for subsequent recordings.
+* chore: Allow UUID v3 & V4.
+
 ## 5.0.0-beta.3
 * fix: Adding events to amplitude stream after close
 
