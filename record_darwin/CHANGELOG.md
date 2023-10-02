@@ -1,3 +1,7 @@
+## 1.0.0-beta.2+3
+* fix: stop method should return path only after completed recording.
+* fix: Send stream event on main thread.
+
 ## 1.0.0-beta.2+2
 * fix: PCM custom settings.
 * fix: PCM big endian missing key.
