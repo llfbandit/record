@@ -1,3 +1,7 @@
+## 1.0.0-beta.2+4
+* fix: num channels config adjustment.
+* fix: improve resource disposing.
+
 ## 1.0.0-beta.2+3
 * fix: sample rate / num channels config mismatching.
 * fix: media stream not properly closed.
