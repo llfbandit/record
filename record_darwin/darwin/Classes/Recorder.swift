@@ -39,11 +39,11 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
   }
   
   func dispose() {
-    stopRecording()
+    stopRecording(completionHandler: {(path) -> () in })
   }
   
   func start(config: RecordConfig, path: String) throws {
-    stopRecording()
+    stopRecording(completionHandler: {(path) -> () in })
     
     try deleteFile(path: path)
     
@@ -70,7 +70,7 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
   }
   
   func startStream(config: RecordConfig) throws {
-    stopRecording()
+    stopRecording(completionHandler: {(path) -> () in })
     
     if config.encoder != AudioEncoder.pcm16bits.rawValue {
       throw RecorderError.error(message: "Failed to start recording", details: "\(config.encoder) not supported in streaming mode.")
@@ -90,12 +90,8 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     }
   }
   
-  func stop() -> String? {
-    let path = m_path
-    
-    stopRecording()
-    
-    return path
+  func stop(completionHandler: @escaping (_ path: String?) -> ()) {
+    stopRecording(completionHandler: completionHandler)
   }
   
   func pause() {
@@ -148,17 +144,21 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     return amp
   }
 
-  private func stopRecording() {
+  private func stopRecording(completionHandler: @escaping (_ path: String?) -> ()) {
     m_writerInput?.markAsFinished()
 
     if let audioWriter = m_audioWriter {
+      let path = m_path
+
       audioWriter.finishWriting(completionHandler: { [weak self] in
         self?._reset()
         self?.updateState(RecordState.stop)
+        completionHandler(path)
       })
     } else {
       _reset()
       updateState(RecordState.stop)
+      completionHandler(nil)
     }
   }
 
@@ -299,7 +299,9 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     m_state = state
     
     if let eventSink = m_stateEventHandler.eventSink {
-      eventSink(state.rawValue)
+      DispatchQueue.main.async {
+        eventSink(state.rawValue)
+      }
     }
   }
   
@@ -337,7 +339,7 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     }
     guard let adjustedSampleBuffer = adjustedSampleBuffer else {
       print("An error occured when adjusting time for audio sample")
-      stopRecording()
+      stopRecording(completionHandler: {(path) -> () in })
       return
     }
     
@@ -402,11 +404,13 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
         }
 
         if !data.isEmpty {
-          eventSink(FlutterStandardTypedData(bytes: data))
+          DispatchQueue.main.async {
+            eventSink(FlutterStandardTypedData(bytes: data))
+          }
         }
       } catch {
         print(error)
-        _ = stop()
+        stop(completionHandler: {(path) -> () in })
       }
     } else {
       // Fallback on earlier versions
@@ -431,7 +435,9 @@ class Recorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
       let data = Data(bytesNoCopy: bufferData, count: Int(audioBufferList.mBuffers.mDataByteSize), deallocator: .none)
       
       if !data.isEmpty {
-        eventSink(FlutterStandardTypedData(bytes: data))
+        DispatchQueue.main.async {
+          eventSink(FlutterStandardTypedData(bytes: data))
+        }
       }
     }
   }

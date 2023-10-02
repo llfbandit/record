@@ -101,19 +101,22 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
         result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
       }
     case "stop":
-      let path = recorder.stop()
-      result(path)
-    case "cancel":
-      do {
-        if let path = recorder.stop() {
-          try recorder.deleteFile(path: path)
-        }
-        result(nil)
-      } catch RecorderError.error(let message, let details) {
-        result(FlutterError(code: "record", message: message, details: details))
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+      recorder.stop { path in
+        result(path)
       }
+    case "cancel":
+      recorder.stop(completionHandler: { path in
+        do {
+          if let path = path {
+            try recorder.deleteFile(path: path)
+          }
+          result(nil)
+        } catch RecorderError.error(let message, let details) {
+          result(FlutterError(code: "record", message: message, details: details))
+        } catch {
+          result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+        }
+      })
     case "pause":
       recorder.pause()
       result(nil)
