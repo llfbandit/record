@@ -18,7 +18,7 @@ class MicRecorderDelegate extends RecorderDelegate {
   // Media stream get from getUserMedia
   MediaStream? _mediaStream;
   AudioContext? _context;
-  StreamController<Uint8List>? _streamController;
+  StreamController<Uint8List>? _recordStreamCtrl;
   Encoder? _encoder;
   // Amplitude
   double _maxAmplitude = kMinAmplitude;
@@ -27,15 +27,7 @@ class MicRecorderDelegate extends RecorderDelegate {
   MicRecorderDelegate({required this.onStateChanged});
 
   @override
-  Future<void> dispose() async {
-    final context = _context;
-    if (context != null && context.state != AudioContextState.closed) {
-      await context.close();
-      _context = null;
-    }
-
-    return _streamController?.close();
-  }
+  Future<void> dispose() => _reset();
 
   @override
   Future<Amplitude> getAmplitude() async {
@@ -78,31 +70,28 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<Stream<Uint8List>> startStream(RecordConfig config) async {
-    await _streamController?.close();
+    await _recordStreamCtrl?.close();
     final streamController = StreamController<Uint8List>();
 
     try {
       await _start(config, isStream: true);
     } catch (_) {
-      streamController.close();
+      await streamController.close();
       rethrow;
     }
 
-    _streamController = streamController;
+    _recordStreamCtrl = streamController;
 
     return streamController.stream;
   }
 
   @override
   Future<String?> stop() async {
-    await resetContext(_context, _mediaStream);
-    _mediaStream = null;
-    _context = null;
+    await _reset(resetEncoder: false);
 
     final blob = _encoder?.finish();
+    _encoder?.cleanup();
     _encoder = null;
-    _maxAmplitude = kMinAmplitude;
-    _amplitude = kMinAmplitude;
 
     onStateChanged(RecordState.stop);
 
@@ -169,7 +158,7 @@ class MicRecorderDelegate extends RecorderDelegate {
     // `data` is a int 16 array containing audio samples
     final Int16List output = event.data;
 
-    _streamController?.add(output.buffer.asUint8List());
+    _recordStreamCtrl?.add(output.buffer.asUint8List());
     _updateAmplitude(output);
   }
 
@@ -188,5 +177,22 @@ class MicRecorderDelegate extends RecorderDelegate {
     if (_amplitude > _maxAmplitude) {
       _maxAmplitude = _amplitude;
     }
+  }
+
+  Future<void> _reset({bool resetEncoder = true}) async {
+    await resetContext(_context, _mediaStream);
+    _mediaStream = null;
+    _context = null;
+
+    if (resetEncoder) {
+      _encoder?.cleanup();
+      _encoder = null;
+    }
+
+    _maxAmplitude = kMinAmplitude;
+    _amplitude = kMinAmplitude;
+
+    _recordStreamCtrl?.close();
+    _recordStreamCtrl = null;
   }
 }
