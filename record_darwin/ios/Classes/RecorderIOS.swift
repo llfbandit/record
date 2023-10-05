@@ -56,7 +56,7 @@ extension Recorder {
         if options.contains(.shouldResume) {
           resume()
         } else {
-          _ = stop()
+          stop(completionHandler: {(path) -> () in })
         }
       }
     }

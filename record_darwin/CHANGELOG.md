@@ -1,3 +1,6 @@
+## 1.0.0-beta.2+4
+* fix: reflect stop changes on iOS code.
+
 ## 1.0.0-beta.2+3
 * fix: stop method should return path only after completed recording.
 * fix: Send stream event on main thread.
