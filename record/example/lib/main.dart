@@ -50,19 +50,19 @@ class _AudioRecorderState extends State<_AudioRecorder> {
   Future<void> _start() async {
     try {
       if (await _audioRecorder.hasPermission()) {
-        const encoder = AudioEncoder.aacLc;
-
-        // We don't do anything with this but printing
-        final isSupported = await _audioRecorder.isEncoderSupported(
-          encoder,
-        );
-
-        debugPrint('${encoder.name} supported: $isSupported');
+        // Test which encoders are available
+        late final AudioEncoder encoder;
+        for(final e in AudioEncoder.values) {
+          if (await _audioRecorder.isEncoderSupported(e)) {
+            encoder = e;
+            break;
+          }
+        }
 
         final devs = await _audioRecorder.listInputDevices();
         debugPrint(devs.toString());
 
-        const config = RecordConfig(encoder: encoder, numChannels: 1);
+        final config = RecordConfig(encoder: encoder, numChannels: 1);
 
         // Record to file
         String path;
