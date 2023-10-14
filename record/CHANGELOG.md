@@ -1,3 +1,6 @@
+## 5.0.1
+* fix: close state stream controller on dispose.
+
 ## 5.0.0
 * Chore:
     * Massively reworked platform implementations.

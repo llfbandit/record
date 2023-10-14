@@ -164,10 +164,12 @@ class AudioRecorder {
 
   /// Dispose the recorder
   Future<void> dispose() async {
-    _amplitudeStreamCtrl?.close();
     _amplitudeTimer?.cancel();
-    _stateStreamSubscription.cancel();
+    _amplitudeStreamCtrl?.close();
     _amplitudeStreamCtrl = null;
+
+    _stateStreamSubscription.cancel();
+    _stateStreamCtrl.close();
 
     await RecordPlatform.instance.dispose(_recorderId);
 
