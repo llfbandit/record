@@ -1,3 +1,6 @@
+## 1.0.0
+* chore: Initial stable release.
+
 ## 1.0.0-beta.2+4
 * fix: reflect stop changes on iOS code.
 

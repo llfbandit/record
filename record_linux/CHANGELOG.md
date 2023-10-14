@@ -1,3 +1,6 @@
+## 0.7.1
+* chore: Remove channels & sample rates on InputDevice.
+
 ## 0.7.0
 * fix: Allow recording with 5.1 & 7.1 channels (respectively 6 & 8).
 

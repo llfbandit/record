@@ -1,3 +1,6 @@
+## 1.0.0
+* chore: Initial stable release.
+
 ## 1.0.0-beta.2
 * chore: Cleanup/improve some code.
 
@@ -5,4 +8,4 @@
 * fix: PassthroughEncoder does not check if the container is configured with stream behaviour.
 
 ## 1.0.0-beta.1
-* core: Initial release
+* chore: Initial release

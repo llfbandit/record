@@ -1,3 +1,6 @@
+## 1.0.0
+* chore: Initial stable release.
+
 ## 1.0.0-beta.2+1
 * fix: regression on WAV & PCM recording.
 * fix: UTF-16 to UTF-8 could fail.

@@ -2,9 +2,9 @@ Audio recorder from microphone to a given file path or stream.
 
 No external dependencies:
 
-- On Android, AudioRecord is used.
-- On iOS and macOS, AVFoundation is used.
-- On Windows, MediaFoundation is used.
+- On Android, AudioRecord and MediaCodec.
+- On iOS and macOS, AVFoundation.
+- On Windows, MediaFoundation.
 - On web, well... your browser! (and its underlying platform).
 
 External dependencies:
@@ -21,6 +21,8 @@ External dependencies:
 | auto gain        | ✔️            |(always active?)| ✔️      |            |       |  
 | echo cancel      | ✔️            |                 | ✔️      |            |       |  
 | noise suppresion | ✔️            |                 | ✔️      |            |       |  
+
+Bluetooth is not supported on Android at this time.
 
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
@@ -50,9 +52,6 @@ but are not available in current (and tested) browsers (Chrome / Firefox).
 
 __All audio output is with 16bits depth.__
 
-With every encoders, you should be really careful with given sample/bit rates.  
-For example, Opus can't be recorded at 44100Hz.
-
 ## Usage
 
 ```dart
@@ -76,15 +75,15 @@ await record.cancel();
 record.dispose(); // As always, don't forget this one.
 ```
 
-## Others
+## Setup, permissions and others
 
 ### Android
 ```xml
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
 ```
-* [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
+- min SDK: 21 (amrNb/amrWb: 26, Opus: 29)
 
-- min SDK: 21 (may be higher depending of the chosen encoder)
+* [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
 
 ### iOS
 ```xml
@@ -107,10 +106,3 @@ record.dispose(); // As always, don't forget this one.
 ```
 
 - min SDK: 10.15
-
-## Roadmap
-- Better linux support with "native" framework/library (can someone help?).
-- Gain value in config.
-- Fill parity matrix where applicable.
-- AAC / ADTS streaming on more platforms.
-- Bug fixes.
