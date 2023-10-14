@@ -1,3 +1,6 @@
+## 1.0.2
+* chore: Update InputDevice.
+
 ## 1.0.1
 * chore: Remove `pcm8bit`.
 * chore: Rename `pcm16bit` to `pcm16bits`.

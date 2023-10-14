@@ -311,29 +311,29 @@ class RecordLinux extends RecordPlatform {
       label = label.substring(0, index);
     }
 
-    int? channels;
-    int? sampleRate;
-    if (secondLine != null) {
-      final match = RegExp(
-        r'(?:.*Default Format: )(\d+) channel, (\d+) Hz',
-      ).firstMatch(secondLine);
+    // int? channels;
+    // int? sampleRate;
+    // if (secondLine != null) {
+    //   final match = RegExp(
+    //     r'(?:.*Default Format: )(\d+) channel, (\d+) Hz',
+    //   ).firstMatch(secondLine);
 
-      if (match != null && match.groupCount == 2) {
-        // Number of channels
-        final channelsStr = match.group(1);
-        channels = channelsStr != null ? int.tryParse(channelsStr) : null;
+    //   if (match != null && match.groupCount == 2) {
+    //     // Number of channels
+    //     final channelsStr = match.group(1);
+    //     channels = channelsStr != null ? int.tryParse(channelsStr) : null;
 
-        // Sampling rate
-        final samplingStr = match.group(2);
-        sampleRate = samplingStr != null ? int.tryParse(samplingStr) : null;
-      }
-    }
+    //     // Sampling rate
+    //     final samplingStr = match.group(2);
+    //     sampleRate = samplingStr != null ? int.tryParse(samplingStr) : null;
+    //   }
+    // }
 
     return InputDevice(
       id: id,
       label: label,
-      channels: channels,
-      sampleRate: sampleRate,
+      // channels: channels,
+      // sampleRate: sampleRate,
     );
   }
 
