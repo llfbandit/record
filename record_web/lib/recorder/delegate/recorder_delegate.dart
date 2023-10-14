@@ -1,9 +1,6 @@
-import 'dart:math';
-
 import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:record_web/js/js_interop/audio_context.dart';
-import 'package:record_web/js/js_interop/core.dart';
 
 typedef OnStateChanged = void Function(RecordState state);
 
@@ -26,7 +23,7 @@ abstract class RecorderDelegate {
 
   Future<String?> stop();
 
-  Future<(MediaStream, RecordConfig)> initMediaStream(
+  Future<MediaStream> initMediaStream(
     RecordConfig config,
   ) async {
     final constraints = MediaStreamConstraints(
@@ -42,21 +39,17 @@ abstract class RecorderDelegate {
     );
     final audioTracks = mediaStream.getAudioTracks();
 
-    var adjustedConfig = config;
-
     for (var track in audioTracks) {
-      adjustedConfig = _adjustConfig(track, config);
-
       track.applyConstraints(MediaTrackConstraints(
-        autoGainControl: adjustedConfig.autoGain,
-        echoCancellation: adjustedConfig.echoCancel,
-        noiseSuppression: adjustedConfig.noiseSuppress,
-        sampleRate: adjustedConfig.sampleRate.toDouble(),
-        channelCount: adjustedConfig.numChannels.toDouble(),
+        autoGainControl: config.autoGain,
+        echoCancellation: config.echoCancel,
+        noiseSuppression: config.noiseSuppress,
+        sampleRate: config.sampleRate.toDouble(),
+        channelCount: config.numChannels.toDouble(),
       ));
     }
 
-    return (mediaStream, adjustedConfig);
+    return mediaStream;
   }
 
   Future<void> resetContext(
@@ -84,38 +77,5 @@ abstract class RecorderDelegate {
         debugPrint(e.toString());
       }
     }
-  }
-
-  RecordConfig _adjustConfig(MediaStreamTrack track, RecordConfig config) {
-    try {
-      final capabilities = track.getCapabilities();
-
-      return RecordConfig(
-        bitRate: config.bitRate,
-        device: config.device,
-        encoder: config.encoder,
-        autoGain: config.autoGain
-            ? capabilities.autoGainControl.any((e) => e == true)
-            : false,
-        echoCancel: config.echoCancel
-            ? capabilities.echoCancellation.any((e) => e == true)
-            : false,
-        noiseSuppress: config.noiseSuppress
-            ? capabilities.noiseSuppression.any((e) => e == true)
-            : false,
-        sampleRate: min(
-          max(config.sampleRate, capabilities.sampleRate.min),
-          capabilities.sampleRate.max,
-        ),
-        numChannels: min(
-          max(config.numChannels, capabilities.channelCount.min),
-          capabilities.channelCount.max,
-        ),
-      );
-    } catch (error) {
-      debugPrint('getCapabilities error:\n$error');
-    }
-
-    return config;
   }
 }

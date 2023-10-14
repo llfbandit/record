@@ -99,10 +99,12 @@ class MicRecorderDelegate extends RecorderDelegate {
   }
 
   Future<void> _start(RecordConfig config, {bool isStream = false}) async {
-    final (mediaStream, adjustedConfig) = await initMediaStream(config);
+    final mediaStream = await initMediaStream(config);
     _mediaStream = mediaStream;
 
-    final context = AudioContext();
+    final context = AudioContext(
+      AudioContextOptions(sampleRate: config.sampleRate.toDouble()),
+    );
 
     final source = context.createMediaStreamSource(mediaStream);
 
@@ -113,19 +115,19 @@ class MicRecorderDelegate extends RecorderDelegate {
     final recorder = AudioWorkletNode(
       context,
       'recorder.worklet',
-      AudioWorkletNodeOptions(numberOfOutputs: adjustedConfig.numChannels),
+      AudioWorkletNodeOptions(numberOfOutputs: config.numChannels),
     );
     source.connect(recorder).connect(context.destination);
 
     if (!isStream) {
       _encoder?.cleanup();
 
-      if (adjustedConfig.encoder == AudioEncoder.wav) {
+      if (config.encoder == AudioEncoder.wav) {
         _encoder = WavEncoder(
-          sampleRate: adjustedConfig.sampleRate,
-          numChannels: adjustedConfig.numChannels,
+          sampleRate: config.sampleRate,
+          numChannels: config.numChannels,
         );
-      } else if (adjustedConfig.encoder == AudioEncoder.pcm16bits) {
+      } else if (config.encoder == AudioEncoder.pcm16bits) {
         _encoder = PcmEncoder();
       }
     }

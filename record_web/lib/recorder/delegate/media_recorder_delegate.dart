@@ -96,19 +96,17 @@ class MediaRecorderDelegate extends RecorderDelegate {
     await _reset();
 
     try {
-      final (mediaStream, adjustedConfig) = await initMediaStream(config);
-
-      _mediaStream = mediaStream;
+      final mediaStream = await initMediaStream(config);
 
       // Try to assign dedicated mime type.
       // If contrainst isn't set, browser will record with its default codec.
-      final mimeType = getSupportedMimeType(adjustedConfig.encoder);
+      final mimeType = getSupportedMimeType(config.encoder);
 
       final mediaRecorder = MediaRecorder(
         mediaStream,
         MediaRecorderOptions(
-          audioBitsPerSecond: adjustedConfig.bitRate,
-          bitsPerSecond: adjustedConfig.bitRate,
+          audioBitsPerSecond: config.bitRate,
+          bitsPerSecond: config.bitRate,
           mimeType: mimeType,
         ),
       );
@@ -119,9 +117,10 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
       mediaRecorder.start(200); // Will trigger dataavailable every 200ms
 
-      _createAudioContext(mediaStream);
+      _createAudioContext(config, mediaStream);
 
       _mediaRecorder = mediaRecorder;
+      _mediaStream = mediaStream;
 
       onStateChanged(RecordState.record);
     } catch (error) {
@@ -231,8 +230,11 @@ class MediaRecorderDelegate extends RecorderDelegate {
     _recordStreamCtrl = null;
   }
 
-  void _createAudioContext(MediaStream stream) {
-    final audioCtx = AudioContext();
+  void _createAudioContext(RecordConfig config, MediaStream stream) {
+    final audioCtx = AudioContext(
+      AudioContextOptions(sampleRate: config.sampleRate.toDouble()),
+    );
+
     final source = audioCtx.createMediaStreamSource(stream);
 
     final analyser = audioCtx.createAnalyser();
