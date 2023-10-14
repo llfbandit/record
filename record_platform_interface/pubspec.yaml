@@ -4,7 +4,8 @@ homepage: https://github.com/llfbandit/record/tree/master/record_platform_interf
 version: 1.0.1
 
 environment:
-  sdk: ">=2.15.1 <4.0.0"
+  sdk: ">=2.17.0 <4.0.0"
+  flutter: ">=3.0.0"
 
 dependencies:
   flutter:
