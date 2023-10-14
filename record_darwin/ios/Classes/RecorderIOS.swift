@@ -7,7 +7,7 @@ extension Recorder {
     let options: AVAudioSession.CategoryOptions = [.allowBluetooth]
     
     do {
-      try audioSession.setCategory(.record, options: options)
+      try audioSession.setCategory(.playAndRecord, options: options)
     } catch {
       throw RecorderError.error(message: "Failed to start recording", details: "setCategory: \(error.localizedDescription)")
     }
