@@ -1,3 +1,9 @@
+## 1.0.2
+* chore: Allow AGP 8 and beyond while being backward compatible with older AGP versions.
+
+## 1.0.1
+* chore: Allow AGP 8 and beyond while being backward compatible with older AGP versions.
+
 ## 1.0.0
 * chore: Initial stable release.
 
