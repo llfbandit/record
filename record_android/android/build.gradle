@@ -28,6 +28,10 @@ apply plugin: 'kotlin-android'
 apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
+    if (project.android.hasProperty('namespace')) {
+        namespace 'com.llfbandit.record'
+    }
+    
     compileSdkVersion 33
 
     compileOptions {
