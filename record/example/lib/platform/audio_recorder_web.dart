@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:record/record.dart';
 
 mixin AudioRecorderMixin {
-  Future<void> recordFile(AudioRecorder recorder, RecordConfig config) {
+  Future<void> recordFile(AudioRecorder recorder, RecordConfig config, {String? path}) {
     return recorder.start(config, path: '');
   }
 
