@@ -180,6 +180,6 @@ class PCMReader(
             }
         }
 
-        return 20 * log10(maxSample / 32767.0) // 16 signed bits 2^15 - 1
+        return maxSample//20 * log10(maxSample / 32767.0) // 16 signed bits 2^15 - 1
     }
 }
