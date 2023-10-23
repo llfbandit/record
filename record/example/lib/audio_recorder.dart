@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:external_path/external_path.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:record/record.dart';
 
 import 'platform/audio_recorder_platform.dart';
@@ -57,9 +59,13 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
         debugPrint(devs.toString());
 
         const config = RecordConfig(encoder: encoder);
-
+        String path = "" ;
+        DateTime now = DateTime.now();
+        path = await ExternalPath.getExternalStoragePublicDirectory(
+            ExternalPath.DIRECTORY_DOWNLOADS);
+        String fullPath = "$path/"+DateFormat("dd-MM-yyyy HHmm").format(now)+".wav";
         // Record to file
-        await recordFile(_audioRecorder, config);
+        await recordFile(_audioRecorder, config, path: fullPath);
 
         // Record to stream
         // await recordStream(_audioRecorder, config);

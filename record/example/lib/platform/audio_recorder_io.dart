@@ -6,8 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 mixin AudioRecorderMixin {
-  Future<void> recordFile(AudioRecorder recorder, RecordConfig config) async {
-    final path = await _getPath();
+  Future<void> recordFile(AudioRecorder recorder, RecordConfig config, {String? path}) async {
+    path ??= await _getPath();
 
     await recorder.start(config, path: path);
   }
