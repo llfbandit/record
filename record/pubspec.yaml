@@ -18,9 +18,13 @@ dependencies:
   record_windows: ^1.0.0
   record_linux: '>=0.5.0 <1.0.0'
   record_android:
-    path: ../record_android/
+    git:
+      url: https://github.com/rezins/record.5.0.1.git
+      path: record_android
   record_darwin:
-    path: ../record_darwin/
+    git:
+      url: https://github.com/rezins/record.5.0.1.git
+      path: record_darwin
 
 dev_dependencies:
   # https://pub.dev/packages/flutter_lints
