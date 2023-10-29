@@ -1,3 +1,7 @@
+## 1.0.3
+* fix: Stop method returns before recording being actually finished.
+* fix: Changing config is not taken into account when reusing same instance.
+
 ## 1.0.2
 * chore: Allow AGP 8 and beyond while being backward compatible with older AGP versions.
 

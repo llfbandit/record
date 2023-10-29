@@ -15,7 +15,6 @@ internal class RecorderWrapper(recorderId: String, messenger: BinaryMessenger) {
     private var eventRecordChannel: EventChannel?
     private val recorderRecordStreamHandler = RecorderRecordStreamHandler()
     private var recorder: AudioRecorder? = null
-    private var config: RecordConfig? = null
 
     init {
         eventChannel = EventChannel(messenger, EVENTS_STATE_CHANNEL + recorderId)
@@ -92,8 +91,11 @@ internal class RecorderWrapper(recorderId: String, messenger: BinaryMessenger) {
 
     fun stop(result: MethodChannel.Result) {
         try {
-            recorder?.stop()
-            result.success(config?.path)
+            if (recorder == null) {
+                result.success(null)
+            } else {
+                recorder?.stop(fun(path) = result.success(path))
+            }
         } catch (e: Exception) {
             result.error("record", e.message, e.cause)
         }
@@ -109,27 +111,30 @@ internal class RecorderWrapper(recorderId: String, messenger: BinaryMessenger) {
     }
 
     private fun startRecording(config: RecordConfig, result: MethodChannel.Result) {
-        this.config = config
-
         try {
             if (recorder == null) {
-                recorder = createRecorder(config)
+                recorder = createRecorder()
+                start(config, result)
             } else if (recorder!!.isRecording) {
-                recorder!!.stop()
+                recorder!!.stop(fun(_) = start(config, result))
+            } else {
+                start(config, result)
             }
-            recorder!!.start()
-            result.success(null)
         } catch (e: Exception) {
             result.error("record", e.message, e.cause)
         }
     }
 
-    private fun createRecorder(config: RecordConfig): AudioRecorder {
+    private fun createRecorder(): AudioRecorder {
         return AudioRecorder(
-            config,
             recorderStateStreamHandler,
             recorderRecordStreamHandler
         )
+    }
+
+    private fun start(config: RecordConfig, result: MethodChannel.Result) {
+        recorder!!.start(config)
+        result.success(null)
     }
 
     companion object {
