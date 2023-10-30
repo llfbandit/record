@@ -1,3 +1,6 @@
+## 1.0.1
+* fix: Firefox, does not provide resampling feature (see README.md).
+
 ## 1.0.0
 * chore: Initial stable release.
 

@@ -40,7 +40,7 @@ abstract class RecorderDelegate {
     final audioTracks = mediaStream.getAudioTracks();
 
     for (var track in audioTracks) {
-      track.applyConstraints(MediaTrackConstraints(
+      await track.applyConstraints(MediaTrackConstraints(
         autoGainControl: config.autoGain,
         echoCancellation: config.echoCancel,
         noiseSuppression: config.noiseSuppress,

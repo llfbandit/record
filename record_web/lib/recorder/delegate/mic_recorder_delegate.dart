@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:js_util' as jsu;
 import 'dart:math';
 import 'dart:typed_data';
-import 'dart:js_util' as jsu;
 
+import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:record_web/encoder/encoder.dart';
 import 'package:record_web/encoder/pcm_encoder.dart';
@@ -102,9 +103,15 @@ class MicRecorderDelegate extends RecorderDelegate {
     final mediaStream = await initMediaStream(config);
     _mediaStream = mediaStream;
 
+    final constraints = mediaStream.getTracks()[0].getConstraints();
+    bool sampleRateSupported = (constraints.sampleRate != null);
+
     final context = AudioContext(
-      AudioContextOptions(sampleRate: config.sampleRate.toDouble()),
+      sampleRateSupported
+          ? AudioContextOptions(sampleRate: config.sampleRate.toDouble())
+          : null,
     );
+    _debugInfo(context, constraints);
 
     final source = context.createMediaStreamSource(mediaStream);
 
@@ -124,7 +131,7 @@ class MicRecorderDelegate extends RecorderDelegate {
 
       if (config.encoder == AudioEncoder.wav) {
         _encoder = WavEncoder(
-          sampleRate: config.sampleRate,
+          sampleRate: context.sampleRate.toInt(),
           numChannels: config.numChannels,
         );
       } else if (config.encoder == AudioEncoder.pcm16bits) {
@@ -196,5 +203,18 @@ class MicRecorderDelegate extends RecorderDelegate {
 
     _recordStreamCtrl?.close();
     _recordStreamCtrl = null;
+  }
+
+  void _debugInfo(AudioContext context, MediaTrackConstraints constraints) {
+    if (kDebugMode) {
+      bool sampleRateSupported = (constraints.sampleRate != null);
+
+      if (!sampleRateSupported) {
+        debugPrint(
+          'sampleRate is not supported on this browser. Fixed at ${context.sampleRate}Hz.\n'
+          'https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints/sampleRate',
+        );
+      }
+    }
   }
 }
