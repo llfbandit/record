@@ -1,3 +1,6 @@
+## 1.0.2
+* feat: Add acceptable resampling (up and down) feature for browsers that don't support it natively.
+
 ## 1.0.1
 * fix: Firefox, does not provide resampling feature (see README.md).
 

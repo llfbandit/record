@@ -3,7 +3,6 @@ import 'dart:js_util' as jsu;
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:record_web/encoder/encoder.dart';
 import 'package:record_web/encoder/pcm_encoder.dart';
@@ -111,7 +110,6 @@ class MicRecorderDelegate extends RecorderDelegate {
           ? AudioContextOptions(sampleRate: config.sampleRate.toDouble())
           : null,
     );
-    _debugInfo(context, constraints);
 
     final source = context.createMediaStreamSource(mediaStream);
 
@@ -122,7 +120,12 @@ class MicRecorderDelegate extends RecorderDelegate {
     final recorder = AudioWorkletNode(
       context,
       'recorder.worklet',
-      AudioWorkletNodeOptions(numberOfOutputs: config.numChannels),
+      AudioWorkletNodeOptions(
+        parameterData: jsu.jsify({
+          'numChannels': config.numChannels,
+          'sampleRate': config.sampleRate,
+        }),
+      ),
     );
     source.connect(recorder).connect(context.destination);
 
@@ -131,7 +134,7 @@ class MicRecorderDelegate extends RecorderDelegate {
 
       if (config.encoder == AudioEncoder.wav) {
         _encoder = WavEncoder(
-          sampleRate: context.sampleRate.toInt(),
+          sampleRate: config.sampleRate,
           numChannels: config.numChannels,
         );
       } else if (config.encoder == AudioEncoder.pcm16bits) {
@@ -203,18 +206,5 @@ class MicRecorderDelegate extends RecorderDelegate {
 
     _recordStreamCtrl?.close();
     _recordStreamCtrl = null;
-  }
-
-  void _debugInfo(AudioContext context, MediaTrackConstraints constraints) {
-    if (kDebugMode) {
-      bool sampleRateSupported = (constraints.sampleRate != null);
-
-      if (!sampleRateSupported) {
-        debugPrint(
-          'sampleRate is not supported on this browser. Fixed at ${context.sampleRate}Hz.\n'
-          'https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints/sampleRate',
-        );
-      }
-    }
   }
 }
