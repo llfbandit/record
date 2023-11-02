@@ -75,7 +75,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
     const input = inputs[0]
 
-    if (input.length != this._numChannels) {
+    if (input.length == 0) {
       // Sometimes, Firefox doesn't give any input. Skip this frame to not fail.
       return true
     }

@@ -1,3 +1,6 @@
+## 1.0.3
+* fix: Regression on chrome based browsers when numChannels don't match size of inputs.
+
 ## 1.0.2
 * feat: Add acceptable resampling (up and down) feature for browsers that don't support it natively.
 
