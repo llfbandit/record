@@ -105,24 +105,22 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
         result(path)
       }
     case "cancel":
-      recorder.stop(completionHandler: { path in
-        do {
-          if let path = path {
-            try recorder.deleteFile(path: path)
-          }
-          result(nil)
-        } catch RecorderError.error(let message, let details) {
-          result(FlutterError(code: "record", message: message, details: details))
-        } catch {
-          result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
-        }
-      })
+      do {
+        try recorder.cancel()
+        result(nil)
+      } catch {
+        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+      }
     case "pause":
       recorder.pause()
       result(nil)
     case "resume":
-      recorder.resume()
-      result(nil)
+      do {
+        try recorder.resume()
+        result(nil)
+      } catch {
+        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+      }
     case "isPaused":
       let isPaused = recorder.isPaused()
       result(isPaused)
@@ -143,13 +141,12 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       
       result(recorder.isEncoderSupported(encoder))
     case "listInputDevices":
-      let devs = recorder.listInputDevices().map { (device) -> [String : Any] in
-        return [
-          "id": device.uniqueID,
-          "label": device.localizedName,
-        ]
+      do {
+        let devices = try recorder.listInputDevices()
+        result(devices.map({ dev in dev.toMap() }))
+      } catch {
+        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
       }
-      result(devs)
     case "dispose":
       m_recorders.removeValue(forKey: recorderId)
       recorder.dispose()
@@ -158,7 +155,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       result(FlutterMethodNotImplemented)
     }
   }
-  
+
   private func hasPermission(_ result: @escaping FlutterResult) {
     switch AVCaptureDevice.authorizationStatus(for: .audio) {
     case .authorized:
@@ -183,12 +180,17 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       return nil
     }
     
+    var device: Device? = nil
+    if let deviceMap = args["device"] as? [String : Any] {
+      device = Device(map: deviceMap)
+    }
+    
     let config = RecordConfig(
       encoder: encoder,
       bitRate: args["bitRate"] as? Int ?? 128000,
       sampleRate: args["sampleRate"] as? Int ?? 44100,
       numChannels: args["numChannels"] as? Int ?? 2,
-      device: args["device"] as? [String : Any],
+      device: device,
       autoGain: args["autoGain"] as? Bool ?? false,
       echoCancel: args["echoCancel"] as? Bool ?? false,
       noiseSuppress: args["noiseSuppress"] as? Bool ?? false
@@ -219,7 +221,7 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
   }
 }
 
-class StateStreamHandler: NSObject, FlutterStreamHandler {
+public class StateStreamHandler: NSObject, FlutterStreamHandler {
   var eventSink: FlutterEventSink?
   
   public func onListen(
@@ -236,7 +238,7 @@ class StateStreamHandler: NSObject, FlutterStreamHandler {
   }
 }
 
-class RecordStreamHandler: NSObject, FlutterStreamHandler {
+public class RecordStreamHandler: NSObject, FlutterStreamHandler {
   var eventSink: FlutterEventSink?
   
   public func onListen(

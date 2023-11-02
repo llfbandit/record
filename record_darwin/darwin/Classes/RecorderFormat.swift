@@ -1,19 +1,6 @@
 import AVFoundation
 
-extension Recorder {
-  func isEncoderSupported(_ encoder: String) -> Bool {
-    switch(encoder) {
-    case AudioEncoder.aacLc.rawValue,
-      AudioEncoder.aacEld.rawValue, /*"aacHe", "amrNb", "amrWb", "opus",*/
-      AudioEncoder.flac.rawValue,
-      AudioEncoder.pcm16bits.rawValue,
-      AudioEncoder.wav.rawValue:
-      return true
-    default:
-      return false
-    }
-  }
-
+extension AudioRecordingDelegate {
   func getFileTypeFromSettings(_ settings: [String : Any]) -> AVFileType {
     let formatId = settings[AVFormatIDKey] as! UInt32
     
@@ -34,7 +21,7 @@ extension Recorder {
       channels: UInt32((config.numChannels > 2) ? 2 : config.numChannels),
       interleaved: false
     )
-    
+
     return format!.settings
   }
 
@@ -50,7 +37,7 @@ extension Recorder {
         AVEncoderBitRateKey: config.bitRate,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
-        //AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
     case AudioEncoder.aacEld.rawValue:
       settings = [
@@ -58,7 +45,7 @@ extension Recorder {
         AVEncoderBitRateKey: config.bitRate,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
-        //AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
     case AudioEncoder.aacHe.rawValue:
       settings = [
@@ -66,7 +53,7 @@ extension Recorder {
         AVEncoderBitRateKey: config.bitRate,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
-        //AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
     case AudioEncoder.amrNb.rawValue:
       settings = [
@@ -78,7 +65,7 @@ extension Recorder {
         AVLinearPCMIsFloatKey: false,
         AVLinearPCMIsBigEndianKey: false,
         AVLinearPCMIsNonInterleaved: true,
-        //AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
     case AudioEncoder.amrWb.rawValue:
       settings = [
@@ -86,7 +73,7 @@ extension Recorder {
         AVEncoderBitRateKey: config.bitRate,
         AVSampleRateKey: 16000,
         AVNumberOfChannelsKey: config.numChannels,
-        //AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
     case AudioEncoder.opus.rawValue:
       settings = [
@@ -94,7 +81,7 @@ extension Recorder {
         AVEncoderBitRateKey: config.bitRate,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
-        //AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
     case AudioEncoder.flac.rawValue:
       settings = [
@@ -102,7 +89,7 @@ extension Recorder {
         AVEncoderBitRateKey: config.bitRate,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
-        //AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
     case AudioEncoder.pcm16bits.rawValue:
       settings = [
@@ -113,6 +100,7 @@ extension Recorder {
         AVLinearPCMIsNonInterleaved: false,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
       keepSampleRate = true
     case AudioEncoder.wav.rawValue:
@@ -124,6 +112,7 @@ extension Recorder {
         AVLinearPCMIsNonInterleaved: false,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
       keepSampleRate = true
     default:
@@ -132,7 +121,7 @@ extension Recorder {
         AVEncoderBitRateKey: config.bitRate,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
-        //AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
     }
     

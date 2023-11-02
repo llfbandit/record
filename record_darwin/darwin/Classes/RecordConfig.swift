@@ -1,4 +1,4 @@
-enum AudioEncoder: String {
+public enum AudioEncoder: String {
   case aacLc = "aacLc"
   case aacEld = "aacEld"
   case aacHe = "aacHe"
@@ -10,13 +10,12 @@ enum AudioEncoder: String {
   case wav = "wav"
 }
 
-
-class RecordConfig {
+public class RecordConfig {
   let encoder: String
   let bitRate: Int
   let sampleRate: Int
   let numChannels: Int
-  let device: [String: Any]?
+  let device: Device?
   let autoGain: Bool
   let echoCancel: Bool
   let noiseSuppress: Bool
@@ -25,7 +24,7 @@ class RecordConfig {
        bitRate: Int,
        sampleRate: Int,
        numChannels: Int,
-       device: [String : Any]? = nil,
+       device: Device? = nil,
        autoGain: Bool = false,
        echoCancel: Bool = false,
        noiseSuppress: Bool = false
@@ -38,5 +37,27 @@ class RecordConfig {
     self.autoGain = autoGain
     self.echoCancel = echoCancel
     self.noiseSuppress = noiseSuppress
+  }
+}
+
+public class Device {
+  let id: String
+  let label: String
+  
+  init(id: String, label: String) {
+    self.id = id
+    self.label = label
+  }
+  
+  init(map: [String: Any]) {
+    self.id = map["id"] as! String
+    self.label = map["label"] as! String
+  }
+  
+  func toMap() -> [String: Any] {
+    return [
+      "id": id,
+      "label": label
+    ]
   }
 }

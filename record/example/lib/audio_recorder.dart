@@ -44,14 +44,16 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
   Future<void> _start() async {
     try {
       if (await _audioRecorder.hasPermission()) {
-        const encoder = AudioEncoder.wav;
+        const encoder = AudioEncoder.aacLc;
 
         // We don't do anything with this but printing
         final isSupported = await _audioRecorder.isEncoderSupported(
           encoder,
         );
 
-        debugPrint('${encoder.name} supported: $isSupported');
+        if (!isSupported) {
+          debugPrint('${encoder.name} supported: $isSupported');
+        }
 
         final devs = await _audioRecorder.listInputDevices();
         debugPrint(devs.toString());

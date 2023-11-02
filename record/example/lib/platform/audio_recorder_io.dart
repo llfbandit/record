@@ -13,7 +13,9 @@ mixin AudioRecorderMixin {
   }
 
   Future<void> recordStream(AudioRecorder recorder, RecordConfig config) async {
-    final file = File(await _getPath());
+    final path = await _getPath();
+    
+    final file = File(path);
 
     final stream = await recorder.startStream(config);
 
@@ -26,7 +28,10 @@ mixin AudioRecorderMixin {
         file.writeAsBytesSync(data, mode: FileMode.append);
       },
       // ignore: avoid_print
-      onDone: () => print('End of stream'),
+      onDone: () {
+        // ignore: avoid_print
+        print('End of stream. File written to $path.');
+      },
     );
   }
 
