@@ -14,13 +14,14 @@ assignees: ''
  - OS: [e.g. iOS/Windows/...]
  - Browser [e.g. chrome, safari]
 
-**Record configuration**
-RecordConfig(...)
-
 **Describe the bug**
+
 A clear and concise description of what the bug is.
 
+Add your record configuration `RecordConfig(...)`
+
 **To Reproduce**
+
 Steps to reproduce the behavior:
 1. Go to '...'
 2. Click on '....'
@@ -28,7 +29,9 @@ Steps to reproduce the behavior:
 4. See error
 
 **Expected behavior**
+
 A clear and concise description of what you expected to happen.
 
 **Additional context**
+
 Add any other context about the problem here.
