@@ -67,9 +67,11 @@ extension AudioRecordingDelegate {
     }
     
     do {
-      try audioSession.setPreferredInputNumberOfChannels(
-        (config.numChannels > audioSession.inputNumberOfChannels) ? audioSession.inputNumberOfChannels : max(1, config.numChannels)
-      )
+      let newPreferredInputNumberOfChannels = min(config.numChannels, audioSession.maximumInputNumberOfChannels)
+
+      if newPreferredInputNumberOfChannels > 0 {
+        try audioSession.setPreferredInputNumberOfChannels(newPreferredInputNumberOfChannels)
+      }
     } catch {
       throw RecorderError.error(message: "Failed to start recording", details: "setPreferredInputNumberOfChannels: \(error.localizedDescription)")
     }
