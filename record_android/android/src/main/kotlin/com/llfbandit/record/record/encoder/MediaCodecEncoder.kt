@@ -31,9 +31,14 @@ class MediaCodecEncoder(
     }
 
     private fun createCodec(mediaFormat: MediaFormat): MediaCodec {
-        val encoder =
+        var encoder =
             MediaCodecList(MediaCodecList.REGULAR_CODECS).findEncoderForFormat(mediaFormat)
                 ?: throw Exception("No encoder found for $mediaFormat")
+
+        val isSdk29OrAbove = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
+        if (isSdk29OrAbove) {
+            encoder = encoder.replace("OMX.google", "c2.android")
+        }
 
         val codec = MediaCodec.createByCodecName(encoder)
 
