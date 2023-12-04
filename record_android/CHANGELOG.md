@@ -1,3 +1,6 @@
+## 1.0.4
+* fix: Fixed a bug that audio file cannot be played when using OMX.google.aac.encoder
+
 ## 1.0.3
 * fix: Stop method returns before recording being actually finished.
 * fix: Changing config is not taken into account when reusing same instance.
