@@ -16,8 +16,11 @@ dependencies:
   record_platform_interface: ^1.0.2
   record_web: ^1.0.0
   record_windows: ^1.0.0
-  record_linux: '>=0.5.0 <1.0.0'
-  record_android: ^1.0.0
+  record_linux: ">=0.5.0 <1.0.0"
+  record_android:
+    git:
+      url: https://github.com/toyozaki/record/tree/android_1.0.4/record_android
+      ref: ^1.0.4
   record_darwin: ^1.0.0
 
 dev_dependencies:
