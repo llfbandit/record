@@ -19,8 +19,9 @@ dependencies:
   record_linux: ">=0.5.0 <1.0.0"
   record_android:
     git:
-      url: https://github.com/toyozaki/record/tree/android_1.0.4/record_android
-      ref: ^1.0.4
+      url: https://github.com/toyozaki/record
+      path: record_android
+      ref: android_1.0.4
   record_darwin: ^1.0.0
 
 dev_dependencies:
