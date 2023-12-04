@@ -1,3 +1,7 @@
+## 5.0.2
+* fix
+    * Android: Fixed a bug that audio file cannot be played when using OMX.google.aac.encoder.
+
 ## 5.0.1
 * fix: close state stream controller on dispose.
 
