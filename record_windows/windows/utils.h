@@ -62,11 +62,11 @@ template <class T> inline void SafeRelease(T*& pT)
 }
 
 inline std::string toString(LPCWSTR pwsz) {
-	int cch = WideCharToMultiByte(CP_ACP, 0, pwsz, -1, 0, 0, NULL, NULL);
+	int cch = WideCharToMultiByte(CP_UTF8, 0, pwsz, -1, 0, 0, NULL, NULL);
 
 	char* psz = new char[cch];
 
-	WideCharToMultiByte(CP_ACP, 0, pwsz, -1, psz, cch, NULL, NULL);
+	WideCharToMultiByte(CP_UTF8, 0, pwsz, -1, psz, cch, NULL, NULL);
 
 	std::string st(psz);
 	delete[] psz;
