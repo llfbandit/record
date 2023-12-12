@@ -1,9 +1,11 @@
 package com.llfbandit.record.record.encoder
 
+import android.annotation.TargetApi
 import android.media.MediaCodec
 import android.media.MediaCodec.CodecException
 import android.media.MediaCodecList
 import android.media.MediaFormat
+import android.os.Build
 import com.llfbandit.record.record.container.IContainerWriter
 
 class MediaCodecEncoder(
@@ -30,15 +32,32 @@ class MediaCodecEncoder(
         container.release()
     }
 
-    private fun createCodec(mediaFormat: MediaFormat): MediaCodec {
-        var encoder =
-            MediaCodecList(MediaCodecList.REGULAR_CODECS).findEncoderForFormat(mediaFormat)
-                ?: throw Exception("No encoder found for $mediaFormat")
+    @TargetApi(Build.VERSION_CODES.Q)
+    private fun findCodecForFormat(format: MediaFormat): String? {
+        val mime = format.getString(MediaFormat.KEY_MIME)
+        val codecs = MediaCodecList(MediaCodecList.REGULAR_CODECS)
 
-        val isSdk29OrAbove = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
-        if (isSdk29OrAbove) {
-            encoder = encoder.replace("OMX.google", "c2.android")
+        for (info in codecs.codecInfos.sortedBy { !it.canonicalName.startsWith("c2.android") }) {
+            if (!info.isEncoder) {
+                continue
+            }
+            try {
+                val caps = info.getCapabilitiesForType(mime)
+                if (caps != null && caps.isFormatSupported(format)) {
+                    return info.canonicalName
+                }
+            } catch (e: IllegalArgumentException) {
+                // type is not supported
+            }
         }
+        return null
+    }
+
+    private fun createCodec(mediaFormat: MediaFormat): MediaCodec {
+        val isSdk28OrBelow = android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P
+        var encoder = if (isSdk28OrBelow) MediaCodecList(MediaCodecList.REGULAR_CODECS).findEncoderForFormat(mediaFormat)
+                      else findCodecForFormat(mediaFormat)
+                      ?: throw Exception("No encoder found for $mediaFormat")
 
         val codec = MediaCodec.createByCodecName(encoder)
 
