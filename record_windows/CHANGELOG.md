@@ -1,3 +1,6 @@
+## 1.0.1
+* fix: UTF-16 to UTF-8 could fail.
+
 ## 1.0.0
 * chore: Initial stable release.
 
