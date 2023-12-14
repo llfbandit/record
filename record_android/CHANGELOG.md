@@ -1,3 +1,6 @@
+## 1.0.4
+* fix: AAC duration can not be obtained.
+
 ## 1.0.3
 * fix: Stop method returns before recording being actually finished.
 * fix: Changing config is not taken into account when reusing same instance.

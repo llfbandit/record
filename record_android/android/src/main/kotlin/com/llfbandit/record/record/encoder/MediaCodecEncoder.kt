@@ -54,26 +54,28 @@ class MediaCodecEncoder(
     }
 
     private fun createCodec(mediaFormat: MediaFormat): MediaCodec {
-        val isSdk28OrBelow = android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P
-        var encoder = if (isSdk28OrBelow) MediaCodecList(MediaCodecList.REGULAR_CODECS).findEncoderForFormat(mediaFormat)
-                      else findCodecForFormat(mediaFormat)
-                      ?: throw Exception("No encoder found for $mediaFormat")
-
-        val codec = MediaCodec.createByCodecName(encoder)
-
-        try {
-            codec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        } catch (e: Exception) {
-            codec.release()
-            throw e
+        val encoder = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            MediaCodecList(MediaCodecList.REGULAR_CODECS).findEncoderForFormat(mediaFormat)
+        } else {
+            findCodecForFormat(mediaFormat)
         }
 
-        return codec
+        encoder ?: throw Exception("No encoder found for $mediaFormat")
+
+        var mediaCodec: MediaCodec? = null
+        try {
+            mediaCodec = MediaCodec.createByCodecName(encoder)
+            mediaCodec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            return mediaCodec
+        } catch (e: Exception) {
+            mediaCodec?.release()
+            throw e
+        }
     }
 
     private fun internalStop() {
         codec.stop()
-        container.stop()
+
         listener.onEncoderStop()
     }
 
