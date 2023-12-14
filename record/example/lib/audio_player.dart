@@ -14,10 +14,10 @@ class AudioPlayer extends StatefulWidget {
   final VoidCallback onDelete;
 
   const AudioPlayer({
-    Key? key,
+    super.key,
     required this.source,
     required this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   AudioPlayerState createState() => AudioPlayerState();

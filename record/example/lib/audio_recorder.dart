@@ -9,7 +9,7 @@ import 'platform/audio_recorder_platform.dart';
 class Recorder extends StatefulWidget {
   final void Function(String path) onStop;
 
-  const Recorder({Key? key, required this.onStop}) : super(key: key);
+  const Recorder({super.key, required this.onStop});
 
   @override
   State<Recorder> createState() => _RecorderState();
@@ -46,19 +46,14 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
       if (await _audioRecorder.hasPermission()) {
         const encoder = AudioEncoder.aacLc;
 
-        // We don't do anything with this but printing
-        final isSupported = await _audioRecorder.isEncoderSupported(
-          encoder,
-        );
-
-        if (!isSupported) {
-          debugPrint('${encoder.name} supported: $isSupported');
+        if (!await _isEncoderSupported(encoder)) {
+          return;
         }
 
         final devs = await _audioRecorder.listInputDevices();
         debugPrint(devs.toString());
 
-        const config = RecordConfig(encoder: encoder);
+        const config = RecordConfig(encoder: encoder, numChannels: 1);
 
         // Record to file
         await recordFile(_audioRecorder, config);
@@ -106,6 +101,25 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
         _recordDuration = 0;
         break;
     }
+  }
+
+  Future<bool> _isEncoderSupported(AudioEncoder encoder) async {
+    final isSupported = await _audioRecorder.isEncoderSupported(
+      encoder,
+    );
+
+    if (!isSupported) {
+      debugPrint('${encoder.name} is not supported on this platform.');
+      debugPrint('Supported encoders are:');
+
+      for (final e in AudioEncoder.values) {
+        if (await _audioRecorder.isEncoderSupported(e)) {
+          debugPrint('- ${encoder.name}');
+        }
+      }
+    }
+
+    return isSupported;
   }
 
   @override

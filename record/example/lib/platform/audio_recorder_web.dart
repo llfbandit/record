@@ -29,6 +29,7 @@ mixin AudioRecorderMixin {
     html.document.body!.children.add(anchor);
     anchor.click();
     html.document.body!.children.remove(anchor);
-    html.Url.revokeObjectUrl(path);
+
+    // html.Url.revokeObjectUrl(path);
   }
 }
