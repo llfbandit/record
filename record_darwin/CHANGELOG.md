@@ -1,7 +1,8 @@
-## 1.0.1-beta.1
+## 1.0.1
 * chore: Reworked again implementations to be closer to previous versions:
     - iOS Simulator is now usable again.
     - streaming is now done via AudioEngine.
+* fix: Wrong channel bounds (Thanks to @EvertonMJunior)
 
 ## 1.0.0
 * chore: Initial stable release.

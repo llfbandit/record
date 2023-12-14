@@ -1,6 +1,6 @@
 name: record_darwin
 description: iOS and macOS implementations for record package called by record_platform_interface.
-version: 1.0.1-beta.1
+version: 1.0.1
 homepage: https://github.com/llfbandit/record/tree/master/record_darwin
 
 environment:
