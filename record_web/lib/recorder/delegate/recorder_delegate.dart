@@ -59,11 +59,9 @@ abstract class RecorderDelegate {
     final ms = mediaStream;
 
     if (ms != null) {
-      final tracks = ms.getTracks();
-
+      final tracks = ms.getAudioTracks();
       for (var track in tracks) {
         track.stop();
-        ms.removeTrack(track);
       }
     }
 

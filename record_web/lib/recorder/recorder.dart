@@ -20,7 +20,14 @@ class Recorder {
     if (mediaDevices == null) return false;
 
     try {
-      await mediaDevices.getUserMedia({'audio': true});
+      final ms = await mediaDevices.getUserMedia({'audio': true});
+
+      // Clean-up
+      final tracks = ms.getAudioTracks();
+      for (var track in tracks) {
+        track.stop();
+      }
+
       return true;
     } catch (_) {
       return false;
