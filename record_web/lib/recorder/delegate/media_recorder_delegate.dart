@@ -22,7 +22,6 @@ class MediaRecorderDelegate extends RecorderDelegate {
   // Completer to get data & stop events before `stop()` method ends
   Completer<String?>? _onStopCompleter;
 
-  StreamController<Uint8List>? _recordStreamCtrl;
   final _elapsedTime = Stopwatch();
 
   // Amplitude
@@ -140,8 +139,6 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
       _mediaRecorder?.stop();
 
-      onStateChanged(RecordState.stop);
-
       return _onStopCompleter!.future;
     }
 
@@ -186,15 +183,17 @@ class MediaRecorderDelegate extends RecorderDelegate {
     String? audioUrl;
 
     if (_chunks.isNotEmpty) {
-      debugPrint('Container/codec chosen: ${_mediaRecorder?.mimeType}');
-
       _elapsedTime.stop();
+
+      debugPrint('Container/codec chosen: ${_mediaRecorder?.mimeType}');
 
       var blob = await jsu.promiseToFuture(
         fixWebmDuration(
           Blob(
             _chunks,
-            BlobPropertyBag(type: _mediaRecorder?.mimeType ?? 'audio/webm'),
+            BlobPropertyBag(
+              type: _mediaRecorder?.mimeType ?? 'audio/webm;codecs=opus',
+            ),
           ),
           _elapsedTime.elapsedMilliseconds,
           null,
@@ -204,7 +203,9 @@ class MediaRecorderDelegate extends RecorderDelegate {
       audioUrl = Url.createObjectURL(blob);
     }
 
-    _reset();
+    await _reset();
+
+    onStateChanged(RecordState.stop);
 
     _onStopCompleter?.complete(audioUrl);
   }
@@ -225,15 +226,10 @@ class MediaRecorderDelegate extends RecorderDelegate {
     _analyser = null;
 
     _chunks = [];
-
-    _recordStreamCtrl?.close();
-    _recordStreamCtrl = null;
   }
 
   void _createAudioContext(RecordConfig config, MediaStream stream) {
-    final audioCtx = AudioContext(
-      AudioContextOptions(sampleRate: config.sampleRate.toDouble()),
-    );
+    final audioCtx = AudioContext();
 
     final source = audioCtx.createMediaStreamSource(stream);
 
