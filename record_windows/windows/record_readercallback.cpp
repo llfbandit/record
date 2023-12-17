@@ -94,7 +94,7 @@ namespace record_windows
 		else
 		{
 			// Reader error.
-			auto errorText = std::system_category().message(hr);
+			auto errorText = std::system_category().message(hrStatus);
 			printf("Record: Error when reading sample (0x%X)\n%s\n", hrStatus, errorText.c_str());
 
 			Stop();

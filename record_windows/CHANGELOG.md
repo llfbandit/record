@@ -1,3 +1,6 @@
+## 1.0.2
+* fix: Quick creation/start/stop sequence resulting in a crash.
+
 ## 1.0.1
 * fix: UTF-16 to UTF-8 could fail.
 

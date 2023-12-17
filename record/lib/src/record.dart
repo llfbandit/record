@@ -19,30 +19,23 @@ class AudioRecorder {
   Timer? _amplitudeTimer;
   late Duration _amplitudeTimerInterval;
 
+  // Recorder ID
   final String _recorderId;
+  // Flag to create the recorder if needed with `_recorderId`.
+  bool? _created;
 
-  /// Completer to wait until the native player and its event stream are
-  /// created.
-  final _createCompleter = Completer<void>();
+  AudioRecorder() : _recorderId = _uuid.v4();
 
-  AudioRecorder() : _recorderId = _uuid.v4() {
-    _create();
-  }
+  Future<bool> _create() async {
+    await RecordPlatform.instance.create(_recorderId);
 
-  Future<void> _create() async {
-    try {
-      await RecordPlatform.instance.create(_recorderId);
+    final stream = RecordPlatform.instance.onStateChanged(_recorderId);
+    _stateStreamSubscription = stream.listen(
+      _stateStreamCtrl.add,
+      onError: _stateStreamCtrl.addError,
+    );
 
-      final stream = RecordPlatform.instance.onStateChanged(_recorderId);
-      _stateStreamSubscription = stream.listen(
-        _stateStreamCtrl.add,
-        onError: _stateStreamCtrl.addError,
-      );
-
-      _createCompleter.complete();
-    } catch (e, stackTrace) {
-      _createCompleter.completeError(e, stackTrace);
-    }
+    return true;
   }
 
   /// Starts new recording session.
@@ -55,7 +48,7 @@ class AudioRecorder {
     RecordConfig config, {
     required String path,
   }) async {
-    await _createCompleter.future;
+    _created ??= await _create();
 
     await RecordPlatform.instance.start(_recorderId, config, path: path);
 
@@ -67,7 +60,7 @@ class AudioRecorder {
   /// When stopping the record, you must rely on stream close event to get
   /// full recorded data.
   Future<Stream<Uint8List>> startStream(RecordConfig config) async {
-    await _createCompleter.future;
+    _created ??= await _create();
     await _stopRecordStream();
 
     final stream = await RecordPlatform.instance.startStream(
@@ -95,7 +88,7 @@ class AudioRecorder {
   ///
   /// Returns the output path if any.
   Future<String?> stop() async {
-    await _createCompleter.future;
+    _created ??= await _create();
     _amplitudeTimer?.cancel();
 
     final path = await RecordPlatform.instance.stop(_recorderId);
@@ -107,14 +100,14 @@ class AudioRecorder {
 
   /// Pauses recording session.
   Future<void> pause() async {
-    await _createCompleter.future;
+    _created ??= await _create();
     _amplitudeTimer?.cancel();
     return RecordPlatform.instance.pause(_recorderId);
   }
 
   /// Resumes recording session after [pause].
   Future<void> resume() async {
-    await _createCompleter.future;
+    _created ??= await _create();
     _startAmplitudeTimer();
     return RecordPlatform.instance.resume(_recorderId);
   }
@@ -122,19 +115,19 @@ class AudioRecorder {
   /// Checks if there's valid recording session.
   /// So if session is paused, this method will still return [true].
   Future<bool> isRecording() async {
-    await _createCompleter.future;
+    _created ??= await _create();
     return RecordPlatform.instance.isRecording(_recorderId);
   }
 
   /// Checks if recording session is paused.
   Future<bool> isPaused() async {
-    await _createCompleter.future;
+    _created ??= await _create();
     return RecordPlatform.instance.isPaused(_recorderId);
   }
 
   /// Checks and requests for audio record permission.
   Future<bool> hasPermission() async {
-    await _createCompleter.future;
+    _created ??= await _create();
     return RecordPlatform.instance.hasPermission(_recorderId);
   }
 
@@ -145,20 +138,20 @@ class AudioRecorder {
   /// On web, and in general, you should already have permission before
   /// accessing this method otherwise the list may return an empty list.
   Future<List<InputDevice>> listInputDevices() async {
-    await _createCompleter.future;
+    _created ??= await _create();
     return RecordPlatform.instance.listInputDevices(_recorderId);
   }
 
   /// Gets current average & max amplitudes (dBFS)
   /// Always returns zeros on unsupported platforms
   Future<Amplitude> getAmplitude() async {
-    await _createCompleter.future;
+    _created ??= await _create();
     return RecordPlatform.instance.getAmplitude(_recorderId);
   }
 
   /// Checks if the given encoder is supported on the current platform.
   Future<bool> isEncoderSupported(AudioEncoder encoder) async {
-    await _createCompleter.future;
+    _created ??= await _create();
     return RecordPlatform.instance.isEncoderSupported(_recorderId, encoder);
   }
 

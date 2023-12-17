@@ -1,3 +1,6 @@
+## 5.0.2
+* fix: Creation sequence which may lead to unexpected behaviours.
+
 ## 5.0.1
 * fix: close state stream controller on dispose.
 

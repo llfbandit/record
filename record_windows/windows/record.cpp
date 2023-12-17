@@ -245,6 +245,9 @@ namespace record_windows
 	{
 		HRESULT hr = S_OK;
 
+		// Release reader callback first
+		SafeRelease(m_pReader);
+
 		if (m_pSource)
 		{
 			hr = m_pSource->Stop();
@@ -282,7 +285,6 @@ namespace record_windows
 
 		SafeRelease(m_pSource);
 		SafeRelease(m_pPresentationDescriptor);
-		SafeRelease(m_pReader);
 		SafeRelease(m_pWriter);
 		SafeRelease(m_pMediaType);
 		m_pConfig = nullptr;
