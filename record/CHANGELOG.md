@@ -1,3 +1,6 @@
+## 5.0.3
+* fix: Regression on creation sequence when disposing `AudioRecorder` without using it.
+
 ## 5.0.2
 * fix: Creation sequence which may lead to unexpected behaviours.
 

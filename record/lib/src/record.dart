@@ -11,7 +11,7 @@ class AudioRecorder {
   StreamController<Amplitude>? _amplitudeStreamCtrl;
 
   final _stateStreamCtrl = StreamController<RecordState>.broadcast();
-  late final StreamSubscription _stateStreamSubscription;
+  StreamSubscription? _stateStreamSubscription;
 
   StreamController<Uint8List>? _recordStreamCtrl;
   StreamSubscription? _recordStreamSubscription;
@@ -161,7 +161,7 @@ class AudioRecorder {
     _amplitudeStreamCtrl?.close();
     _amplitudeStreamCtrl = null;
 
-    _stateStreamSubscription.cancel();
+    _stateStreamSubscription?.cancel();
     _stateStreamCtrl.close();
 
     await RecordPlatform.instance.dispose(_recorderId);
