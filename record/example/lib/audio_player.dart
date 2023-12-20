@@ -39,7 +39,6 @@ class AudioPlayerState extends State<AudioPlayer> {
     _playerStateChangedSubscription =
         _audioPlayer.onPlayerComplete.listen((state) async {
       await stop();
-      setState(() {});
     });
     _positionChangedSubscription = _audioPlayer.onPositionChanged.listen(
       (position) => setState(() {
@@ -51,6 +50,8 @@ class AudioPlayerState extends State<AudioPlayer> {
         _duration = duration;
       }),
     );
+
+    _audioPlayer.setSource(_source);
 
     super.initState();
   }
@@ -159,13 +160,18 @@ class AudioPlayerState extends State<AudioPlayer> {
     );
   }
 
-  Future<void> play() {
-    return _audioPlayer.play(
-      kIsWeb ? ap.UrlSource(widget.source) : ap.DeviceFileSource(widget.source),
-    );
+  Future<void> play() => _audioPlayer.play(_source);
+
+  Future<void> pause() async {
+    await _audioPlayer.pause();
+    setState(() {});
   }
 
-  Future<void> pause() => _audioPlayer.pause();
+  Future<void> stop() async {
+    await _audioPlayer.stop();
+    setState(() {});
+  }
 
-  Future<void> stop() => _audioPlayer.stop();
+  Source get _source =>
+      kIsWeb ? ap.UrlSource(widget.source) : ap.DeviceFileSource(widget.source);
 }
