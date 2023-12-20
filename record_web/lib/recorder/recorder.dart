@@ -151,7 +151,6 @@ class Recorder {
     RecordConfig config,
   ) async {
     switch (config.encoder) {
-      case AudioEncoder.wav:
       case AudioEncoder.pcm16bits:
         await _delegate?.dispose();
         _delegate = MicRecorderDelegate(onStateChanged: _updateState);
