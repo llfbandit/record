@@ -164,7 +164,9 @@ class AudioRecorder {
     _stateStreamSubscription?.cancel();
     _stateStreamCtrl.close();
 
-    await RecordPlatform.instance.dispose(_recorderId);
+    if (_created != null) {
+      await RecordPlatform.instance.dispose(_recorderId);
+    }
 
     await _stopRecordStream();
   }
