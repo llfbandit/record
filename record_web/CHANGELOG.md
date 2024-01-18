@@ -1,3 +1,6 @@
+## 1.0.5
+* fix: Use relative asset path for worklet file (#274)
+
 ## 1.0.4
 * fix: Audio recording on Firefox.
 * fix: Mic usage icon does not dismiss.
