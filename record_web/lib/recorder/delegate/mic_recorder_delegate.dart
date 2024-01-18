@@ -114,7 +114,7 @@ class MicRecorderDelegate extends RecorderDelegate {
     final source = context.createMediaStreamSource(mediaStream);
 
     await context.audioWorklet.addModule(
-      '/assets/packages/record_web/assets/js/record.worklet.js',
+      './assets/packages/record_web/assets/js/record.worklet.js',
     );
 
     final recorder = AudioWorkletNode(
