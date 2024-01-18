@@ -75,11 +75,115 @@ await record.cancel();
 record.dispose(); // As always, don't forget this one.
 ```
 
+## Full Example
+```dart
+import 'package:android_path_provider/android_path_provider.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+import 'package:record/record.dart';
+
+class RecordSystem extends StatefulWidget {
+  const RecordSystem({super.key});
+
+  @override
+  State<RecordSystem> createState() => _RecordSystemState();
+}
+
+class _RecordSystemState extends State<RecordSystem> {
+  bool isRecording = false;
+  late AudioRecorder audioRecord;
+  late AudioPlayer audioPlayer;
+  String _downloadsPath = 'Unknown';
+
+  Future<void> playRecording() async{
+    try{
+      Source src = UrlSource("$_downloadsPath/a.wav");
+      await audioPlayer.play(src);
+    }catch(e){}
+}
+
+  Future<void> startRecording()async {
+    try{
+      if(await audioRecord.hasPermission()){
+        await audioRecord.start(const RecordConfig(), path: "$_downloadsPath/a.wav");
+        setState(() {
+          isRecording = true;
+        });
+      }
+    }catch(e){
+      debugPrint("Error Start Recording: $e");
+    }
+  }
+  
+  Future<void> stopRecording() async{
+    try{
+      await audioRecord.stop();
+      setState(() {
+        isRecording = false;
+      });
+    }catch(e){
+      debugPrint(e.toString());
+    }
+
+  }
+
+  Future<void> initPaths() async {
+    String path;
+
+    try{
+      path = await AndroidPathProvider.ringtonesPath;
+      setState(() {
+        _downloadsPath = path;
+      });
+    }catch(e){
+      debugPrint(e.toString());
+    }
+
+  }
+
+  @override
+  void initState(){
+    super.initState();
+    initPaths();
+    audioPlayer = AudioPlayer();
+    audioRecord = AudioRecorder();
+  }
+
+  @override
+  void dispose(){
+    audioPlayer.dispose();
+    audioRecord.dispose();
+    super.dispose();
+
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(body:
+      Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        TextButton(
+          onPressed: isRecording? stopRecording : startRecording,
+         child: isRecording? const Text("Stop Recording"): const Text("Start Recording"),
+        ),
+        if(!isRecording && _downloadsPath!=null )
+        TextButton(
+          onPressed: playRecording,
+          child: Text("Play"),
+        )
+      ],
+    ));
+  }
+}
+```
+
 ## Setup, permissions and others
 
 ### Android
 ```xml
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE /"
 ```
 - min SDK: 21 (amrNb/amrWb: 26, Opus: 29)
 
