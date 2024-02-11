@@ -1,6 +1,8 @@
 package com.llfbandit.record.methodcall
 
 import android.app.Activity
+import android.content.Context
+import android.media.AudioManager
 import com.llfbandit.record.Utils
 import com.llfbandit.record.permission.PermissionManager
 import com.llfbandit.record.record.RecordConfig
@@ -15,10 +17,12 @@ import java.util.concurrent.ConcurrentHashMap
 
 class MethodCallHandlerImpl(
     private val permissionManager: PermissionManager,
-    private val messenger: BinaryMessenger
+    private val messenger: BinaryMessenger,
+    private val mContext: Context
 ) : MethodCallHandler {
     private var activity: Activity? = null
     private val recorders = ConcurrentHashMap<String, RecorderWrapper>()
+    private lateinit var audioManager: AudioManager
     fun dispose() {
         for (recorder in recorders.values) {
             recorder.dispose()
@@ -63,6 +67,8 @@ class MethodCallHandlerImpl(
         when (call.method) {
             "start" -> try {
                 val config = getRecordConfig(call)
+                if(config.bluetoothSco) connectMicrophoneBluetooth()
+
                 recorder.startRecordingToFile(config, result)
             } catch (e: IOException) {
                 result.error("record", "Cannot create recording configuration.", e.message)
@@ -70,12 +76,17 @@ class MethodCallHandlerImpl(
 
             "startStream" -> try {
                 val config = getRecordConfig(call)
+                if(config.bluetoothSco) connectMicrophoneBluetooth()
+
                 recorder.startRecordingToStream(config, result)
             } catch (e: IOException) {
                 result.error("record", "Cannot create recording configuration.", e.message)
             }
 
-            "stop" -> recorder.stop(result)
+            "stop" -> {
+                disconnectMicrophoneBluetooth()
+                recorder.stop(result)
+            }
             "pause" -> recorder.pause(result)
             "resume" -> recorder.resume(result)
             "isPaused" -> recorder.isPaused(result)
@@ -119,7 +130,24 @@ class MethodCallHandlerImpl(
             //call.argument("device"),
             Utils.firstNonNull(call.argument("autoGain"), false),
             Utils.firstNonNull(call.argument("echoCancel"), false),
-            Utils.firstNonNull(call.argument("noiseSuppress"), false)
+            Utils.firstNonNull(call.argument("noiseSuppress"), false),
+            Utils.firstNonNull(call.argument("bluetoothSco"), false)
         )
+    }
+
+    private fun connectMicrophoneBluetooth(){
+        audioManager = mContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager;
+        if(!audioManager.isBluetoothScoOn){
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            audioManager.startBluetoothSco()
+            audioManager.isBluetoothScoOn = true
+        }
+    }
+
+    private fun disconnectMicrophoneBluetooth(){
+        if(audioManager.isBluetoothScoOn){
+            audioManager.stopBluetoothSco()
+            audioManager.isBluetoothScoOn = false
+        }
     }
 }

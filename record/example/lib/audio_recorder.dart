@@ -53,7 +53,7 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
         final devs = await _audioRecorder.listInputDevices();
         debugPrint(devs.toString());
 
-        const config = RecordConfig(encoder: encoder, numChannels: 1);
+        const config = RecordConfig(encoder: encoder, numChannels: 1, bluetoothSco: true);
 
         // Record to file
         await recordFile(_audioRecorder, config);

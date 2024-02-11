@@ -9,7 +9,8 @@ class RecordConfig(
     //val device: Map<String, Any>?,
     val autoGain: Boolean = false,
     val echoCancel: Boolean = false,
-    val noiseSuppress: Boolean = false
+    val noiseSuppress: Boolean = false,
+    val bluetoothSco: Boolean = false
 ) {
     val numChannels: Int
 

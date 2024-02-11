@@ -85,6 +85,27 @@ record.dispose(); // As always, don't forget this one.
 
 * [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
 
+### Bluetooth Microphone
+Use bluetooth microphone recording
+```dart
+const config = RecordConfig(encoder: encoder, numChannels: 1, bluetoothSco: true); // bluetoothSco set true
+```
+*this only for Android . for iOS will automatically use bluetooth if device already connected with iPhone/iPad
+
+You SHOULD add this in you main application (see example) :
+(Android - AndroidManifest.xml)
+```xml
+<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+```
+
+(iOS - Info.plist) 
+```xml
+    <key>UIBackgroundModes</key>
+    <array>
+    	<string>audio</string>
+    </array>
+```
+
 ### iOS
 ```xml
 <key>NSMicrophoneUsageDescription</key>

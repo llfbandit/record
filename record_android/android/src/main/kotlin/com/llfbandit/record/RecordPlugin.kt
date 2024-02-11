@@ -1,5 +1,6 @@
 package com.llfbandit.record
 
+import android.content.Context
 import com.llfbandit.record.methodcall.MethodCallHandlerImpl
 import com.llfbandit.record.permission.PermissionManager
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -20,10 +21,12 @@ class RecordPlugin : FlutterPlugin, ActivityAware {
     private var callHandler: MethodCallHandlerImpl? = null
     private var permissionManager: PermissionManager? = null
     private var activityBinding: ActivityPluginBinding? = null
+    private lateinit var applicationContext: Context
 
     /////////////////////////////////////////////////////////////////////////////
     /// FlutterPlugin
     override fun onAttachedToEngine(binding: FlutterPluginBinding) {
+        applicationContext = binding.applicationContext;
         startPlugin(binding.binaryMessenger)
     }
 
@@ -71,7 +74,7 @@ class RecordPlugin : FlutterPlugin, ActivityAware {
 
     private fun startPlugin(messenger: BinaryMessenger) {
         permissionManager = PermissionManager()
-        callHandler = MethodCallHandlerImpl(permissionManager!!, messenger)
+        callHandler = MethodCallHandlerImpl(permissionManager!!, messenger, applicationContext)
         methodChannel = MethodChannel(messenger, MESSAGES_CHANNEL)
         methodChannel?.setMethodCallHandler(callHandler)
     }

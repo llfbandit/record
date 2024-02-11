@@ -20,6 +20,8 @@ import 'package:record_platform_interface/src/types/types.dart';
 ///
 /// `noiseSuppress`*: The recorder will try to negates the input noise.
 ///
+/// `bluetoothSco`*: The recorder will use connected bluetooth microphone external (*only for android. iOS auto use bluetooth if connected)
+///
 /// `*`: May not be considered on all platforms/formats.
 class RecordConfig {
   final AudioEncoder encoder;
@@ -30,6 +32,7 @@ class RecordConfig {
   final bool autoGain;
   final bool echoCancel;
   final bool noiseSuppress;
+  final bool bluetoothSco;
 
   const RecordConfig({
     this.encoder = AudioEncoder.aacLc,
@@ -40,6 +43,7 @@ class RecordConfig {
     this.autoGain = false,
     this.echoCancel = false,
     this.noiseSuppress = false,
+    this.bluetoothSco = false
   });
 
   Map<String, dynamic> toMap() {
@@ -52,6 +56,7 @@ class RecordConfig {
       'autoGain': autoGain,
       'echoCancel': echoCancel,
       'noiseSuppress': noiseSuppress,
+      'bluetoothSco': bluetoothSco
     };
   }
 }
