@@ -1,3 +1,6 @@
+## 1.0.5
+* fix: num channels & sample rate are not applied in AAC format.
+
 ## 1.0.4
 * fix: AAC duration can not be obtained.
 
