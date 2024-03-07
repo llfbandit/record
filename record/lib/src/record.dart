@@ -98,6 +98,14 @@ class AudioRecorder {
     return path;
   }
 
+  /// Stops and discards/deletes the file/blob.
+  Future<void> cancel() async {
+    _created ??= await _create();
+    _amplitudeTimer?.cancel();
+
+    return RecordPlatform.instance.cancel(_recorderId);
+  }
+
   /// Pauses recording session.
   Future<void> pause() async {
     _created ??= await _create();
