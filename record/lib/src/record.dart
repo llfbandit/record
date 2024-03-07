@@ -234,13 +234,13 @@ class AudioRecorder {
   }
 
   /// Utility method to get PCM data as signed 16 bits integers.
-  List<int> convertBytesToInt16(Uint8List bytes) {
+  List<int> convertBytesToInt16(Uint8List bytes, [endian = Endian.little]) {
     final values = <int>[];
 
     final data = ByteData.view(bytes.buffer);
 
     for (var i = 0; i < bytes.length; i += 2) {
-      int short = data.getInt16(i, Endian.host);
+      int short = data.getInt16(i, endian);
       values.add(short);
     }
 

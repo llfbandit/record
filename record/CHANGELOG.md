@@ -1,5 +1,6 @@
 ## 5.0.5
 * fix: Expose cancel method to stop and discard the recording.
+* feat: Improve convertBytesToInt16 method by exposing endian parameter.
 
 ## 5.0.4
 * fix: Regression on creation sequence when disposing `AudioRecorder` without using it.
