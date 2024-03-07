@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.llfbandit.record_example">
     
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Permissions for bluetooth SCO recording -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     
     <application
         android:name="${applicationName}"

@@ -17,12 +17,12 @@ External dependencies:
 | amplitude(dBFS)  | ✔️            |   ✔️           |  ✔️     |    ✔️     |  ✔️   |
 | permission check | ✔️            |   ✔️           |  ✔️    |            |  ✔️   |
 | num of channels  | ✔️            |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| device selection |              | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| device selection | ✔️ *          | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | auto gain        | ✔️            |(always active?)| ✔️      |            |       |  
 | echo cancel      | ✔️            |                 | ✔️      |            |       |  
 | noise suppresion | ✔️            |                 | ✔️      |            |       |  
 
-Bluetooth is not supported on Android at this time.
+* min SDK: 23. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
 
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
@@ -80,6 +80,8 @@ record.dispose(); // As always, don't forget this one.
 ### Android
 ```xml
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
+<!-- Optional: Add this permission if you want to use bluetooth telephony device like headset/earbuds (min SDK: 23) -->
+<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 ```
 - min SDK: 21 (amrNb/amrWb: 26, Opus: 29)
 

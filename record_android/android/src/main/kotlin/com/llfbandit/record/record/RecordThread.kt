@@ -34,8 +34,6 @@ class RecordThread(
     override fun onEncoderDataSize(): Int = reader?.bufferSize ?: 0
 
     override fun onEncoderDataNeeded(byteBuffer: ByteBuffer): Int {
-        if (isPaused()) return 0
-
         return reader?.read(byteBuffer) ?: 0
     }
 
@@ -52,6 +50,7 @@ class RecordThread(
 
         reader?.stop()
         reader?.release()
+        reader = null
 
         if (hasBeenCanceled) {
             deleteFile()
@@ -72,12 +71,14 @@ class RecordThread(
 
     fun pauseRecording() {
         if (isRecording()) {
+            audioEncoder?.pause()
             updateState(RecordState.PAUSE)
         }
     }
 
     fun resumeRecording() {
         if (isPaused()) {
+            audioEncoder?.resume()
             updateState(RecordState.RECORD)
         }
     }
@@ -114,7 +115,6 @@ class RecordThread(
             updateState(RecordState.RECORD)
 
             completion.await()
-        } catch (ignored: InterruptedException) {
         } catch (ex: Exception) {
             recorderListener.onFailure(ex)
             onEncoderStop()

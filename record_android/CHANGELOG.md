@@ -1,5 +1,10 @@
-## 1.0.5
+## 1.1.0
+* fix: Properly close container when recording is stopped.
 * fix: num channels & sample rate are not applied in AAC format.
+* feat: Add device listing/selection (selection is not guaranteed but preferred only...).
+* feat: Add bluetooth SCO auto linking (i.e. for telephony device like headset/earbuds).
+  * Recording quality is limited.
+  * You must add "MODIFY_AUDIO_SETTINGS" permission to allow recording from those devices. See README.md.
 
 ## 1.0.4
 * fix: AAC duration can not be obtained.

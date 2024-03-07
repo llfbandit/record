@@ -1,9 +1,13 @@
 package com.llfbandit.record.methodcall
 
 import android.app.Activity
+import android.content.Context
+import android.os.Build
 import com.llfbandit.record.Utils
 import com.llfbandit.record.permission.PermissionManager
 import com.llfbandit.record.record.RecordConfig
+import com.llfbandit.record.record.bluetooth.BluetoothReceiver
+import com.llfbandit.record.record.device.DeviceUtils
 import com.llfbandit.record.record.format.AudioFormats
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -15,14 +19,18 @@ import java.util.concurrent.ConcurrentHashMap
 
 class MethodCallHandlerImpl(
     private val permissionManager: PermissionManager,
-    private val messenger: BinaryMessenger
+    private val messenger: BinaryMessenger,
+    private val appContext: Context
 ) : MethodCallHandler {
     private var activity: Activity? = null
     private val recorders = ConcurrentHashMap<String, RecorderWrapper>()
+    private val bluetoothReceiver = BluetoothReceiver(appContext)
+
     fun dispose() {
-        for (recorder in recorders.values) {
-            recorder.dispose()
+        for (entry in recorders.entries) {
+            disposeRecorder(entry.value, entry.key)
         }
+
         recorders.clear()
     }
 
@@ -61,18 +69,22 @@ class MethodCallHandlerImpl(
         }
 
         when (call.method) {
-            "start" -> try {
-                val config = getRecordConfig(call)
-                recorder.startRecordingToFile(config, result)
-            } catch (e: IOException) {
-                result.error("record", "Cannot create recording configuration.", e.message)
+            "start" -> {
+                try {
+                    val config = getRecordConfig(call)
+                    recorder.startRecordingToFile(config, result)
+                } catch (e: IOException) {
+                    result.error("record", "Cannot create recording configuration.", e.message)
+                }
             }
 
-            "startStream" -> try {
-                val config = getRecordConfig(call)
-                recorder.startRecordingToStream(config, result)
-            } catch (e: IOException) {
-                result.error("record", "Cannot create recording configuration.", e.message)
+            "startStream" -> {
+                try {
+                    val config = getRecordConfig(call)
+                    recorder.startRecordingToStream(config, result)
+                } catch (e: IOException) {
+                    result.error("record", "Cannot create recording configuration.", e.message)
+                }
             }
 
             "stop" -> recorder.stop(result)
@@ -83,10 +95,10 @@ class MethodCallHandlerImpl(
             "cancel" -> recorder.cancel(result)
             "hasPermission" -> permissionManager.hasPermission(result::success)
             "getAmplitude" -> recorder.getAmplitude(result)
-            "listInputDevices" -> result.success(null)
+            "listInputDevices" -> result.success(DeviceUtils.listInputDevicesAsMap(appContext))
+
             "dispose" -> {
-                recorder.dispose()
-                recorders.remove(recorderId)
+                disposeRecorder(recorder, recorderId)
                 result.success(null)
             }
 
@@ -106,17 +118,37 @@ class MethodCallHandlerImpl(
         val recorder = RecorderWrapper(recorderId, messenger)
         recorder.setActivity(activity)
         recorders[recorderId] = recorder
+
+        if (!bluetoothReceiver.hasListeners()) {
+            bluetoothReceiver.register()
+        }
+        bluetoothReceiver.addListener(recorder)
     }
 
-    @Throws(IOException::class)
+    private fun disposeRecorder(recorder: RecorderWrapper, recorderId: String) {
+        recorder.dispose()
+        recorders.remove(recorderId)
+
+        bluetoothReceiver.removeListener(recorder)
+        if (!bluetoothReceiver.hasListeners()) {
+            bluetoothReceiver.unregister()
+        }
+    }
+
     private fun getRecordConfig(call: MethodCall): RecordConfig {
+        val device = if (Build.VERSION.SDK_INT >= 23) {
+            DeviceUtils.deviceInfoFromMap(appContext, call.argument("device"))
+        } else {
+            null
+        }
+
         return RecordConfig(
             call.argument("path"),
             Utils.firstNonNull(call.argument("encoder"), "aacLc"),
             Utils.firstNonNull(call.argument("bitRate"), 128000),
             Utils.firstNonNull(call.argument("sampleRate"), 44100),
             Utils.firstNonNull(call.argument("numChannels"), 2),
-            //call.argument("device"),
+            device,
             Utils.firstNonNull(call.argument("autoGain"), false),
             Utils.firstNonNull(call.argument("echoCancel"), false),
             Utils.firstNonNull(call.argument("noiseSuppress"), false)

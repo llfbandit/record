@@ -3,13 +3,19 @@ package com.llfbandit.record.methodcall
 import android.app.Activity
 import com.llfbandit.record.record.AudioRecorder
 import com.llfbandit.record.record.RecordConfig
+import com.llfbandit.record.record.bluetooth.BluetoothScoListener
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
 import com.llfbandit.record.record.stream.RecorderStateStreamHandler
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
-internal class RecorderWrapper(recorderId: String, messenger: BinaryMessenger) {
+internal class RecorderWrapper(recorderId: String, messenger: BinaryMessenger): BluetoothScoListener {
+    companion object {
+        const val EVENTS_STATE_CHANNEL = "com.llfbandit.record/events/"
+        const val EVENTS_RECORD_CHANNEL = "com.llfbandit.record/eventsRecord/"
+    }
+
     private var eventChannel: EventChannel?
     private val recorderStateStreamHandler = RecorderStateStreamHandler()
     private var eventRecordChannel: EventChannel?
@@ -137,8 +143,12 @@ internal class RecorderWrapper(recorderId: String, messenger: BinaryMessenger) {
         result.success(null)
     }
 
-    companion object {
-        const val EVENTS_STATE_CHANNEL = "com.llfbandit.record/events/"
-        const val EVENTS_RECORD_CHANNEL = "com.llfbandit.record/eventsRecord/"
+    ///////////////////////////////////////////////////////////
+    // BluetoothScoListener
+    ///////////////////////////////////////////////////////////
+    override fun onBlScoConnected() {
+    }
+
+    override fun onBlScoDisconnected() {
     }
 }

@@ -5,6 +5,7 @@ import android.media.MediaFormat
 import com.llfbandit.record.record.container.IContainerWriter
 import com.llfbandit.record.record.format.Format
 import java.nio.ByteBuffer
+import java.util.concurrent.CountDownLatch
 
 /**
  * Create a passthrough encoder for the specified format.
@@ -15,6 +16,7 @@ class PassthroughEncoder(
     private val container: IContainerWriter
 ) : IEncoder {
     private var isStarted = false
+    private var isPaused = CountDownLatch(0)
     private val bufferInfo = MediaCodec.BufferInfo()
     private var trackIndex = -1
 
@@ -38,12 +40,23 @@ class PassthroughEncoder(
         EncodeThread().start()
     }
 
+    override fun pause() {
+        if (isPaused.count == 0L) {
+            isPaused = CountDownLatch(1)
+        }
+    }
+
+    override fun resume() {
+        isPaused.countDown()
+    }
+
     override fun stop() {
         if (!isStarted) {
             throw IllegalStateException("Encoder is not started")
         }
 
         isStarted = false
+        isPaused.countDown()
     }
 
     override fun release() {
@@ -64,6 +77,8 @@ class PassthroughEncoder(
             var isEof = false
 
             while (isStarted || !isEof) {
+                isPaused.await()
+
                 isEof = !isStarted
                 buffer.clear()
 
@@ -75,16 +90,12 @@ class PassthroughEncoder(
                     bufferInfo.offset = buffer.position()
                     bufferInfo.size = buffer.limit()
                     bufferInfo.presentationTimeUs = timestampUs
-                    bufferInfo.flags = if (isEof) {
-                        MediaCodec.BUFFER_FLAG_END_OF_STREAM
-                    } else {
-                        0
-                    }
+                    bufferInfo.flags = if (isEof) MediaCodec.BUFFER_FLAG_END_OF_STREAM else 0
 
-                    if (!container.isStream()) {
-                        container.writeSampleData(trackIndex, buffer, bufferInfo)
-                    } else {
+                    if (container.isStream()) {
                         listener.onEncoderStream(container.writeStream(trackIndex, buffer, bufferInfo))
+                    } else {
+                        container.writeSampleData(trackIndex, buffer, bufferInfo)
                     }
 
                     numFrames += frames

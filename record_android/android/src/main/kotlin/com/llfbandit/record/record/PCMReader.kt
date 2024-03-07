@@ -7,6 +7,8 @@ import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
+import android.os.Build
+import android.util.Log
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
@@ -17,6 +19,10 @@ class PCMReader(
     private val config: RecordConfig,
     private val mediaFormat: MediaFormat,
 ) {
+    companion object {
+        private val TAG = PCMReader::class.java.simpleName
+    }
+
     // Recorder & features
     private val reader: AudioRecord = createReader()
     private var automaticGainControl: AutomaticGainControl? = null
@@ -97,6 +103,12 @@ class PCMReader(
         }
         if (reader.state != AudioRecord.STATE_INITIALIZED) {
             throw Exception("PCM reader failed to initialize.")
+        }
+
+        if (Build.VERSION.SDK_INT >= 23 && config.device != null) {
+            if (!reader.setPreferredDevice(config.device)) {
+                Log.w(TAG, "Unable to set device ${config.device.productName}")
+            }
         }
 
         return reader

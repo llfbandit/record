@@ -6,7 +6,6 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
-import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 
 /**
@@ -24,7 +23,7 @@ class RecordPlugin : FlutterPlugin, ActivityAware {
     /////////////////////////////////////////////////////////////////////////////
     /// FlutterPlugin
     override fun onAttachedToEngine(binding: FlutterPluginBinding) {
-        startPlugin(binding.binaryMessenger)
+        startPlugin(binding)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPluginBinding) {
@@ -69,10 +68,10 @@ class RecordPlugin : FlutterPlugin, ActivityAware {
     /// END ActivityAware
     /////////////////////////////////////////////////////////////////////////////
 
-    private fun startPlugin(messenger: BinaryMessenger) {
+    private fun startPlugin(binding: FlutterPluginBinding) {
         permissionManager = PermissionManager()
-        callHandler = MethodCallHandlerImpl(permissionManager!!, messenger)
-        methodChannel = MethodChannel(messenger, MESSAGES_CHANNEL)
+        callHandler = MethodCallHandlerImpl(permissionManager!!, binding.binaryMessenger, binding.applicationContext)
+        methodChannel = MethodChannel(binding.binaryMessenger, MESSAGES_CHANNEL)
         methodChannel?.setMethodCallHandler(callHandler)
     }
 

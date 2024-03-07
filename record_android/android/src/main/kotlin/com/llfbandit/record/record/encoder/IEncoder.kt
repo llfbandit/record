@@ -9,6 +9,20 @@ interface IEncoder {
     fun start()
 
     /**
+     * Pause the encoder process.
+     *
+     * Can only be called if the encoder process is started.
+     */
+    fun pause()
+
+    /**
+     * Resume the encoder process.
+     *
+     * Can only be called if the encoder process is paused.
+     */
+    fun resume()
+
+    /**
      * Stop the encoder process.
      *
      * Can only be called if the encoder process is started.

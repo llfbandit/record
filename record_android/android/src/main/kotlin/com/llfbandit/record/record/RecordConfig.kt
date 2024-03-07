@@ -1,12 +1,14 @@
 package com.llfbandit.record.record
 
+import android.media.AudioDeviceInfo
+
 class RecordConfig(
     val path: String?,
     val encoder: String,
     val bitRate: Int,
     val sampleRate: Int,
     numChannels: Int,
-    //val device: Map<String, Any>?,
+    val device: AudioDeviceInfo?,
     val autoGain: Boolean = false,
     val echoCancel: Boolean = false,
     val noiseSuppress: Boolean = false
