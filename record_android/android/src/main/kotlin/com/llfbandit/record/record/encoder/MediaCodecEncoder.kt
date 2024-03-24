@@ -37,9 +37,7 @@ class MediaCodecEncoder(
         recordStopped = true
     }
 
-    override fun release() {
-        container.release()
-    }
+    override fun release() {}
 
     @TargetApi(Build.VERSION_CODES.Q)
     private fun findCodecForFormat(format: MediaFormat): String? {
@@ -86,6 +84,7 @@ class MediaCodecEncoder(
         codec.stop()
         codec.release()
         container.stop()
+        container.release()
 
         listener.onEncoderStop()
     }
