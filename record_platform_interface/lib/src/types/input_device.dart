@@ -27,4 +27,14 @@ class InputDevice {
       label: $label
       ''';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is InputDevice && other.id == id && other.label == label;
+  }
+
+  @override
+  int get hashCode => id.hashCode ^ label.hashCode;
 }
