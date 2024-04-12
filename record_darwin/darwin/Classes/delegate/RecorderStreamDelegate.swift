@@ -21,6 +21,19 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       interleaved: true
     )
 
+    if config.echoCancel {
+      if #available(iOS 13.0, *) {
+        do {
+          try inputNode.setVoiceProcessingEnabled(true)
+        } catch {
+          throw RecorderError.error(
+            message: "Failed to start recording",
+            details: "Failed to enable echo cancellation: \(error.localizedDescription)"
+          )
+        }
+      }
+    }
+
     guard let dstFormat = dstFormat else {
       throw RecorderError.error(
         message: "Failed to start recording",

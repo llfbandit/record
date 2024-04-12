@@ -19,7 +19,7 @@ External dependencies:
 | num of channels  | ✔️            |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | device selection | ✔️ *          | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | auto gain        | ✔️            |(always active?)| ✔️      |            |       |  
-| echo cancel      | ✔️            |                 | ✔️      |            |       |  
+| echo cancel      | ✔️            |   ✔ (if target set to iOS 13.0+) | ✔️      |            |       |  
 | noise suppresion | ✔️            |                 | ✔️      |            |       |  
 
 * min SDK: 23. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
