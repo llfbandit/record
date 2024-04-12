@@ -22,15 +22,20 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     )
 
     if config.echoCancel {
-      if #available(iOS 13.0, *) {
-        do {
-          try inputNode.setVoiceProcessingEnabled(true)
-        } catch {
-          throw RecorderError.error(
-            message: "Failed to start recording",
-            details: "Failed to enable echo cancellation: \(error.localizedDescription)"
-          )
-        }
+      guard #available(iOS 13, *) else {
+        throw RecorderError.error(
+          message: "Failed to start recording",
+          details: "Echo cancellation only available on iOS 13 and above."
+        )
+      }
+
+      do {
+        try inputNode.setVoiceProcessingEnabled(true)
+      } catch {
+        throw RecorderError.error(
+          message: "Failed to start recording",
+          details: "Failed to enable echo cancellation: \(error.localizedDescription)"
+        )
       }
     }
 
