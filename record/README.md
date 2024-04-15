@@ -83,7 +83,7 @@ record.dispose(); // As always, don't forget this one.
 <!-- Optional: Add this permission if you want to use bluetooth telephony device like headset/earbuds (min SDK: 23) -->
 <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 <!-- Optional: Add this permission if you want to save your recordings in public folders -->
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 ```
 - min SDK: 21 (amrNb/amrWb: 26, Opus: 29)
 
