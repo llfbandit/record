@@ -37,6 +37,46 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
           details: "Failed to enable echo cancellation: \(error.localizedDescription)"
         )
       }
+
+      // No-op render callback, needed otherwise iOS starts throwing the following error
+      // (as a warning log) in loop:
+      // throwing -1 from AU auou/vpio/appl, render err: -1
+      let renderCallback: AURenderCallback = { 
+          (inRefCon,
+          ioActionFlags,
+          inTimeStamp,
+          inBusNumber,
+          inNumberFrames,
+          ioData) -> OSStatus in
+          // This is where you would normally process the audio data.
+          // Since we're not doing anything, we just return noErr (no error).
+          return noErr
+      }
+
+      var callbackStruct = AURenderCallbackStruct(inputProc: renderCallback, inputProcRefCon: nil)
+
+      if let audioUnit = inputNode.audioUnit {
+        let result = AudioUnitSetProperty(
+          audioUnit,
+          kAudioUnitProperty_SetRenderCallback,
+          kAudioUnitScope_Input,
+          0,
+          &callbackStruct,
+          UInt32(MemoryLayout<AURenderCallbackStruct>.size)
+        )
+        // Handle the result if needed
+        if result != noErr {
+            throw RecorderError.error(
+                message: "Failed to set render callback",
+                details: "Error code: \(result)"
+            )
+        }
+      } else {
+        throw RecorderError.error(
+          message: "Failed to start recording",
+          details: "Audio unit is nil."
+        )
+      }
     }
 
     guard let dstFormat = dstFormat else {
