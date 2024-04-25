@@ -7,13 +7,27 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   private let bus = 0
 
   func start(config: RecordConfig, recordEventHandler: RecordStreamHandler) throws {
+    let audioEngine = AVAudioEngine()
+    
 #if os(iOS)
     try initAVAudioSession(config: config)
+#else
+    // set input device to the node
+    if let deviceId = config.device?.id,
+       let inputDeviceId = getAudioDeviceIDFromUID(uid: deviceId) {
+      do {
+        try audioEngine.inputNode.auAudioUnit.setDeviceID(inputDeviceId)
+      } catch {
+        throw RecorderError.error(
+          message: "Failed to start recording",
+          details: "Setting input device: \(deviceId) \(error)"
+        )
+      }
+    }
 #endif
-    let audioEngine = AVAudioEngine()
-
-    let inputNode = audioEngine.inputNode
-    let srcFormat = inputNode.outputFormat(forBus: 0)
+    
+    let srcFormat = audioEngine.inputNode.outputFormat(forBus: 0)
+    
     let dstFormat = AVAudioFormat(
       commonFormat: .pcmFormatInt16,
       sampleRate: Double(config.sampleRate),
@@ -28,9 +42,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       )
     }
     
-    let converter = AVAudioConverter(from: srcFormat, to: dstFormat)
-    
-    guard let converter = converter else {
+    guard let converter = AVAudioConverter(from: srcFormat, to: dstFormat) else {
       throw RecorderError.error(
         message: "Failed to start recording",
         details: "Format conversion is not possible."
@@ -38,7 +50,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     }
     converter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
     
-    inputNode.installTap(onBus: bus, bufferSize: 2048, format: srcFormat) { (buffer, _) -> Void in
+    audioEngine.inputNode.installTap(onBus: bus, bufferSize: 2048, format: srcFormat) { (buffer, _) -> Void in
       self.stream(
         buffer: buffer,
         dstFormat: dstFormat,
@@ -141,8 +153,6 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       let samples = stride(from: 0,
                            to: Int(convertedBuffer.frameLength),
                            by: buffer.stride).map{ channelDataPointer[$0] }
-      //        let arraySize = Int(buffer.frameLength)
-      //        let samples = Array(UnsafeBufferPointer(start: channelData.pointee, count: arraySize))
 
       // Update current amplitude
       updateAmplitude(samples)

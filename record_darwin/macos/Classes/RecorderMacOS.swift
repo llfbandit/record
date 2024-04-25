@@ -42,3 +42,61 @@ func getInputDevice(device: Device?) throws -> AVCaptureDeviceInput? {
   
   return try AVCaptureDeviceInput(device: captureDev)
 }
+
+func getAudioDeviceIDFromUID(uid: String) -> AudioDeviceID? {
+  var propertySize: UInt32 = 0
+  var status: OSStatus = noErr
+  
+  // Get the number of devices
+  var propertyAddress = AudioObjectPropertyAddress(
+    mSelector: kAudioHardwarePropertyDevices,
+    mScope: kAudioObjectPropertyScopeGlobal,
+    mElement: kAudioObjectPropertyElementMain
+  )
+  status = AudioObjectGetPropertyDataSize(
+    AudioObjectID(kAudioObjectSystemObject),
+    &propertyAddress,
+    0,
+    nil,
+    &propertySize
+  )
+  if status != noErr {
+    return nil
+  }
+  
+  // Get the device IDs
+  let deviceCount = Int(propertySize) / MemoryLayout<AudioDeviceID>.size
+  var deviceIDs = [AudioDeviceID](repeating: 0, count: deviceCount)
+  status = AudioObjectGetPropertyData(
+    AudioObjectID(kAudioObjectSystemObject),
+    &propertyAddress,
+    0,
+    nil,
+    &propertySize,
+    &deviceIDs
+  )
+  if status != noErr {
+    return nil
+  }
+
+  // Get device UID
+  for deviceID in deviceIDs {
+    propertyAddress.mSelector = kAudioDevicePropertyDeviceUID
+    propertySize = UInt32(MemoryLayout<CFString>.size)
+    var deviceUID: Unmanaged<CFString>?
+
+    status = AudioObjectGetPropertyData(
+      deviceID,
+      &propertyAddress,
+      0,
+      nil,
+      &propertySize,
+      &deviceUID
+    )
+    if status == noErr && uid == deviceUID?.takeRetainedValue() as String? {
+      return deviceID
+    }
+  }
+  
+  return nil
+}
