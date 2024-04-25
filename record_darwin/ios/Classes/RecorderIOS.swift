@@ -46,7 +46,7 @@ private func setInput(_ config: RecordConfig) throws {
 extension AudioRecordingDelegate {
   func initAVAudioSession(config: RecordConfig) throws {
     let audioSession = AVAudioSession.sharedInstance()
-    let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth]
+    let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
     
     do {
       try audioSession.setCategory(.playAndRecord, options: options)
