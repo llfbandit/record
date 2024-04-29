@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_util' as jsu;
+import 'dart:js' as js;
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -142,7 +143,7 @@ class MicRecorderDelegate extends RecorderDelegate {
       }
     }
 
-    recorder.port.onmessage = jsu.allowInterop(
+    recorder.port.onmessage = js.allowInterop(
       (event) {
         if (isStream) {
           _onMessageStream(event as MessageEvent);

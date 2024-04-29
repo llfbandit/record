@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:js_util' as jsu;
+import 'dart:js' as js;
 
 import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
@@ -109,8 +110,8 @@ class MediaRecorderDelegate extends RecorderDelegate {
           mimeType: mimeType,
         ),
       );
-      mediaRecorder.ondataavailable = jsu.allowInterop(_onDataAvailable);
-      mediaRecorder.onstop = jsu.allowInterop(_onStop);
+      mediaRecorder.ondataavailable = js.allowInterop(_onDataAvailable);
+      mediaRecorder.onstop = js.allowInterop(_onStop);
 
       _elapsedTime.start();
 
