@@ -95,6 +95,11 @@ record.dispose(); // As always, don't forget this one.
 <string>Some message to describe why you need this permission</string>
 ```
 - min SDK: 11.0
+```xml
+<key>UIBackgroundModes</key>
+<array><string>audio</string></array>
+```
+- Continue recording in the background.
 
 ### macOS
 ```xml
