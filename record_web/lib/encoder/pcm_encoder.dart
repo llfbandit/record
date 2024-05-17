@@ -1,21 +1,24 @@
 import 'dart:typed_data';
 
-import 'package:record_web/js/js_interop/core.dart';
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 
 import 'encoder.dart';
 
 class PcmEncoder implements Encoder {
-  // DataView(js) -> ByteData(dart)
-  List<ByteData> _dataViews = [];
+  List<int> _dataViews = []; // Uint8List
 
   @override
   void encode(Int16List buffer) {
-    _dataViews.add(buffer.buffer.asByteData());
+    _dataViews.addAll(buffer.buffer.asUint8List());
   }
 
   @override
-  Blob finish() {
-    final blob = Blob(_dataViews, BlobPropertyBag(type: 'audio/pcm'));
+  web.Blob finish() {
+    final blob = web.Blob(
+      <JSUint8Array>[Uint8List.fromList(_dataViews).toJS].toJS,
+      web.BlobPropertyBag(type: 'audio/pcm'),
+    );
 
     cleanup();
 

@@ -4,8 +4,8 @@ version: 1.0.5
 homepage: https://github.com/llfbandit/record/tree/master/record_web
 
 environment:
-  sdk: ">=2.17.0 <4.0.0"
-  flutter: ">=3.0.0"
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
 
 dependencies:
   flutter:
@@ -14,7 +14,7 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
 
-  js: ^0.6.5
+  web: ^0.5.1
   record_platform_interface: ^1.0.2
 
 dev_dependencies:

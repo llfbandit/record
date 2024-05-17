@@ -1,23 +1,24 @@
 import 'dart:async';
-import 'dart:js_util' as jsu;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:record_web/encoder/encoder.dart';
 import 'package:record_web/encoder/pcm_encoder.dart';
 import 'package:record_web/encoder/wav_encoder.dart';
-import 'package:record_web/js/js_interop/audio_context.dart';
-import 'package:record_web/js/js_interop/core.dart';
 import 'package:record_web/recorder/delegate/recorder_delegate.dart';
 import 'package:record_web/recorder/recorder.dart';
+import 'package:web/web.dart' as web;
 
 class MicRecorderDelegate extends RecorderDelegate {
   final OnStateChanged onStateChanged;
 
   // Media stream get from getUserMedia
-  MediaStream? _mediaStream;
-  AudioContext? _context;
+  web.MediaStream? _mediaStream;
+  web.AudioContext? _context;
   StreamController<Uint8List>? _recordStreamCtrl;
   Encoder? _encoder;
   // Amplitude
@@ -36,30 +37,30 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<bool> isPaused() async {
-    return _context?.state == AudioContextState.suspended;
+    return _context?.state == 'suspended';
   }
 
   @override
   Future<bool> isRecording() async {
     final context = _context;
-    return context != null && context.state != AudioContextState.closed;
+    return context != null && context.state != 'closed';
   }
 
   @override
   Future<void> pause() async {
     final context = _context;
-    if (context != null && context.state == AudioContextState.running) {
+    if (context != null && context.state == 'running') {
       onStateChanged(RecordState.pause);
-      return context.suspend();
+      await context.suspend().toDart;
     }
   }
 
   @override
   Future<void> resume() async {
     final context = _context;
-    if (context != null && context.state == AudioContextState.suspended) {
+    if (context != null && context.state == 'suspended') {
       onStateChanged(RecordState.record);
-      return context.resume();
+      await context.resume().toDart;
     }
   }
 
@@ -75,7 +76,8 @@ class MicRecorderDelegate extends RecorderDelegate {
 
     try {
       await _start(config, isStream: true);
-    } catch (_) {
+    } catch (err) {
+      debugPrint(err.toString());
       await streamController.close();
       rethrow;
     }
@@ -95,39 +97,29 @@ class MicRecorderDelegate extends RecorderDelegate {
 
     onStateChanged(RecordState.stop);
 
-    return blob != null ? Url.createObjectURL(blob) : null;
+    return blob != null ? web.URL.createObjectURL(blob) : null;
   }
 
   Future<void> _start(RecordConfig config, {bool isStream = false}) async {
     final mediaStream = await initMediaStream(config);
     _mediaStream = mediaStream;
 
-    final constraints = mediaStream.getTracks()[0].getConstraints();
-    bool sampleRateSupported = (constraints.sampleRate != null);
-
-    final context = AudioContext(
-      sampleRateSupported
-          ? AudioContextOptions(sampleRate: config.sampleRate.toDouble())
-          : null,
-    );
+    final context = web.AudioContext();
 
     final source = context.createMediaStreamSource(mediaStream);
 
-    await context.audioWorklet.addModule(
-      './assets/packages/record_web/assets/js/record.worklet.js',
-    );
+    await context.audioWorklet
+        .addModule('./assets/packages/record_web/assets/js/record.worklet.js')
+        .toDart;
 
-    final recorder = AudioWorkletNode(
+    final recorder = web.AudioWorkletNode(
       context,
       'recorder.worklet',
-      AudioWorkletNodeOptions(
-        parameterData: jsu.jsify({
-          'numChannels': config.numChannels,
-          'sampleRate': config.sampleRate,
-        }),
-      ),
     );
-    source.connect(recorder).connect(context.destination);
+    recorder.setProperty('numChannels'.toJS, config.numChannels.toJS);
+    recorder.setProperty('sampleRate'.toJS, config.sampleRate.toJS);
+
+    source.connect(recorder)?.connect(context.destination);
 
     if (!isStream) {
       _encoder?.cleanup();
@@ -142,15 +134,13 @@ class MicRecorderDelegate extends RecorderDelegate {
       }
     }
 
-    recorder.port.onmessage = jsu.allowInterop(
-      (event) {
-        if (isStream) {
-          _onMessageStream(event as MessageEvent);
-        } else {
-          _onMessage(event as MessageEvent);
-        }
-      },
-    );
+    if (isStream) {
+      recorder.port.onmessage =
+          ((web.MessageEvent event) => _onMessageStream(event)).toJS;
+    } else {
+      recorder.port.onmessage =
+          ((web.MessageEvent event) => _onMessage(event)).toJS;
+    }
 
     _context = context;
     _mediaStream = mediaStream;
@@ -158,20 +148,24 @@ class MicRecorderDelegate extends RecorderDelegate {
     onStateChanged(RecordState.record);
   }
 
-  void _onMessage(MessageEvent event) {
+  void _onMessage(web.MessageEvent event) {
     // `data` is a int 16 array containing audio samples
-    final Int16List output = event.data;
+    final output = (event.data as JSInt16Array?)?.toDart;
 
-    _encoder?.encode(output);
-    _updateAmplitude(output);
+    if (output case final output?) {
+      _encoder?.encode(output);
+      _updateAmplitude(output);
+    }
   }
 
-  void _onMessageStream(MessageEvent event) {
+  void _onMessageStream(web.MessageEvent event) {
     // `data` is a int 16 array containing audio samples
-    final Int16List output = event.data;
+    final output = (event.data as JSInt16Array?)?.toDart;
 
-    _recordStreamCtrl?.add(output.buffer.asUint8List());
-    _updateAmplitude(output);
+    if (output case final output?) {
+      _recordStreamCtrl?.add(output.buffer.asUint8List());
+      _updateAmplitude(output);
+    }
   }
 
   void _updateAmplitude(Int16List data) {

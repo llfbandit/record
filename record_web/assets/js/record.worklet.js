@@ -30,15 +30,6 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
   constructor(options) {
     super(options)
-
-    this._numChannels = options.parameterData.numChannels
-    this._sampleRate = options.parameterData.sampleRate
-
-    // Resampler(current context sample rate, desired sample rate, num channels, buffer size)
-    // num channels is always 1 since we resample after interleaving channels
-    this._resampler = new Resampler(sampleRate, this._sampleRate, 1, this._bufferSize * this._numChannels)
-
-    this.initBuffers()
   }
 
   initBuffers() {
@@ -68,7 +59,18 @@ class RecorderProcessor extends AudioWorkletProcessor {
    * @param {Float32Array[][]} inputs
    * @returns {boolean}
    */
-  process(inputs) {
+  process(inputs, outputs, parameters) {
+    if (this._resampler === null) {
+      this._numChannels = parameters.numChannels
+      this._sampleRate = parameters.sampleRate
+
+      // Resampler(current context sample rate, desired sample rate, num channels, buffer size)
+      // num channels is always 1 since we resample after interleaving channels
+      this._resampler = new Resampler(sampleRate, this._sampleRate, 1, this._bufferSize * this._numChannels)
+
+      this.initBuffers()
+    }
+
     if (this.isBufferFull()) {
       this.flush()
     }

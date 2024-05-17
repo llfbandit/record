@@ -1,24 +1,23 @@
 import 'dart:async';
+import 'dart:js_interop';
 import 'dart:math' as math;
-import 'dart:js_util' as jsu;
+import 'package:record_web/js/js_import_library.dart';
+import 'package:record_web/js/js_webm_duration_fix.dart';
+import 'package:web/web.dart' as web;
 
 import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
-import 'package:record_web/js/js_import_library.dart';
-import 'package:record_web/js/js_interop/audio_context.dart';
-import 'package:record_web/js/js_interop/core.dart';
-import 'package:record_web/js/js_webm_duration_fix.dart';
 import 'package:record_web/mime_types.dart';
 import 'package:record_web/recorder/delegate/recorder_delegate.dart';
 import 'package:record_web/recorder/recorder.dart';
 
 class MediaRecorderDelegate extends RecorderDelegate {
   // Media recorder object
-  MediaRecorder? _mediaRecorder;
+  web.MediaRecorder? _mediaRecorder;
   // Media stream get from getUserMedia
-  MediaStream? _mediaStream;
+  web.MediaStream? _mediaStream;
   // Audio data
-  List<Blob> _chunks = [];
+  List<web.Blob> _chunks = [];
   // Completer to get data & stop events before `stop()` method ends
   Completer<String?>? _onStopCompleter;
 
@@ -26,10 +25,12 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   // Amplitude
   double _maxAmplitude = kMinAmplitude;
-  AudioContext? _audioCtx;
-  AnalyserNode? _analyser;
+  web.AudioContext? _audioCtx;
+  web.AnalyserNode? _analyser;
 
   final OnStateChanged onStateChanged;
+
+  final _defaultMimeType = 'audio/webm;codecs=opus';
 
   MediaRecorderDelegate({required this.onStateChanged}) {
     ImportJsLibrary().import(
@@ -46,7 +47,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<bool> isPaused() async {
-    return _mediaRecorder?.state == RecordingState.paused;
+    return _mediaRecorder?.state == 'paused';
   }
 
   @override
@@ -56,7 +57,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<void> pause() async {
-    if (_mediaRecorder?.state == RecordingState.recording) {
+    if (_mediaRecorder?.state == 'recording') {
       _mediaRecorder?.pause();
       _elapsedTime.stop();
 
@@ -72,7 +73,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<void> resume() async {
-    if (_mediaRecorder?.state == RecordingState.paused) {
+    if (_mediaRecorder?.state == 'paused') {
       _mediaRecorder?.resume();
       _elapsedTime.start();
 
@@ -101,16 +102,17 @@ class MediaRecorderDelegate extends RecorderDelegate {
       // If contrainst isn't set, browser will record with its default codec.
       final mimeType = getSupportedMimeType(config.encoder);
 
-      final mediaRecorder = MediaRecorder(
+      final mediaRecorder = web.MediaRecorder(
         mediaStream,
-        MediaRecorderOptions(
+        web.MediaRecorderOptions(
           audioBitsPerSecond: config.bitRate,
           bitsPerSecond: config.bitRate,
-          mimeType: mimeType,
+          mimeType: mimeType ?? _defaultMimeType,
         ),
       );
-      mediaRecorder.ondataavailable = jsu.allowInterop(_onDataAvailable);
-      mediaRecorder.onstop = jsu.allowInterop(_onStop);
+      mediaRecorder.ondataavailable =
+          ((web.BlobEvent event) => _onDataAvailable(event)).toJS;
+      mediaRecorder.onstop = ((web.Event event) => _onStop()).toJS;
 
       _elapsedTime.start();
 
@@ -161,7 +163,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   bool _isRecording() {
     final state = _mediaRecorder?.state;
-    return state == RecordingState.recording || state == RecordingState.paused;
+    return state == 'recording' || state == 'paused';
   }
 
   void _onError(dynamic error) {
@@ -169,9 +171,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
     debugPrint(error.toString());
   }
 
-  void _onDataAvailable(Event event) {
-    if (event is! BlobEvent) return;
-
+  void _onDataAvailable(web.BlobEvent event) {
     final data = event.data;
 
     if (data.size > 0) {
@@ -179,28 +179,21 @@ class MediaRecorderDelegate extends RecorderDelegate {
     }
   }
 
-  Future<void> _onStop(Event event) async {
+  void _onStop() async {
     String? audioUrl;
 
     if (_chunks.isNotEmpty) {
       _elapsedTime.stop();
 
-      debugPrint('Container/codec chosen: ${_mediaRecorder?.mimeType}');
-
-      var blob = await jsu.promiseToFuture(
-        fixWebmDuration(
-          Blob(
-            _chunks,
-            BlobPropertyBag(
-              type: _mediaRecorder?.mimeType ?? 'audio/webm;codecs=opus',
-            ),
-          ),
-          _elapsedTime.elapsedMilliseconds,
-          null,
+      final blob = await fixWebmDuration(
+        web.Blob(
+          _chunks.toJS,
+          web.BlobPropertyBag(type: _defaultMimeType),
         ),
-      );
+        _elapsedTime.elapsedMilliseconds.toJS,
+      ).toDart;
 
-      audioUrl = Url.createObjectURL(blob);
+      audioUrl = web.URL.createObjectURL(blob);
     }
 
     await _reset();
@@ -228,8 +221,8 @@ class MediaRecorderDelegate extends RecorderDelegate {
     _chunks = [];
   }
 
-  void _createAudioContext(RecordConfig config, MediaStream stream) {
-    final audioCtx = AudioContext();
+  void _createAudioContext(RecordConfig config, web.MediaStream stream) {
+    final audioCtx = web.AudioContext();
 
     final source = audioCtx.createMediaStreamSource(stream);
 
@@ -251,8 +244,10 @@ class MediaRecorderDelegate extends RecorderDelegate {
     final bufferLength = analyser.frequencyBinCount; // Always fftSize / 2
     final dataArray = Float32List(bufferLength.toInt());
 
-    analyser.getFloatFrequencyData(dataArray);
+    analyser.getFloatFrequencyData(dataArray.toJS);
 
-    return dataArray.reduce(math.max);
+    return dataArray
+        .reduce((value, element) => math.max(value, element))
+        .toDouble();
   }
 }

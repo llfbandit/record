@@ -1,11 +1,10 @@
 import 'dart:typed_data';
-
-import 'package:record_web/js/js_interop/core.dart';
+import 'package:web/web.dart' as web;
 
 abstract class Encoder {
   void encode(Int16List buffer);
 
-  Blob finish();
+  web.Blob finish();
 
   void cleanup();
 }

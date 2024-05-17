@@ -1,9 +1,12 @@
-import 'package:js/js.dart';
+import 'dart:js_interop';
 
-import 'js_interop/core.dart';
+import 'package:web/web.dart' as web;
 
 @JS('jsFixWebmDuration')
-external dynamic fixWebmDuration(Blob blob, num duration, dynamic options);
+external JSPromise<web.Blob> fixWebmDuration(
+  web.Blob blob,
+  JSNumber duration,
+);
 
 String jsFixWebmDurationContentId() => 'fix-webm-duration';
 
