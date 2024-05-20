@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -104,7 +103,14 @@ class MicRecorderDelegate extends RecorderDelegate {
     final mediaStream = await initMediaStream(config);
     _mediaStream = mediaStream;
 
-    final context = web.AudioContext();
+    final isFirefox =
+        web.window.navigator.userAgent.toLowerCase().contains('firefox');
+    final context = switch (isFirefox) {
+      true => web.AudioContext(),
+      false => web.AudioContext(
+          web.AudioContextOptions(sampleRate: config.sampleRate.toDouble()),
+        ),
+    };
 
     final source = context.createMediaStreamSource(mediaStream);
 
@@ -115,9 +121,13 @@ class MicRecorderDelegate extends RecorderDelegate {
     final recorder = web.AudioWorkletNode(
       context,
       'recorder.worklet',
+      web.AudioWorkletNodeOptions(
+        parameterData: {
+          'numChannels'.toJS: config.numChannels.toJS,
+          'sampleRate'.toJS: config.sampleRate.toJS,
+        }.jsify()! as JSObject,
+      ),
     );
-    recorder.setProperty('numChannels'.toJS, config.numChannels.toJS);
-    recorder.setProperty('sampleRate'.toJS, config.sampleRate.toJS);
 
     source.connect(recorder)?.connect(context.destination);
 
