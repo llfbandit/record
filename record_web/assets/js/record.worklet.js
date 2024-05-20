@@ -34,9 +34,6 @@ class RecorderProcessor extends AudioWorkletProcessor {
     this._numChannels = options.parameterData.numChannels
     this._sampleRate = options.parameterData.sampleRate
 
-    console.log(sampleRate)
-    console.log(this._sampleRate)
-
     // Resampler(current context sample rate, desired sample rate, num channels, buffer size)
     // num channels is always 1 since we resample after interleaving channels
     this._resampler = new Resampler(sampleRate, this._sampleRate, 1, this._bufferSize * this._numChannels)
