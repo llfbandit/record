@@ -26,6 +26,9 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     }
 #endif
     
+    // Set up AGC & echo cancel
+    initEffects(config: config, audioEngine: audioEngine)
+    
     let srcFormat = audioEngine.inputNode.outputFormat(forBus: 0)
     
     let dstFormat = AVAudioFormat(
@@ -166,5 +169,25 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
         }
       }
     }
+  }
+  
+  private func initEffects(config: RecordConfig, audioEngine: AVAudioEngine) {
+    let propsize = UInt32(MemoryLayout<Bool>.size)
+    var autoGain = config.autoGain
+    var echoCancel = config.echoCancel
+
+    AudioUnitSetProperty(audioEngine.inputNode.audioUnit!,
+                         kAUVoiceIOProperty_BypassVoiceProcessing,
+                         kAudioUnitScope_Global,
+                         AudioUnitElement(bus),
+                         &echoCancel,
+                         propsize)
+
+    AudioUnitSetProperty(audioEngine.inputNode.audioUnit!,
+                         kAUVoiceIOProperty_VoiceProcessingEnableAGC,
+                         kAudioUnitScope_Global,
+                         AudioUnitElement(bus),
+                         &autoGain,
+                         propsize)
   }
 }
