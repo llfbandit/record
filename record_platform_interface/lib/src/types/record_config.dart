@@ -78,7 +78,7 @@ class RecordConfig {
   }
 }
 
-/// Android specific configuration
+/// Android specific configuration for recording.
 class AndroidRecordConfig {
   /// Uses Android MediaRecorder if [true].
   ///
@@ -86,13 +86,25 @@ class AndroidRecordConfig {
   /// by default.
   final bool useLegacy;
 
+  /// If [true], this will mute all audio streams like alarms, music, ring, ...
+  ///
+  /// This is useful when you want to record audio without any background noise.
+  ///
+  /// The streams are restored to their previous state after recording is stopped
+  /// and will stay at current state on pause/resume.
+  ///
+  /// Use at your own risks!
+  final bool muteAudio;
+
   const AndroidRecordConfig({
     this.useLegacy = false,
+    this.muteAudio = false,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'useLegacy': useLegacy,
+      'muteAudio': muteAudio,
     };
   }
 }
