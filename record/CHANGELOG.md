@@ -1,3 +1,7 @@
+## 5.1.0
+* chore: Updated Android and web dependencies.
+* chore: Updated README.md.
+
 ## 5.0.5
 * fix: Expose cancel method to stop and discard the recording.
 * feat: Improve convertBytesToInt16 method by exposing endian parameter.

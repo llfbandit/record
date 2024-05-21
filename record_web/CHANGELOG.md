@@ -1,3 +1,6 @@
+## 1.1.0
+* feat: Migrated implementation to package:web.
+
 ## 1.0.5
 * fix: Use relative asset path for worklet file (#274)
 

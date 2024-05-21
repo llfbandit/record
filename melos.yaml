@@ -13,3 +13,18 @@ packages:
 # Don't generate intellij files
 ide:
   intellij: false
+
+command:
+  # When a dependency in a package is listed it will be replaced with the following versions.
+  bootstrap:
+    environment:
+      sdk: ^3.3.0
+      flutter: ^3.16.0
+    dev_dependencies:
+      # Linter rules (https://pub.dev/packages/flutter_lints)
+      flutter_lints: ^4.0.0
+
+  clean:
+    hooks:
+      # Runs "flutter clean" in all Flutter packages (`--flutter`) with concurrency
+      post: melos exec --flutter -c 1 -- "flutter clean"

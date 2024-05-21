@@ -49,7 +49,7 @@ but are not available in current (and tested) browsers (Chrome / Firefox).
 \* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file!  
 1. min SDK: 23. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
 2. Unsupported on legacy Android recorder.
-3. Sample rate output is determined by your settings in OS. Bit depth is 32 bits.
+3. Sample rate output is determined by your settings in OS. Bit depth is likely 32 bits.
 
 ## Usage
 
