@@ -1,7 +1,9 @@
 ## 1.2.0
 * feat: Re-introduced native MediaRecorder. Set `RecordConfig.androidConfig.useLegacy` to `true`. This comes with limitations compared to advanced recorder.
 * feat: Advanced AudioRecorder will try to adjust given configuration if unsupported or out of range (sample rate, bitrate and channel count).
-Those two above should help for older devices or bad vendor implementations.
+  * Those two features should help for older devices, bad vendor implementations or misusage of configuration values.
+* feat: ability to mute all audio streams when recording. The settings are restored when the recording is stopped.
+  * Notice: streams will stay at current state on pause/resume.
 
 ## 1.1.0
 * fix: Properly close container when recording is stopped.

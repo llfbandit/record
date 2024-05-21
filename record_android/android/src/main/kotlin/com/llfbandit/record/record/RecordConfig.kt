@@ -13,6 +13,7 @@ class RecordConfig(
     val echoCancel: Boolean = false,
     val noiseSuppress: Boolean = false,
     val useLegacy: Boolean = false,
+    val muteAudio: Boolean = false,
 ) {
     val numChannels: Int = 2.coerceAtMost(1.coerceAtLeast(numChannels))
 }

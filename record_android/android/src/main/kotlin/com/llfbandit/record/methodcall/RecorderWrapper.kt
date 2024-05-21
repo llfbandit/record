@@ -148,7 +148,8 @@ internal class RecorderWrapper(
 
         return AudioRecorder(
             recorderStateStreamHandler,
-            recorderRecordStreamHandler
+            recorderRecordStreamHandler,
+            context
         )
     }
 
