@@ -5,7 +5,7 @@ homepage: https://github.com/llfbandit/record/tree/master/record_web
 
 environment:
   sdk: ^3.3.0
-  flutter: ^3.16.0
+  flutter: ">=3.16.0"
 
 dependencies:
   flutter:
