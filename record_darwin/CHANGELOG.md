@@ -1,3 +1,9 @@
+## 1.1.0
+* fix(iOS): Don't interrupt recording from system alerts and never resume on others.
+* feat(iOS): Allow AD2P bluetooth
+* feat(macOS): Allow device selection when streaming
+* feat(darwin): Enable autoGain & echoCancel when streaming
+
 ## 1.0.1
 * chore: Reworked again implementations to be closer to previous versions:
     - iOS Simulator is now usable again.
