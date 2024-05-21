@@ -1,6 +1,6 @@
 import 'package:record_platform_interface/src/types/types.dart';
 
-/// Recoding configuration
+/// Recording configuration
 ///
 /// `encoder`: The audio encoder to be used for recording.
 ///
@@ -22,14 +22,34 @@ import 'package:record_platform_interface/src/types/types.dart';
 ///
 /// `*`: May not be considered on all platforms/formats.
 class RecordConfig {
+  /// The requested output format through this given encoder.
   final AudioEncoder encoder;
+
+  /// The audio encoding bit rate in bits per second if applicable.
   final int bitRate;
+
+  /// The sample rate for audio in samples per second if applicable.
   final int sampleRate;
+
+  /// The numbers of channels for the recording. 1 = mono, 2 = stereo.
+  /// Most platforms only accept 2 at most.
   final int numChannels;
+
+  /// The device to be used for recording. If null, default device
+  /// will be selected.
   final InputDevice? device;
+
+  /// The recorder will try to auto adjust recording volume in a limited range.
   final bool autoGain;
+
+  /// The recorder will try to reduce echo.
   final bool echoCancel;
+
+  /// The recorder will try to negates the input noise.
   final bool noiseSuppress;
+
+  /// Android specific configuration.
+  final AndroidRecordConfig androidConfig;
 
   const RecordConfig({
     this.encoder = AudioEncoder.aacLc,
@@ -40,6 +60,7 @@ class RecordConfig {
     this.autoGain = false,
     this.echoCancel = false,
     this.noiseSuppress = false,
+    this.androidConfig = const AndroidRecordConfig(),
   });
 
   Map<String, dynamic> toMap() {
@@ -52,6 +73,26 @@ class RecordConfig {
       'autoGain': autoGain,
       'echoCancel': echoCancel,
       'noiseSuppress': noiseSuppress,
+      'androidConfig': androidConfig.toMap(),
+    };
+  }
+}
+
+/// Android specific configuration
+class AndroidRecordConfig {
+  /// Uses Android MediaRecorder if [true].
+  ///
+  /// Uses advanced recorder with media codecs and additionnal features
+  /// by default.
+  final bool useLegacy;
+
+  const AndroidRecordConfig({
+    this.useLegacy = false,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'useLegacy': useLegacy,
     };
   }
 }

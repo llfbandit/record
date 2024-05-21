@@ -1,20 +1,18 @@
 package com.llfbandit.record.record.encoder
 
-import android.annotation.TargetApi
 import android.media.MediaCodec
 import android.media.MediaCodec.CodecException
-import android.media.MediaCodecList
 import android.media.MediaFormat
-import android.os.Build
 import com.llfbandit.record.record.container.IContainerWriter
 
 class MediaCodecEncoder(
+    encoder: String,
     mediaFormat: MediaFormat,
     private val listener: EncoderListener,
     private val container: IContainerWriter,
 ) : IEncoder, MediaCodec.Callback() {
 
-    private val codec = createCodec(mediaFormat)
+    private val codec = createCodec(encoder, mediaFormat)
     private var trackIndex = -1
     private var recordStopped = false
     private var recordPaused = false
@@ -39,36 +37,7 @@ class MediaCodecEncoder(
 
     override fun release() {}
 
-    @TargetApi(Build.VERSION_CODES.Q)
-    private fun findCodecForFormat(format: MediaFormat): String? {
-        val mime = format.getString(MediaFormat.KEY_MIME)
-        val codecs = MediaCodecList(MediaCodecList.REGULAR_CODECS)
-
-        for (info in codecs.codecInfos.sortedBy { !it.canonicalName.startsWith("c2.android") }) {
-            if (!info.isEncoder) {
-                continue
-            }
-            try {
-                val caps = info.getCapabilitiesForType(mime)
-                if (caps != null && caps.isFormatSupported(format)) {
-                    return info.canonicalName
-                }
-            } catch (e: IllegalArgumentException) {
-                // type is not supported
-            }
-        }
-        return null
-    }
-
-    private fun createCodec(mediaFormat: MediaFormat): MediaCodec {
-        val encoder = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            MediaCodecList(MediaCodecList.REGULAR_CODECS).findEncoderForFormat(mediaFormat)
-        } else {
-            findCodecForFormat(mediaFormat)
-        }
-
-        encoder ?: throw Exception("No encoder found for $mediaFormat")
-
+    private fun createCodec(encoder: String, mediaFormat: MediaFormat): MediaCodec {
         var mediaCodec: MediaCodec? = null
         try {
             mediaCodec = MediaCodec.createByCodecName(encoder)

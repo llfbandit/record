@@ -1,3 +1,6 @@
+## 1.1.0
+* feat: Add `AndroidRecordConfig`.
+
 ## 1.0.2
 * chore: Update InputDevice.
 

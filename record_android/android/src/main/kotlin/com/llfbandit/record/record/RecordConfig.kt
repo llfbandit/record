@@ -11,13 +11,10 @@ class RecordConfig(
     val device: AudioDeviceInfo?,
     val autoGain: Boolean = false,
     val echoCancel: Boolean = false,
-    val noiseSuppress: Boolean = false
+    val noiseSuppress: Boolean = false,
+    val useLegacy: Boolean = false,
 ) {
-    val numChannels: Int
-
-    init {
-        this.numChannels = 2.coerceAtMost(1.coerceAtLeast(numChannels))
-    }
+    val numChannels: Int = 2.coerceAtMost(1.coerceAtLeast(numChannels))
 }
 
 class AudioEncoder {

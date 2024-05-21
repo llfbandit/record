@@ -1,6 +1,8 @@
-package com.llfbandit.record.record
+package com.llfbandit.record.record.recorder
 
 import android.util.Log
+import com.llfbandit.record.record.RecordConfig
+import com.llfbandit.record.record.RecordState
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
 import com.llfbandit.record.record.stream.RecorderStateStreamHandler
 
@@ -16,7 +18,7 @@ class AudioRecorder(
     // Recorder streams
     private val recorderStateStreamHandler: RecorderStateStreamHandler,
     private val recorderRecordStreamHandler: RecorderRecordStreamHandler
-) : OnAudioRecordListener {
+) : IRecorder, OnAudioRecordListener {
     companion object {
         private val TAG = AudioRecorder::class.java.simpleName
     }
@@ -30,69 +32,39 @@ class AudioRecorder(
     // Stop callback to be synchronized between stop method return & record stop
     private var stopCb: ((path: String?) -> Unit)? = null
 
-    /**
-     * Starts the recording with the given config.
-     */
     @Throws(Exception::class)
-    fun start(config: RecordConfig) {
+    override fun start(config: RecordConfig) {
         this.config = config
 
         recorderThread = RecordThread(config, this)
-        recorderThread!!.start()
+        recorderThread!!.startRecording()
     }
 
-    /**
-     * Stops the recording.
-     */
-    fun stop(stopCb: ((path: String?) -> Unit)?) {
+    override fun stop(stopCb: ((path: String?) -> Unit)?) {
         this.stopCb = stopCb
 
         recorderThread?.stopRecording()
     }
 
-    /**
-     * Stops the recording and delete file.
-     */
-    fun cancel() {
+    override fun cancel() {
         recorderThread?.cancelRecording()
     }
 
-    /**
-     * Pauses the recording if currently running.
-     */
-    fun pause() {
+    override fun pause() {
         recorderThread?.pauseRecording()
     }
 
-    /**
-     * Resumes the recording if currently paused.
-     */
-    fun resume() {
+    override fun resume() {
         recorderThread?.resumeRecording()
     }
 
-    /**
-     * Gets the state the of recording
-     *
-     * @return True if recording. False otherwise.
-     */
-    val isRecording: Boolean
+    override val isRecording: Boolean
         get() = recorderThread?.isRecording() == true
 
-    /**
-     * Gets the state the of recording
-     *
-     * @return True if paused. False otherwise.
-     */
-    val isPaused: Boolean
+    override val isPaused: Boolean
         get() = recorderThread?.isPaused() == true
 
-    /**
-     * Gets the amplitude
-     *
-     * @return List with current and max amplitude values
-     */
-    fun getAmplitude(): List<Double> {
+    override fun getAmplitude(): List<Double> {
         val amplitude = recorderThread?.getAmplitude() ?: -160.0
         val amps: MutableList<Double> = ArrayList()
         amps.add(amplitude)
@@ -100,7 +72,7 @@ class AudioRecorder(
         return amps
     }
 
-    fun dispose() {
+    override fun dispose() {
         stop(null)
     }
 

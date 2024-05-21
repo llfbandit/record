@@ -1,5 +1,10 @@
-package com.llfbandit.record.record
+package com.llfbandit.record.record.recorder
 
+import com.llfbandit.record.Utils
+import com.llfbandit.record.record.AudioEncoder
+import com.llfbandit.record.record.PCMReader
+import com.llfbandit.record.record.RecordConfig
+import com.llfbandit.record.record.RecordState
 import com.llfbandit.record.record.encoder.EncoderListener
 import com.llfbandit.record.record.encoder.IEncoder
 import com.llfbandit.record.record.format.AacFormat
@@ -10,15 +15,15 @@ import com.llfbandit.record.record.format.Format
 import com.llfbandit.record.record.format.OpusFormat
 import com.llfbandit.record.record.format.PcmFormat
 import com.llfbandit.record.record.format.WaveFormat
-import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 class RecordThread(
     private val config: RecordConfig,
     private val recorderListener: OnAudioRecordListener
-) : Thread(), EncoderListener {
+) : EncoderListener {
     private var reader: PCMReader? = null
     private var audioEncoder: IEncoder? = null
 
@@ -29,6 +34,7 @@ class RecordThread(
     private val isPaused = AtomicBoolean(false)
     private var hasBeenCanceled = false
 
+    private val executorService = Executors.newSingleThreadExecutor()
     private val completion = CountDownLatch(1)
 
     override fun onEncoderDataSize(): Int = reader?.bufferSize ?: 0
@@ -53,12 +59,13 @@ class RecordThread(
         reader = null
 
         if (hasBeenCanceled) {
-            deleteFile()
+            Utils.deleteFile(config.path)
         }
 
         updateState(RecordState.STOP)
 
         completion.countDown()
+        executorService.shutdownNow()
     }
 
     fun isRecording(): Boolean {
@@ -94,30 +101,31 @@ class RecordThread(
             hasBeenCanceled = true
             audioEncoder?.stop()
         } else {
-            deleteFile()
+            Utils.deleteFile(config.path)
         }
     }
 
     fun getAmplitude(): Double = reader?.getAmplitude() ?: -160.0
 
-    override fun run() {
-        try {
-            val format = selectFormat()
-            val mediaFormat = format.getMediaFormat(config)
+    fun startRecording() {
+        executorService.execute {
+            try {
+                val format = selectFormat()
+                val (encoder, adjustedFormat) = format.getEncoder(config, this)
 
-            reader = PCMReader(config, mediaFormat)
+                reader = PCMReader(config, adjustedFormat)
+                reader!!.start()
 
-            audioEncoder = format.getEncoder(config, this)
+                audioEncoder = encoder
+                audioEncoder!!.start()
 
-            reader!!.start()
-            audioEncoder!!.start()
+                updateState(RecordState.RECORD)
 
-            updateState(RecordState.RECORD)
-
-            completion.await()
-        } catch (ex: Exception) {
-            recorderListener.onFailure(ex)
-            onEncoderStop()
+                completion.await()
+            } catch (ex: Exception) {
+                recorderListener.onFailure(ex)
+                onEncoderStop()
+            }
         }
     }
 
@@ -152,18 +160,6 @@ class RecordThread(
                 isRecording.set(false)
                 isPaused.set(false)
                 recorderListener.onStop()
-            }
-        }
-    }
-
-    private fun deleteFile() {
-        val path = config.path
-
-        if (path != null) {
-            val file = File(path)
-
-            if (file.exists()) {
-                file.delete()
             }
         }
     }
