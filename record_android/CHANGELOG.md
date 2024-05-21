@@ -1,3 +1,8 @@
+## 1.2.0
+* feat: Re-introduced native MediaRecorder. Set `RecordConfig.androidConfig.useLegacy` to `true`. This comes with limitations compared to advanced recorder.
+* feat: Advanced AudioRecorder will try to adjust given configuration if unsupported or out of range (sample rate, bitrate and channel count).
+Those two above should help for older devices or bad vendor implementations.
+
 ## 1.1.0
 * fix: Properly close container when recording is stopped.
 * fix: num channels & sample rate are not applied in AAC format.

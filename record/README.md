@@ -2,7 +2,7 @@ Audio recorder from microphone to a given file path or stream.
 
 No external dependencies:
 
-- On Android, AudioRecord and MediaCodec.
+- On Android, AudioRecord and MediaCodec or MediaRecorder.
 - On iOS and macOS, AVFoundation.
 - On Windows, MediaFoundation.
 - On web, well... your browser! (and its underlying platform).
@@ -17,40 +17,39 @@ External dependencies:
 | amplitude(dBFS)  | ✔️            |   ✔️           |  ✔️     |    ✔️     |  ✔️   |
 | permission check | ✔️            |   ✔️           |  ✔️    |            |  ✔️   |
 | num of channels  | ✔️            |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| device selection | ✔️ *          | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| auto gain        | ✔️            |(always active?)| ✔️      |            |       |  
-| echo cancel      | ✔️            |                 | ✔️      |            |       |  
-| noise suppresion | ✔️            |                 | ✔️      |            |       |  
-
-* min SDK: 23. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
+| device selection | ✔️ 1 / 2      | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| auto gain        | ✔️ 2          |(always active?)| ✔️      |            |       |  
+| echo cancel      | ✔️ 2          |                 | ✔️      |            |       |  
+| noise suppresion | ✔️ 2          |                 | ✔️      |            |       |  
 
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
 |-----------------|----------------|---------|---------|---------|---------|---------
-| aacLc           | ✔️            |   ✔️    |  ?     |   ✔️    |  ✔️    |  ✔️ 
+| aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
 | aacEld          | ✔️            |   ✔️    |   ?     |         |  ✔️    | 
 | aacHe           | ✔️            |         |   ?     |         |         |  ✔️ 
 | amrNb           | ✔️            |         |  ?      |   ✔️    |         |  
 | amrWb           | ✔️            |         |  ?      |          |        |  
-| opus            | ✔️            |         |  ✔️      |         |         |  ✔️ 
-| wav             |  ✔️           |   ✔️    |   ✔️     |    ✔️    |   ✔️  |   ✔️ 
-| flac            |  ✔️           |    ✔️    |  ?      |  ✔️     |   ✔️  |   ✔️
-| pcm16bits       | ✔️            |   ✔️    |  ✔️      |   ✔️    |  ✔️   |  
+| opus            | ✔️            |         |  ✔️ 3   |         |         |  ✔️ 
+| wav             | ✔️ 2          |   ✔️    |   ✔️   |    ✔️    |   ✔️  |   ✔️ 
+| flac            | ✔️ 2          |    ✔️    |  ?     |  ✔️     |   ✔️   |   ✔️
+| pcm16bits       | ✔️ 2          |   ✔️    |  ✔️    |   ✔️    |  ✔️    |  
 
-\* Question marks (?) in web column mean that the formats are supported by the plugin
+* Question marks (?) in web column mean that the formats are supported by the plugin
 but are not available in current (and tested) browsers (Chrome / Firefox).
 
 ## Stream
 | Encoder         | Android    | iOS     | web     | Windows | macOS   | linux
 |-----------------|------------|---------|---------|---------|---------|---------
-| aacLc       *   | ✔️        |         |          |         |         |  
-| aacEld      *   | ✔️        |         |          |         |         | 
-| aacHe       *   | ✔️        |         |          |         |         |  
-| pcm16bits       | ✔️        |  ✔️    |   ✔️    |  ✔️     | ✔️     |  
+| aacLc       *   | ✔️ 2      |         |          |         |         |  
+| aacEld      *   | ✔️ 2      |         |          |         |         | 
+| aacHe       *   | ✔️ 2      |         |          |         |         |  
+| pcm16bits       | ✔️ 2      |  ✔️    |   ✔️    |  ✔️     | ✔️     |  
 
 \* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file!  
-
-__All audio output is with 16bits depth.__
+1. min SDK: 23. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
+2. Unsupported on legacy Android recorder.
+3. Sample rate output is determined by your settings in OS. Bit depth is 32 bits.
 
 ## Usage
 
@@ -86,6 +85,7 @@ record.dispose(); // As always, don't forget this one.
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 ```
 - min SDK: 21 (amrNb/amrWb: 26, Opus: 29)
+- min SDK: 19 with legacy recorder.
 
 * [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
 
