@@ -18,6 +18,9 @@ class MicRecorderDelegate extends RecorderDelegate {
   // Media stream get from getUserMedia
   web.MediaStream? _mediaStream;
   web.AudioContext? _context;
+  web.AudioWorkletNode? _workletNode;
+  web.MediaStreamAudioSourceNode? _source;
+
   StreamController<Uint8List>? _recordStreamCtrl;
   Encoder? _encoder;
   // Amplitude
@@ -49,8 +52,8 @@ class MicRecorderDelegate extends RecorderDelegate {
   Future<void> pause() async {
     final context = _context;
     if (context != null && context.state == 'running') {
-      onStateChanged(RecordState.pause);
       await context.suspend().toDart;
+      onStateChanged(RecordState.pause);
     }
   }
 
@@ -58,8 +61,16 @@ class MicRecorderDelegate extends RecorderDelegate {
   Future<void> resume() async {
     final context = _context;
     if (context != null && context.state == 'suspended') {
-      onStateChanged(RecordState.record);
       await context.resume().toDart;
+
+      if (_workletNode != null) {
+        // Workaround for Chromium based browsers,
+        // Audio worklet node is disconnected
+        // when pause state is too long (> 12~15 secs)
+        _source?.connect(_workletNode!)?.connect(context.destination);
+      }
+
+      onStateChanged(RecordState.record);
     }
   }
 
@@ -118,7 +129,7 @@ class MicRecorderDelegate extends RecorderDelegate {
         .addModule('./assets/packages/record_web/assets/js/record.worklet.js')
         .toDart;
 
-    final recorder = web.AudioWorkletNode(
+    final workletNode = web.AudioWorkletNode(
       context,
       'recorder.worklet',
       web.AudioWorkletNodeOptions(
@@ -129,7 +140,7 @@ class MicRecorderDelegate extends RecorderDelegate {
       ),
     );
 
-    source.connect(recorder)?.connect(context.destination);
+    source.connect(workletNode)?.connect(context.destination);
 
     if (!isStream) {
       _encoder?.cleanup();
@@ -145,13 +156,15 @@ class MicRecorderDelegate extends RecorderDelegate {
     }
 
     if (isStream) {
-      recorder.port.onmessage =
+      workletNode.port.onmessage =
           ((web.MessageEvent event) => _onMessageStream(event)).toJS;
     } else {
-      recorder.port.onmessage =
+      workletNode.port.onmessage =
           ((web.MessageEvent event) => _onMessage(event)).toJS;
     }
 
+    _source = source;
+    _workletNode = workletNode;
     _context = context;
     _mediaStream = mediaStream;
 
