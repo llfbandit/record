@@ -32,11 +32,9 @@ enum AudioEncoder {
   /// Suggested file extension: `3gp`
   amrWb,
 
-  /// Will output to MPEG_4 format container.
+  /// Will output to OGG format container.
   ///
   /// SDK 29 on Android
-  ///
-  /// SDK 11 on iOs
   ///
   /// Suggested file extension: `opus`
   opus,
