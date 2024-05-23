@@ -1,3 +1,6 @@
+## 1.2.1
+* fix: Stopping stream recording throws ExceptionInterruptedException.
+
 ## 1.2.0
 * feat: Re-introduced native MediaRecorder. Set `RecordConfig.androidConfig.useLegacy` to `true`. This comes with limitations compared to advanced recorder.
 * feat: Advanced AudioRecorder will try to adjust given configuration if unsupported or out of range (sample rate, bitrate and channel count).

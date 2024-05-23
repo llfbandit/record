@@ -65,7 +65,7 @@ class RecordThread(
         updateState(RecordState.STOP)
 
         completion.countDown()
-        executorService.shutdownNow()
+        executorService.shutdown()
     }
 
     fun isRecording(): Boolean {
