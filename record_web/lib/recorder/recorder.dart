@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:html' as html;
+import 'dart:js_interop';
+import 'package:web/web.dart' as web;
 
 import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
@@ -16,14 +17,14 @@ class Recorder {
   StreamController<RecordState>? _stateStreamCtrl;
 
   Future<bool> hasPermission() async {
-    final mediaDevices = html.window.navigator.mediaDevices;
-    if (mediaDevices == null) return false;
+    final mediaDevices = web.window.navigator.mediaDevices;
 
     try {
-      final ms = await mediaDevices.getUserMedia({'audio': true});
+      final constraints = web.MediaStreamConstraints(audio: {true}.toJSBox);
+      final ms = await mediaDevices.getUserMedia(constraints).toDart;
 
       // Clean-up
-      final tracks = ms.getAudioTracks();
+      final tracks = ms.getAudioTracks().toDart;
       for (var track in tracks) {
         track.stop();
       }
@@ -37,20 +38,12 @@ class Recorder {
   Future<List<InputDevice>> listInputDevices() async {
     final devices = <InputDevice>[];
 
-    final mediaDevices = html.window.navigator.mediaDevices;
+    final mediaDevices = web.window.navigator.mediaDevices;
     try {
-      if (mediaDevices == null) {
-        debugPrint('enumerateDevices() not supported.');
-        return devices;
-      }
-
-      final deviceInfos = await mediaDevices.enumerateDevices();
-      for (var info in deviceInfos) {
-        if (info is html.MediaDeviceInfo &&
-            info.kind == 'audioinput' &&
-            info.deviceId != null &&
-            info.label != null) {
-          devices.add(InputDevice(id: info.deviceId!, label: info.label!));
+      final deviceInfos = await mediaDevices.enumerateDevices().toDart;
+      for (var info in deviceInfos.toDart) {
+        if (info.kind == 'audioinput') {
+          devices.add(InputDevice(id: info.deviceId, label: info.label));
         }
       }
     } catch (error) {
@@ -174,7 +167,7 @@ class Recorder {
     final url = await stop();
 
     if (url != null) {
-      html.Url.revokeObjectUrl(url);
+      web.URL.revokeObjectURL(url);
     }
   }
 

@@ -1,4 +1,4 @@
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 
 import 'package:record_platform_interface/record_platform_interface.dart';
 
@@ -33,7 +33,7 @@ String? getSupportedMimeType(AudioEncoder encoder) {
   if (types == null) return null;
 
   for (var type in types) {
-    if (html.MediaRecorder.isTypeSupported(type)) {
+    if (web.MediaRecorder.isTypeSupported(type)) {
       return type;
     }
   }

@@ -1,7 +1,7 @@
-// ignore_for_file: avoid_web_libraries_in_flutter
-
-import 'dart:html' as html;
+import 'dart:js_interop';
 import 'dart:typed_data';
+
+import 'package:web/web.dart' as web;
 
 import 'package:record/record.dart';
 
@@ -11,23 +11,27 @@ mixin AudioRecorderMixin {
   }
 
   Future<void> recordStream(AudioRecorder recorder, RecordConfig config) async {
-    final b = <Uint8List>[];
+    final bytes = <int>[];
     final stream = await recorder.startStream(config);
 
     stream.listen(
-      (data) => b.add(data),
-      onDone: () => downloadWebData(html.Url.createObjectUrl(html.Blob(b))),
+      (data) => bytes.addAll(data),
+      onDone: () => downloadWebData(
+        web.URL.createObjectURL(
+          web.Blob(<JSUint8Array>[Uint8List.fromList(bytes).toJS].toJS),
+        ),
+      ),
     );
   }
 
   void downloadWebData(String path) {
     // Simple download code for web testing
-    final anchor = html.document.createElement('a') as html.AnchorElement
+    final anchor = web.document.createElement('a') as web.HTMLAnchorElement
       ..href = path
       ..style.display = 'none'
       ..download = 'audio.wav';
-    html.document.body!.children.add(anchor);
+    web.document.body!.appendChild(anchor);
     anchor.click();
-    html.document.body!.children.remove(anchor);
+    web.document.body!.removeChild(anchor);
   }
 }

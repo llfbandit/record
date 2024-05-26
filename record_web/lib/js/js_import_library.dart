@@ -1,35 +1,37 @@
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 
 class ImportJsLibrary {
   /// Injects the library by its [url]
   void import(String content, String id) {
     if (!_isLoaded(id)) {
       final scriptTag = _createScriptTag(content, id);
-      head.children.add(scriptTag);
+      head.appendChild(scriptTag);
     }
   }
 
-  html.Element get head {
-    html.Element? head = html.document.head;
+  web.Element get head {
+    web.Element? head = web.document.head;
     if (head == null) {
-      head = html.document.createElement("head");
-      html.document.append(head);
+      head = web.document.createElement("head");
+      web.document.append(head);
     }
     return head;
   }
 
-  html.ScriptElement _createScriptTag(String content, String id) {
-    final html.ScriptElement script = html.ScriptElement()
+  web.HTMLScriptElement _createScriptTag(String content, String id) {
+    final web.HTMLScriptElement script = web.HTMLScriptElement()
       ..type = "text/javascript"
       ..charset = "utf-8"
       ..id = id
-      ..innerHtml = content;
+      ..innerHTML = content;
     return script;
   }
 
   bool _isLoaded(String id) {
-    for (var element in head.children) {
-      if (element is html.ScriptElement) {
+    for (var i = 0; i < head.children.length; i++) {
+      final element = head.children.item(i);
+
+      if (element is web.HTMLScriptElement) {
         if (element.id == id) {
           return true;
         }

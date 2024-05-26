@@ -114,6 +114,8 @@ class MicRecorderDelegate extends RecorderDelegate {
     final mediaStream = await initMediaStream(config);
     _mediaStream = mediaStream;
 
+    // TODO: Remove Firefox detection to better handle sample rate support with
+    // track constraints (failed to convert ConstaintULong for now).
     final isFirefox =
         web.window.navigator.userAgent.toLowerCase().contains('firefox');
     final context = switch (isFirefox) {
@@ -125,6 +127,8 @@ class MicRecorderDelegate extends RecorderDelegate {
 
     final source = context.createMediaStreamSource(mediaStream);
 
+    // TODO Remove record.worklet.js from assets and use it from lib sources.
+    // This will avoid to propagate it on non web platforms.
     await context.audioWorklet
         .addModule('./assets/packages/record_web/assets/js/record.worklet.js')
         .toDart;
