@@ -1,3 +1,11 @@
+## 1.2.2
+* fix: Threading issues. Model is now more robust and overall performance is much better.
+* fix: Recording on older Android devices ..., 8, 9.
+* fix: Recording on slow devices (e.g. writing on external SD cards, ...).
+* fix: Audio duration detection should be less a problem now.
+* chore: minSDK is now 23 (Android 6), targetSDK is now 34.
+* chore: code cleanup and adjustment from new minSDK.
+
 ## 1.2.1
 * fix: Stopping stream recording throws ExceptionInterruptedException.
 

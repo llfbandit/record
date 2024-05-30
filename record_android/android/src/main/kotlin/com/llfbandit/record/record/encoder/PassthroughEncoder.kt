@@ -2,108 +2,68 @@ package com.llfbandit.record.record.encoder
 
 import android.media.MediaCodec
 import android.media.MediaFormat
-import com.llfbandit.record.record.container.IContainerWriter
+import com.llfbandit.record.record.RecordConfig
 import com.llfbandit.record.record.format.Format
 import java.nio.ByteBuffer
-import java.util.concurrent.CountDownLatch
 
 /**
  * Create a passthrough encoder for the specified format.
  */
 class PassthroughEncoder(
+    config: RecordConfig,
+    format: Format,
     private val mediaFormat: MediaFormat,
     private val listener: EncoderListener,
-    private val container: IContainerWriter
 ) : IEncoder {
-    private var isStarted = false
-    private var isPaused = CountDownLatch(0)
-    private val bufferInfo = MediaCodec.BufferInfo()
-    private var trackIndex = -1
+    private var mIsStarted = false
+    private val mBufferInfo = MediaCodec.BufferInfo()
+    private var mTrackIndex = -1
+    private var mContainer = format.getContainer(config.path)
 
-    private val frameSize = mediaFormat.getInteger(Format.KEY_X_FRAME_SIZE_IN_BYTES)
-    private val sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+    private val mFrameSize = mediaFormat.getInteger(Format.KEY_X_FRAME_SIZE_IN_BYTES)
+    private val mSampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
 
     /** Number of frames encoded so far. */
-    private var numFrames = 0L
+    private var mNumFrames = 0L
 
-    /** Presentation timestamp given [numFrames] already being encoded */
+    /** Presentation timestamp given [mNumFrames] already being encoded */
     private val timestampUs
-        get() = numFrames * 1_000_000L / sampleRate
+        get() = mNumFrames * 1_000_000L / mSampleRate
 
-    override fun start() {
-        if (isStarted) {
-            throw IllegalStateException("Encoder is already started")
+    override fun startEncoding() {
+        if (mIsStarted) {
+            return
         }
 
-        isStarted = true
+        mTrackIndex = mContainer.addTrack(mediaFormat)
+        mContainer.start()
 
-        EncodeThread().start()
+        mIsStarted = true
     }
 
-    override fun pause() {
-        if (isPaused.count == 0L) {
-            isPaused = CountDownLatch(1)
-        }
-    }
-
-    override fun resume() {
-        isPaused.countDown()
-    }
-
-    override fun stop() {
-        if (!isStarted) {
-            throw IllegalStateException("Encoder is not started")
-        }
-
-        isStarted = false
-        isPaused.countDown()
-    }
-
-    override fun release() {
-        if (isStarted) {
-            stop()
+    override fun stopEncoding() {
+        if (mIsStarted) {
+            mIsStarted = false
+            mContainer.stop()
         }
     }
 
-    private inner class EncodeThread : Thread() {
-        override fun run() = encode()
+    override fun encode(bytes: ByteArray) {
+        if (!mIsStarted) return
 
-        private fun encode() {
-            trackIndex = container.addTrack(mediaFormat)
-            container.start()
+        val buffer = ByteBuffer.wrap(bytes)
+        val frames = buffer.remaining() / mFrameSize
 
-            val buffer = ByteBuffer.allocateDirect(listener.onEncoderDataSize())
+        mBufferInfo.offset = buffer.position()
+        mBufferInfo.size = buffer.limit()
+        mBufferInfo.presentationTimeUs = timestampUs
 
-            var isEof = false
-
-            while (isStarted || !isEof) {
-                isPaused.await()
-
-                isEof = !isStarted
-                buffer.clear()
-
-                val bytesRead = listener.onEncoderDataNeeded(buffer)
-
-                if (bytesRead > 0) {
-                    val frames = buffer.remaining() / frameSize
-
-                    bufferInfo.offset = buffer.position()
-                    bufferInfo.size = buffer.limit()
-                    bufferInfo.presentationTimeUs = timestampUs
-                    bufferInfo.flags = if (isEof) MediaCodec.BUFFER_FLAG_END_OF_STREAM else 0
-
-                    if (container.isStream()) {
-                        listener.onEncoderStream(container.writeStream(trackIndex, buffer, bufferInfo))
-                    } else {
-                        container.writeSampleData(trackIndex, buffer, bufferInfo)
-                    }
-
-                    numFrames += frames
-                }
-            }
-
-            container.stop()
-            listener.onEncoderStop()
+        if (mContainer.isStream()) {
+            listener.onEncoderStream(mContainer.writeStream(mTrackIndex, buffer, mBufferInfo))
+        } else {
+            mContainer.writeSampleData(mTrackIndex, buffer, mBufferInfo)
         }
+
+        mNumFrames += frames
     }
 }

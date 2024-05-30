@@ -47,7 +47,7 @@ but are not available in current (and tested) browsers (Chrome / Firefox).
 | pcm16bits       | ✔️ 2      |  ✔️    |   ✔️    |  ✔️     | ✔️     |  
 
 \* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file!  
-1. min SDK: 23. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
+1. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
 2. Unsupported on legacy Android recorder.
 3. Sample rate output is determined by your settings in OS. Bit depth is likely 32 bits.
 
@@ -79,13 +79,12 @@ record.dispose(); // As always, don't forget this one.
 ### Android
 ```xml
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
-<!-- Optional: Add this permission if you want to use bluetooth telephony device like headset/earbuds (min SDK: 23) -->
+<!-- Optional: Add this permission if you want to use bluetooth telephony device like headset/earbuds -->
 <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 <!-- Optional: Add this permission if you want to save your recordings in public folders -->
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 ```
-- min SDK: 21 (amrNb/amrWb: 26, Opus: 29)
-- min SDK: 19 with legacy recorder.
+- min SDK: 23 (amrNb/amrWb: 26, Opus: 29)
 
 * [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
 

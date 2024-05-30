@@ -8,7 +8,6 @@ import com.llfbandit.record.record.RecordState
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
 import com.llfbandit.record.record.stream.RecorderStateStreamHandler
 
-
 interface OnAudioRecordListener {
     fun onRecord()
     fun onPause()
@@ -137,8 +136,8 @@ class AudioRecorder(
     private fun muteAudio(mute: Boolean) {
         val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-        val muteValue = -100    // AudioManager.ADJUST_MUTE
-        val unmuteValue = 100   // AudioManager.ADJUST_UNMUTE
+        val muteValue = AudioManager.ADJUST_MUTE
+        val unmuteValue = AudioManager.ADJUST_UNMUTE
 
         muteStreams.forEach { stream ->
             val volumeLevel = if (mute) muteValue else (muteSettings[stream] ?: unmuteValue)

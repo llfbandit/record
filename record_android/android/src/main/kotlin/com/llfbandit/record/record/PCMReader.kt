@@ -1,5 +1,6 @@
 package com.llfbandit.record.record
 
+import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaFormat
@@ -7,12 +8,12 @@ import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
-import android.os.Build
 import android.util.Log
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.log10
+
 
 class PCMReader(
     // Config to setup the recording
@@ -30,7 +31,7 @@ class PCMReader(
     private var noiseSuppressor: NoiseSuppressor? = null
 
     // Min size of the buffer for writings
-    var bufferSize = 0
+    private var bufferSize = 0
 
     // Last acquired amplitude
     private var amplitude: Double = -160.0
@@ -56,22 +57,22 @@ class PCMReader(
     }
 
     @Throws(Exception::class)
-    fun read(audioBuffer: ByteBuffer): Int {
-        val resultBytes = reader.read(audioBuffer, audioBuffer.remaining())
+    fun read(): ByteArray {
+        val buffer = ByteArray(bufferSize)
+        val resultBytes = reader.read(buffer, 0, bufferSize)
         if (resultBytes < 0) {
             throw Exception(getReadFailureReason(resultBytes))
         }
 
-        audioBuffer.limit(resultBytes)
+        val audioBuffer = ByteArray(resultBytes)
+        System.arraycopy(buffer, 0, audioBuffer, 0, resultBytes)
 
         if (resultBytes > 0) {
-            val buffer = ByteArray(resultBytes)
-            audioBuffer.duplicate()[buffer, 0, resultBytes]
-
             // Update amplitude
-            amplitude = getAmplitude(buffer, resultBytes)
+            amplitude = getAmplitude(audioBuffer, resultBytes)
         }
-        return resultBytes
+
+        return audioBuffer
     }
 
     fun getAmplitude(): Double {
@@ -85,6 +86,7 @@ class PCMReader(
         noiseSuppressor?.release()
     }
 
+    @SuppressLint("MissingPermission")
     @Throws(Exception::class)
     private fun createReader(): AudioRecord {
         val sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
@@ -105,7 +107,7 @@ class PCMReader(
             throw Exception("PCM reader failed to initialize.")
         }
 
-        if (Build.VERSION.SDK_INT >= 23 && config.device != null) {
+        if (config.device != null) {
             if (!reader.setPreferredDevice(config.device)) {
                 Log.w(TAG, "Unable to set device ${config.device.productName}")
             }

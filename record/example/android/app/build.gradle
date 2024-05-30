@@ -23,7 +23,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    compileSdkVersion 33
+    compileSdk 34
 
     lintOptions {
         disable 'InvalidPackage'
@@ -31,8 +31,8 @@ android {
 
     defaultConfig {
         applicationId "com.llfbandit.record_example"
-        minSdkVersion 21
-        targetSdkVersion 33
+        minSdkVersion 23
+        targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
@@ -45,6 +45,11 @@ android {
         }
     }
     namespace 'com.llfbandit.record_example'
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
 }
 
 flutter {

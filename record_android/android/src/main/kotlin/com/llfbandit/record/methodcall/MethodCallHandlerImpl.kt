@@ -2,7 +2,6 @@ package com.llfbandit.record.methodcall
 
 import android.app.Activity
 import android.content.Context
-import android.os.Build
 import com.llfbandit.record.Utils
 import com.llfbandit.record.permission.PermissionManager
 import com.llfbandit.record.record.RecordConfig
@@ -144,11 +143,7 @@ class MethodCallHandlerImpl(
             Utils.firstNonNull(call.argument("bitRate"), 128000),
             Utils.firstNonNull(call.argument("sampleRate"), 44100),
             Utils.firstNonNull(call.argument("numChannels"), 2),
-            if (Build.VERSION.SDK_INT >= 23) {
-                DeviceUtils.deviceInfoFromMap(appContext, call.argument("device"))
-            } else {
-                null
-            },
+            DeviceUtils.deviceInfoFromMap(appContext, call.argument("device")),
             Utils.firstNonNull(call.argument("autoGain"), false),
             Utils.firstNonNull(call.argument("echoCancel"), false),
             Utils.firstNonNull(call.argument("noiseSuppress"), false),

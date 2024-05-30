@@ -4,7 +4,6 @@ import com.llfbandit.record.Utils
 import com.llfbandit.record.record.AudioEncoder
 import com.llfbandit.record.record.PCMReader
 import com.llfbandit.record.record.RecordConfig
-import com.llfbandit.record.record.RecordState
 import com.llfbandit.record.record.encoder.EncoderListener
 import com.llfbandit.record.record.encoder.IEncoder
 import com.llfbandit.record.record.format.AacFormat
@@ -15,33 +14,27 @@ import com.llfbandit.record.record.format.Format
 import com.llfbandit.record.record.format.OpusFormat
 import com.llfbandit.record.record.format.PcmFormat
 import com.llfbandit.record.record.format.WaveFormat
-import java.nio.ByteBuffer
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
+
 
 class RecordThread(
     private val config: RecordConfig,
     private val recorderListener: OnAudioRecordListener
 ) : EncoderListener {
-    private var reader: PCMReader? = null
-    private var audioEncoder: IEncoder? = null
+    private var mPcmReader: PCMReader? = null
+    private var mEncoder: IEncoder? = null
 
     // Signals whether a recording is in progress (true) or not (false).
-    private val isRecording = AtomicBoolean(false)
+    private val mIsRecording = AtomicBoolean(false)
 
     // Signals whether a recording is paused (true) or not (false).
-    private val isPaused = AtomicBoolean(false)
-    private var hasBeenCanceled = false
+    private val mIsPaused = AtomicBoolean(false)
+    private val mIsPausedSem = Semaphore(0)
+    private var mHasBeenCanceled = false
 
-    private val executorService = Executors.newSingleThreadExecutor()
-    private val completion = CountDownLatch(1)
-
-    override fun onEncoderDataSize(): Int = reader?.bufferSize ?: 0
-
-    override fun onEncoderDataNeeded(byteBuffer: ByteBuffer): Int {
-        return reader?.read(byteBuffer) ?: 0
-    }
+    private val mExecutorService = Executors.newSingleThreadExecutor()
 
     override fun onEncoderFailure(ex: Exception) {
         recorderListener.onFailure(ex)
@@ -51,82 +44,92 @@ class RecordThread(
         recorderListener.onAudioChunk(bytes)
     }
 
-    override fun onEncoderStop() {
-        audioEncoder?.release()
-
-        reader?.stop()
-        reader?.release()
-        reader = null
-
-        if (hasBeenCanceled) {
-            Utils.deleteFile(config.path)
-        }
-
-        updateState(RecordState.STOP)
-
-        completion.countDown()
-        executorService.shutdown()
-    }
-
     fun isRecording(): Boolean {
-        return audioEncoder != null && isRecording.get()
+        return mEncoder != null && mIsRecording.get()
     }
 
     fun isPaused(): Boolean {
-        return audioEncoder != null && isPaused.get()
+        return mEncoder != null && mIsPaused.get()
     }
 
     fun pauseRecording() {
         if (isRecording()) {
-            audioEncoder?.pause()
-            updateState(RecordState.PAUSE)
+            pauseState()
         }
     }
 
     fun resumeRecording() {
         if (isPaused()) {
-            audioEncoder?.resume()
-            updateState(RecordState.RECORD)
+            recordState()
         }
     }
 
     fun stopRecording() {
         if (isRecording()) {
-            audioEncoder?.stop()
+            mIsRecording.set(false)
+            mIsPaused.set(false)
+            mIsPausedSem.release()
         }
     }
 
     fun cancelRecording() {
         if (isRecording()) {
-            hasBeenCanceled = true
-            audioEncoder?.stop()
+            mHasBeenCanceled = true
+            stopRecording()
         } else {
             Utils.deleteFile(config.path)
         }
     }
 
-    fun getAmplitude(): Double = reader?.getAmplitude() ?: -160.0
+    fun getAmplitude(): Double = mPcmReader?.getAmplitude() ?: -160.0
 
     fun startRecording() {
-        executorService.execute {
+        mExecutorService.execute {
             try {
                 val format = selectFormat()
                 val (encoder, adjustedFormat) = format.getEncoder(config, this)
 
-                reader = PCMReader(config, adjustedFormat)
-                reader!!.start()
+                mPcmReader = PCMReader(config, adjustedFormat)
+                mPcmReader!!.start()
 
-                audioEncoder = encoder
-                audioEncoder!!.start()
+                mEncoder = encoder
+                mEncoder!!.startEncoding()
 
-                updateState(RecordState.RECORD)
+                recordState()
 
-                completion.await()
+                while (isRecording()) {
+                    if (isPaused()) {
+                        mIsPausedSem.acquire()
+                        // Check again if recording has been stopped
+                        if (!isRecording()) break
+                    }
+
+                    val buffer = mPcmReader!!.read()
+                    if (buffer.isNotEmpty()) {
+                        mEncoder!!.encode(buffer)
+                    }
+                }
             } catch (ex: Exception) {
                 recorderListener.onFailure(ex)
-                onEncoderStop()
+            } finally {
+                stopAndRelease()
             }
         }
+    }
+
+    private fun stopAndRelease() {
+        mPcmReader?.stop()
+        mPcmReader?.release()
+        mPcmReader = null
+
+        mEncoder?.stopEncoding()
+        mEncoder = null
+
+        if (mHasBeenCanceled) {
+            Utils.deleteFile(config.path)
+        }
+
+        recorderListener.onStop()
     }
 
     private fun selectFormat(): Format {
@@ -142,25 +145,19 @@ class RecordThread(
         throw Exception("Unknown format: " + config.encoder)
     }
 
-    private fun updateState(state: RecordState) {
-        when (state) {
-            RecordState.PAUSE -> {
-                isRecording.set(true)
-                isPaused.set(true)
-                recorderListener.onPause()
-            }
+    private fun pauseState() {
+        mIsRecording.set(true)
+        mIsPaused.set(true)
 
-            RecordState.RECORD -> {
-                isRecording.set(true)
-                isPaused.set(false)
-                recorderListener.onRecord()
-            }
+        recorderListener.onPause()
+    }
 
-            RecordState.STOP -> {
-                isRecording.set(false)
-                isPaused.set(false)
-                recorderListener.onStop()
-            }
-        }
+    private fun recordState() {
+        mIsRecording.set(true)
+        mIsPaused.set(false)
+
+        mIsPausedSem.release()
+
+        recorderListener.onRecord()
     }
 }
