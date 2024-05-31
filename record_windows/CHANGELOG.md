@@ -1,3 +1,6 @@
+## 1.0.3
+* fix: Crash when starting the recording when the writer can't be created.
+
 ## 1.0.2
 * fix: Quick creation/start/stop sequence resulting in a crash.
 

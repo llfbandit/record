@@ -391,7 +391,10 @@ namespace record_windows
 		HRESULT hr = MFCreateSinkWriterFromURL(wsPath.c_str(), NULL, NULL, &pSinkWriter);
 
 		// Set the output media type.
-		hr = CreateAudioProfileOut(&pMediaTypeOut);
+		if (SUCCEEDED(hr))
+		{
+			hr = CreateAudioProfileOut(&pMediaTypeOut);
+		}
 		if (SUCCEEDED(hr))
 		{
 			hr = pSinkWriter->AddStream(pMediaTypeOut, &streamIndex);
