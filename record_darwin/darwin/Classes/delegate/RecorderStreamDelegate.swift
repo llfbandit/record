@@ -133,7 +133,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     }
     
     // Determine frame capacity
-    let capacity = (UInt32(dstFormat.sampleRate) * dstFormat.channelCount * buffer.frameLength) / (UInt32(buffer.format.sampleRate) * buffer.format.channelCount)
+    let capacity = (UInt32(dstFormat.sampleRate) * dstFormat.channelCount * buffer.frameLength * 2) / (UInt32(buffer.format.sampleRate) * buffer.format.channelCount)
     
     // Destination buffer
     guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: dstFormat, frameCapacity: capacity) else {
