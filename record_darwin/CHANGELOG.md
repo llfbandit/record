@@ -1,6 +1,7 @@
 ## 1.1.1
 * fix: Add swift version info to workaround compilation issues.
 * fix: Incorrect PCM16 Audio stream data.
+* fix(iOS): Enabling auto gain & echo cancel.
 
 ## 1.1.0
 * fix(iOS): Don't interrupt recording from system alerts and never resume on others.
