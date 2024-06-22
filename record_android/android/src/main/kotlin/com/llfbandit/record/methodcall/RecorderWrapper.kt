@@ -2,9 +2,11 @@ package com.llfbandit.record.methodcall
 
 import android.app.Activity
 import android.content.Context
-import com.llfbandit.record.record.recorder.AudioRecorder
+import android.media.AudioDeviceInfo
 import com.llfbandit.record.record.RecordConfig
+import com.llfbandit.record.record.bluetooth.BluetoothReceiver
 import com.llfbandit.record.record.bluetooth.BluetoothScoListener
+import com.llfbandit.record.record.recorder.AudioRecorder
 import com.llfbandit.record.record.recorder.IRecorder
 import com.llfbandit.record.record.recorder.MediaRecorder
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
@@ -17,7 +19,7 @@ internal class RecorderWrapper(
     private val context: Context,
     recorderId: String,
     messenger: BinaryMessenger
-): BluetoothScoListener {
+) : BluetoothScoListener {
     companion object {
         const val EVENTS_STATE_CHANNEL = "com.llfbandit.record/events/"
         const val EVENTS_RECORD_CHANNEL = "com.llfbandit.record/eventsRecord/"
@@ -28,6 +30,7 @@ internal class RecorderWrapper(
     private var eventRecordChannel: EventChannel?
     private val recorderRecordStreamHandler = RecorderRecordStreamHandler()
     private var recorder: IRecorder? = null
+    private var bluetoothReceiver: BluetoothReceiver? = null
 
     init {
         eventChannel = EventChannel(messenger, EVENTS_STATE_CHANNEL + recorderId)
@@ -57,6 +60,7 @@ internal class RecorderWrapper(
             recorder?.dispose()
         } catch (ignored: Exception) {
         } finally {
+            maybeStopBluetooth()
             recorder = null
         }
 
@@ -124,6 +128,8 @@ internal class RecorderWrapper(
         } catch (e: Exception) {
             result.error("record", e.message, e.cause)
         }
+
+        maybeStopBluetooth()
     }
 
     private fun startRecording(config: RecordConfig, result: MethodChannel.Result) {
@@ -142,6 +148,8 @@ internal class RecorderWrapper(
     }
 
     private fun createRecorder(config: RecordConfig): IRecorder {
+        maybeStartBluetooth(config)
+
         if (config.useLegacy) {
             return MediaRecorder(context, recorderStateStreamHandler)
         }
@@ -159,8 +167,29 @@ internal class RecorderWrapper(
     }
 
     ///////////////////////////////////////////////////////////
-    // BluetoothScoListener
+    // Bluetooth SCO
     ///////////////////////////////////////////////////////////
+    private fun maybeStartBluetooth(config: RecordConfig) {
+        if (config.device != null && config.device.type != AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+            maybeStopBluetooth()
+            return
+        }
+
+        if (bluetoothReceiver == null) {
+            bluetoothReceiver = BluetoothReceiver(context)
+        }
+
+        if (!bluetoothReceiver!!.hasListeners()) {
+            bluetoothReceiver!!.register()
+            bluetoothReceiver!!.addListener(this)
+        }
+    }
+
+    private fun maybeStopBluetooth() {
+        bluetoothReceiver?.removeListener(this)
+        bluetoothReceiver?.unregister()
+    }
+
     override fun onBlScoConnected() {
     }
 

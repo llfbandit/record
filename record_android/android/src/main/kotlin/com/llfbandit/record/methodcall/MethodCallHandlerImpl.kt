@@ -23,7 +23,7 @@ class MethodCallHandlerImpl(
 ) : MethodCallHandler {
     private var activity: Activity? = null
     private val recorders = ConcurrentHashMap<String, RecorderWrapper>()
-    private val bluetoothReceiver = BluetoothReceiver(appContext)
+
 
     fun dispose() {
         for (entry in recorders.entries) {
@@ -117,21 +117,11 @@ class MethodCallHandlerImpl(
         val recorder = RecorderWrapper(appContext, recorderId, messenger)
         recorder.setActivity(activity)
         recorders[recorderId] = recorder
-
-        if (!bluetoothReceiver.hasListeners()) {
-            bluetoothReceiver.register()
-        }
-        bluetoothReceiver.addListener(recorder)
     }
 
     private fun disposeRecorder(recorder: RecorderWrapper, recorderId: String) {
         recorder.dispose()
         recorders.remove(recorderId)
-
-        bluetoothReceiver.removeListener(recorder)
-        if (!bluetoothReceiver.hasListeners()) {
-            bluetoothReceiver.unregister()
-        }
     }
 
     private fun getRecordConfig(call: MethodCall): RecordConfig {

@@ -1,3 +1,7 @@
+## 1.2.3
+* fix: Revert AGP v8 setup to latest v7.
+* fix: Don't start bluetooth SCO when asking for another device type.
+
 ## 1.2.2
 * fix: Threading issues. Model is now more robust and overall performance is much better.
 * fix: Recording on older Android devices ..., 8, 9.
