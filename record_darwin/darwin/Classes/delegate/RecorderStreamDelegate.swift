@@ -11,6 +11,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     
 #if os(iOS)
     try initAVAudioSession(config: config)
+    try initVoiceProcessing(config: config, audioEngine: audioEngine)
 #else
     // set input device to the node
     if let deviceId = config.device?.id,
@@ -25,9 +26,6 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       }
     }
 #endif
-    
-    // Set up AGC & echo cancel
-    initEffects(config: config, audioEngine: audioEngine)
     
     let srcFormat = audioEngine.inputNode.outputFormat(forBus: 0)
     
@@ -133,7 +131,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     }
     
     // Determine frame capacity
-    let capacity = (UInt32(dstFormat.sampleRate) * dstFormat.channelCount * buffer.frameLength * 2) / (UInt32(buffer.format.sampleRate) * buffer.format.channelCount)
+    let capacity = (UInt32(dstFormat.sampleRate) * dstFormat.channelCount * buffer.frameLength) / (UInt32(buffer.format.sampleRate) * buffer.format.channelCount)
     
     // Destination buffer
     guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: dstFormat, frameCapacity: capacity) else {
@@ -159,7 +157,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
 
       // Update current amplitude
       updateAmplitude(samples)
-      
+
       // Send bytes
       if let eventSink = recordEventHandler.eventSink {
         let bytes = Data(_: convertInt16toUInt8(samples))
@@ -171,23 +169,18 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     }
   }
   
-  private func initEffects(config: RecordConfig, audioEngine: AVAudioEngine) {
-    let propsize = UInt32(MemoryLayout<Bool>.size)
-    var autoGain = config.autoGain
-    var echoCancel = config.echoCancel
-
-    AudioUnitSetProperty(audioEngine.inputNode.audioUnit!,
-                         kAUVoiceIOProperty_BypassVoiceProcessing,
-                         kAudioUnitScope_Global,
-                         AudioUnitElement(bus),
-                         &echoCancel,
-                         propsize)
-
-    AudioUnitSetProperty(audioEngine.inputNode.audioUnit!,
-                         kAUVoiceIOProperty_VoiceProcessingEnableAGC,
-                         kAudioUnitScope_Global,
-                         AudioUnitElement(bus),
-                         &autoGain,
-                         propsize)
+  // Set up AGC & echo cancel
+  private func initVoiceProcessing(config: RecordConfig, audioEngine: AVAudioEngine) throws {
+    if #available(iOS 13.0, *) {
+      do {
+        try audioEngine.inputNode.setVoiceProcessingEnabled(config.echoCancel)
+        audioEngine.inputNode.isVoiceProcessingAGCEnabled = config.autoGain
+      } catch {
+        throw RecorderError.error(
+          message: "Failed to start recording",
+          details: "Echo cancel error: \(error)"
+        )
+      }
+    }
   }
 }
