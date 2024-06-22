@@ -114,6 +114,6 @@ Plugin targets API level 34 and uses Java 17. Follow [Gradle setup](https://gith
 
 ### Web
 
-Web platform uses package web >-0.5.1 which is shipped with Flutter >=3.22.
+Web platform uses package web >=0.5.1 which is shipped with Flutter >=3.22.
 
-This platform is still available with previous Flutter versions but continuous work is done with from this version only.
+This platform is still available with previous Flutter versions but continuous work is done from this version only.
