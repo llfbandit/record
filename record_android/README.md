@@ -5,28 +5,30 @@ Android specific implementation for record package called by record_platform_int
 ## Setup
 ### Plugin targets API level 34:
 
-You must set Android Gradle Plugin to at least version 8.1.1 for compatibility.
+You can either choose to stay with v7 version or upgrade to v8.
+
+Here's the setup for v7 latest version:
 
 In android/settings.gradle, apply:
 ```groovy
-plugins {  
-    id "com.android.application" version "8.3.1" apply false
+plugins {
+    id "com.android.application" version "7.4.2" apply false
     ...
 }
 ```
 
 ### Plugin uses Java 17:
 
-You must set Gradle to at least version 7.3.0 for compatibility.
+You must set Gradle to at least version 7.3 for compatibility. Android Gradle Plugin 7.4.0 requires >=7.5.
 
-Since we raised Android Gradle Plugin, minimum is version 8.4.
+Here's the setup for v7 latest version:
 
 In android/gradle/wrapper/gradle-wrapper.properties, apply:
 ```
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
+distributionUrl=https\://services.gradle.org/distributions/gradle-7.6.4-bin.zip
 ```
 
-or use `android/gradle/gradlew wrapper --gradle-version=8.7`
+or use `android/gradle/gradlew wrapper --gradle-version=7.6.4`
 
 For more info on how to update Gradle:
 https://developer.android.com/build/releases/gradle-plugin
