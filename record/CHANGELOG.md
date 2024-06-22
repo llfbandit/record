@@ -1,3 +1,7 @@
+## 5.1.2
+* chore: Updated platform dependencies.
+* chore: Updated README.md.
+
 ## 5.1.1
 * chore: Updated Android dependency.
 * chore: Updated README.md.

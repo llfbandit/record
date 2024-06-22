@@ -12,7 +12,7 @@ assignees: ''
 
 **Environment**
  - OS: [e.g. iOS/Windows/...]
- - Browser [e.g. chrome, safari]
+ - Browser [e.g. chrome, safari] if issue is on web platform.
 
 **Describe the bug**
 
