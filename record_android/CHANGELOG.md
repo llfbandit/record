@@ -1,3 +1,6 @@
+## 1.2.4
+* fix: Revert to Java 8.
+
 ## 1.2.3
 * fix: Revert AGP v8 setup to latest v7.
 * fix: Don't start bluetooth SCO when asking for another device type.
