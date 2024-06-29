@@ -114,7 +114,7 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
 
       for (final e in AudioEncoder.values) {
         if (await _audioRecorder.isEncoderSupported(e)) {
-          debugPrint('- ${encoder.name}');
+          debugPrint('- ${e.name}');
         }
       }
     }
