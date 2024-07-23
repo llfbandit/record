@@ -9,6 +9,8 @@ class RecorderRecordStreamHandler : EventChannel.StreamHandler {
     private var eventSink: EventSink? = null
     private var activity: Activity? = null
 
+    private val uiThreadHandler = Handler(Looper.getMainLooper())
+
     override fun onListen(arguments: Any?, events: EventSink?) {
         this.eventSink = events
     }
@@ -18,9 +20,9 @@ class RecorderRecordStreamHandler : EventChannel.StreamHandler {
     }
 
     fun sendRecordChunkEvent(buffer: ByteArray) {
-        activity?.runOnUiThread {
+        uiThreadHandler.post(Runnable {
             eventSink?.success(buffer)
-        }
+        })
     }
 
     fun setActivity(activity: Activity?) {
