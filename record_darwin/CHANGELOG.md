@@ -1,3 +1,6 @@
+## 1.1.2
+* fix: Remove print on conversion error.
+
 ## 1.1.1
 * fix: Add swift version info to workaround compilation issues.
 * fix(iOS): Enabling auto gain & echo cancel.

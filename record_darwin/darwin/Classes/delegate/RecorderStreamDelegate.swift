@@ -144,7 +144,6 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     var error: NSError? = nil
     converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputCallback)
     if let error = error {
-      print(error.localizedDescription)
       return
     }
     
