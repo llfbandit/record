@@ -1,5 +1,6 @@
 ## 1.2.5
 * fix: Applying effects.
+* fix: Race condition leading to exception when releasing codec & muxer.
 
 ## 1.2.4
 * fix: Revert to Java 8.
