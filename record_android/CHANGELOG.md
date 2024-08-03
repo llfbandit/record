@@ -1,3 +1,6 @@
+## 1.2.5
+* fix: Applying effects.
+
 ## 1.2.4
 * fix: Revert to Java 8.
 

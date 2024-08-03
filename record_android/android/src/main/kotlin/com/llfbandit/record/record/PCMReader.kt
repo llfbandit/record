@@ -94,7 +94,7 @@ class PCMReader(
 
         val reader = try {
             AudioRecord(
-                MediaRecorder.AudioSource.DEFAULT,
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
                 sampleRate,
                 channels,
                 audioFormat,
@@ -147,23 +147,23 @@ class PCMReader(
     }
 
     private fun enableAutomaticGainControl() {
-        if (config.autoGain && AutomaticGainControl.isAvailable()) {
+        if (AutomaticGainControl.isAvailable()) {
             automaticGainControl = AutomaticGainControl.create(reader.audioSessionId)
-            automaticGainControl?.enabled = true
+            automaticGainControl?.enabled = config.autoGain
         }
     }
 
     private fun enableNoiseSuppressor() {
-        if (config.noiseSuppress && NoiseSuppressor.isAvailable()) {
+        if (NoiseSuppressor.isAvailable()) {
             noiseSuppressor = NoiseSuppressor.create(reader.audioSessionId)
-            noiseSuppressor?.enabled = true
+            noiseSuppressor?.enabled = config.noiseSuppress
         }
     }
 
     private fun enableEchoSuppressor() {
-        if (config.echoCancel && AcousticEchoCanceler.isAvailable()) {
+        if (AcousticEchoCanceler.isAvailable()) {
             acousticEchoCanceler = AcousticEchoCanceler.create(reader.audioSessionId)
-            acousticEchoCanceler?.enabled = true
+            acousticEchoCanceler?.enabled = config.echoCancel
         }
     }
 
