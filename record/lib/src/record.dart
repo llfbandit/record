@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:record_platform_interface/record_platform_interface.dart';
@@ -18,6 +19,7 @@ class AudioRecorder {
 
   Timer? _amplitudeTimer;
   late Duration _amplitudeTimerInterval;
+  final _semaphore = _Semaphore();
 
   // Recorder ID
   final String _recorderId;
@@ -48,9 +50,13 @@ class AudioRecorder {
     RecordConfig config, {
     required String path,
   }) async {
-    _created ??= await _create();
+    await _safeCall(
+      () async {
+        _created ??= await _create();
 
-    await RecordPlatform.instance.start(_recorderId, config, path: path);
+        await RecordPlatform.instance.start(_recorderId, config, path: path);
+      },
+    );
 
     _startAmplitudeTimer();
   }
@@ -60,12 +66,16 @@ class AudioRecorder {
   /// When stopping the record, you must rely on stream close event to get
   /// full recorded data.
   Future<Stream<Uint8List>> startStream(RecordConfig config) async {
-    _created ??= await _create();
-    await _stopRecordStream();
+    final stream = await _safeCall(
+      () async {
+        _created ??= await _create();
+        await _stopRecordStream();
 
-    final stream = await RecordPlatform.instance.startStream(
-      _recorderId,
-      config,
+        return await RecordPlatform.instance.startStream(
+          _recorderId,
+          config,
+        );
+      },
     );
 
     _recordStreamCtrl = StreamController.broadcast();
@@ -88,55 +98,73 @@ class AudioRecorder {
   ///
   /// Returns the output path if any.
   Future<String?> stop() async {
-    _created ??= await _create();
-    _amplitudeTimer?.cancel();
+    return _safeCall(() async {
+      _amplitudeTimer?.cancel();
 
-    final path = await RecordPlatform.instance.stop(_recorderId);
+      if (_created == null) return null;
 
-    await _stopRecordStream();
+      final path = await RecordPlatform.instance.stop(_recorderId);
 
-    return path;
+      await _stopRecordStream();
+
+      return path;
+    });
   }
 
   /// Stops and discards/deletes the file/blob.
   Future<void> cancel() async {
-    _created ??= await _create();
-    _amplitudeTimer?.cancel();
+    return _safeCall(() async {
+      _amplitudeTimer?.cancel();
 
-    return RecordPlatform.instance.cancel(_recorderId);
+      if (_created == null) return;
+
+      return RecordPlatform.instance.cancel(_recorderId);
+    });
   }
 
   /// Pauses recording session.
   Future<void> pause() async {
-    _created ??= await _create();
-    _amplitudeTimer?.cancel();
-    return RecordPlatform.instance.pause(_recorderId);
+    return _safeCall(() async {
+      _amplitudeTimer?.cancel();
+
+      if (_created == null) return;
+
+      return RecordPlatform.instance.pause(_recorderId);
+    });
   }
 
   /// Resumes recording session after [pause].
   Future<void> resume() async {
-    _created ??= await _create();
-    _startAmplitudeTimer();
-    return RecordPlatform.instance.resume(_recorderId);
+    return _safeCall(() async {
+      if (_created == null) return;
+      _startAmplitudeTimer();
+      return RecordPlatform.instance.resume(_recorderId);
+    });
   }
 
   /// Checks if there's valid recording session.
   /// So if session is paused, this method will still return [true].
   Future<bool> isRecording() async {
-    _created ??= await _create();
-    return RecordPlatform.instance.isRecording(_recorderId);
+    return _safeCall(() async {
+      if (_created == null) return false;
+      return RecordPlatform.instance.isRecording(_recorderId);
+    });
   }
 
   /// Checks if recording session is paused.
   Future<bool> isPaused() async {
-    _created ??= await _create();
-    return RecordPlatform.instance.isPaused(_recorderId);
+    return _safeCall(() async {
+      if (_created == null) return false;
+      return RecordPlatform.instance.isPaused(_recorderId);
+    });
   }
 
   /// Checks and requests for audio record permission.
   Future<bool> hasPermission() async {
-    _created ??= await _create();
-    return RecordPlatform.instance.hasPermission(_recorderId);
+    return _safeCall(() async {
+      _created ??= await _create();
+      return RecordPlatform.instance.hasPermission(_recorderId);
+    });
   }
 
   /// Lists capture/input devices available on the platform.
@@ -146,37 +174,47 @@ class AudioRecorder {
   /// On web, and in general, you should already have permission before
   /// accessing this method otherwise the list may return an empty list.
   Future<List<InputDevice>> listInputDevices() async {
-    _created ??= await _create();
-    return RecordPlatform.instance.listInputDevices(_recorderId);
+    return _safeCall(() async {
+      _created ??= await _create();
+      return RecordPlatform.instance.listInputDevices(_recorderId);
+    });
   }
 
   /// Gets current average & max amplitudes (dBFS)
   /// Always returns zeros on unsupported platforms
   Future<Amplitude> getAmplitude() async {
-    _created ??= await _create();
-    return RecordPlatform.instance.getAmplitude(_recorderId);
+    return _safeCall(() async {
+      _created ??= await _create();
+      return RecordPlatform.instance.getAmplitude(_recorderId);
+    });
   }
 
   /// Checks if the given encoder is supported on the current platform.
   Future<bool> isEncoderSupported(AudioEncoder encoder) async {
-    _created ??= await _create();
-    return RecordPlatform.instance.isEncoderSupported(_recorderId, encoder);
+    return _safeCall(() async {
+      _created ??= await _create();
+      return RecordPlatform.instance.isEncoderSupported(_recorderId, encoder);
+    });
   }
 
   /// Dispose the recorder
   Future<void> dispose() async {
-    _amplitudeTimer?.cancel();
-    _amplitudeStreamCtrl?.close();
-    _amplitudeStreamCtrl = null;
+    return _safeCall(() async {
+      _amplitudeTimer?.cancel();
+      _amplitudeStreamCtrl?.close();
+      _amplitudeStreamCtrl = null;
 
-    _stateStreamSubscription?.cancel();
-    _stateStreamCtrl.close();
+      _stateStreamSubscription?.cancel();
+      _stateStreamCtrl.close();
 
-    if (_created != null) {
-      await RecordPlatform.instance.dispose(_recorderId);
-    }
+      if (_created != null) {
+        await RecordPlatform.instance.dispose(_recorderId);
+      }
 
-    await _stopRecordStream();
+      await _stopRecordStream();
+
+      _created = null;
+    });
   }
 
   /// Listen to recorder states [RecordState].
@@ -245,5 +283,55 @@ class AudioRecorder {
     }
 
     return values;
+  }
+
+  Future<T> _safeCall<T>(Future<T> Function() fn) async {
+    await _semaphore.acquire();
+    try {
+      return await fn();
+    } finally {
+      _semaphore.release();
+    }
+  }
+}
+
+/// A class that represents a semaphore.
+class _Semaphore {
+  final int maxCount;
+
+  int _counter = 0;
+  final _waitQueue = Queue<Completer>();
+
+  // ignore: unused_element
+  _Semaphore([this.maxCount = 1]) {
+    if (maxCount < 1) {
+      throw RangeError.value(maxCount, "maxCount");
+    }
+  }
+
+  /// Acquires a permit from this semaphore, asynchronously blocking until one
+  /// is available.
+  Future acquire() {
+    var completer = Completer();
+    if (_counter + 1 <= maxCount) {
+      _counter++;
+      completer.complete();
+    } else {
+      _waitQueue.add(completer);
+    }
+    return completer.future;
+  }
+
+  /// Releases a permit, returning it to the semaphore.
+  void release() {
+    if (_counter == 0) {
+      throw StateError("Unable to release semaphore.");
+    }
+    _counter--;
+    if (_waitQueue.isNotEmpty) {
+      _counter++;
+      var completer = _waitQueue.removeFirst();
+      completer.complete();
+    }
   }
 }
