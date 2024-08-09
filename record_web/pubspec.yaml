@@ -14,7 +14,7 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
 
-  web: ^0.5.1
+  web: ^1.0.0
   record_platform_interface: ^1.0.2
 
 dev_dependencies:
