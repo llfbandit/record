@@ -1,4 +1,5 @@
 import 'package:web/web.dart' as web;
+import 'dart:js_util' as js_util;
 
 class ImportJsLibrary {
   /// Injects the library by its [url]
@@ -23,7 +24,7 @@ class ImportJsLibrary {
       ..type = "text/javascript"
       ..charset = "utf-8"
       ..id = id
-      ..innerHTML = content;
+      ..innerHTML = js_util.jsify(content); // Use jsify to convert
     return script;
   }
 
