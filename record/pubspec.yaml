@@ -18,11 +18,7 @@ dependencies:
   record_web: ^1.0.4
   record_windows: ^1.0.2
   record_linux: '>=0.5.0 <1.0.0'
-  record_android:
-    git:
-      url: https://github.com/knma1992/record.git
-      ref: master
-      path: record_android
+  record_android: ^1.2.3
   record_darwin: ^1.1.1
 
 dev_dependencies:
