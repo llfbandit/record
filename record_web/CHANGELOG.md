@@ -1,3 +1,6 @@
+## 1.1.2
+* chore: Allow package:web ">=0.5.1 <2.0.0".
+
 ## 1.1.1
 * fix: Pausing for too long with Chromium based browsers breaks the recording.
 * fix: Migrate to package:web missing parts & example.

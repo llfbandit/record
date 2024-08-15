@@ -34,7 +34,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   MediaRecorderDelegate({required this.onStateChanged}) {
     ImportJsLibrary().import(
-      jsFixWebmDurationContent(),
+      './assets/packages/record_web/assets/js/record.fixwebmduration.js',
       jsFixWebmDurationContentId(),
     );
   }

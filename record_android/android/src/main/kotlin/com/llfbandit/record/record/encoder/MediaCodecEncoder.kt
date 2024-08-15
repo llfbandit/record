@@ -10,6 +10,7 @@ import com.llfbandit.record.record.container.IContainerWriter
 import com.llfbandit.record.record.format.Format
 import java.util.LinkedList
 import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
 
 class MediaCodecEncoder(
@@ -32,10 +33,11 @@ class MediaCodecEncoder(
 
     // Semaphore to signal the end of encoding
     private var mFinishedCompleter: Semaphore? = null
-    private var mFinished = false
+    private var mFinished = AtomicBoolean(false)
+    private var mReleased = AtomicBoolean(false)
 
     override fun encode(bytes: ByteArray) {
-        if (mFinished) {
+        if (mFinished.get()) {
             return
         }
 
@@ -52,11 +54,11 @@ class MediaCodecEncoder(
     }
 
     override fun stopEncoding() {
-        if (mFinished) {
+        if (mFinished.get()) {
             return
         }
 
-        mFinished = true
+        mFinished.set(true)
         val completer = Semaphore(0)
         mHandler.obtainMessage(MSG_STOP, completer).sendToTarget()
 
@@ -157,7 +159,7 @@ class MediaCodecEncoder(
     }
 
     private fun onError(e: Exception) {
-        mFinished = true
+        mFinished.set(true)
         stopAndRelease()
         listener.onEncoderFailure(e)
     }
@@ -168,6 +170,11 @@ class MediaCodecEncoder(
     }
 
     private fun stopAndRelease() {
+        if (mReleased.get()) {
+            return
+        }
+        mReleased.set(true)
+
         mCodec.stop()
         mCodec.release()
 

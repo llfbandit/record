@@ -1,3 +1,6 @@
+## 5.1.3
+* fix: Operations can't be called concurrently anymore. (i.e. when operations are unawaited by caller).
+
 ## 5.1.2
 * chore: Updated platform dependencies.
 * chore: Updated README.md.
