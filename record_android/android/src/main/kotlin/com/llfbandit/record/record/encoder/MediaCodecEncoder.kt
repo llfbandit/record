@@ -18,12 +18,12 @@ class MediaCodecEncoder(
     private val format: Format,
     private val mediaFormat: MediaFormat,
     private val listener: EncoderListener,
-    codec: String,
+    private val codec: String,
 ) : IEncoder,
     HandlerThread("MediaCodecEncoder Thread"),
     Handler.Callback {
     private lateinit var mHandler: Handler
-    private val mCodec: MediaCodec = MediaCodec.createByCodecName(codec)
+    private lateinit var mCodec: MediaCodec
     private val mQueue = LinkedList<Sample>()
     private var mRate = 0f // bytes per us
     private var mInputBufferPosition: Long = 0
@@ -33,6 +33,7 @@ class MediaCodecEncoder(
 
     // Semaphore to signal the end of encoding
     private var mFinishedCompleter: Semaphore? = null
+    private var mInitialized = AtomicBoolean(false)
     private var mFinished = AtomicBoolean(false)
     private var mReleased = AtomicBoolean(false)
 
@@ -89,17 +90,33 @@ class MediaCodecEncoder(
     }
 
     private fun initEncoding() {
+        calculateInputRate()
+
+        var mediaCodec: MediaCodec? = null
         try {
-            calculateInputRate()
-
-            mCodec.setCallback(AudioRecorderCodecCallback(), Handler(looper))
-            mCodec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            mCodec.start()
-
-            mContainer = format.getContainer(config.path)
-            mContainerTrack = mContainer.addTrack(mCodec.outputFormat)
-            mContainer.start()
+            mediaCodec = MediaCodec.createByCodecName(codec)
+            mediaCodec.setCallback(AudioRecorderCodecCallback(), Handler(looper))
+            mediaCodec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            mediaCodec.start()
         } catch (e: Exception) {
+            mediaCodec?.release()
+            onError(e)
+            return
+        }
+
+        mCodec = mediaCodec
+
+        var container: IContainerWriter? = null
+        try {
+            container = format.getContainer(config.path)
+            mContainerTrack = container.addTrack(mCodec.outputFormat)
+            container.start()
+
+            mContainer = container
+
+            mInitialized.set(true)
+        } catch (e: Exception) {
+            container?.release()
             onError(e)
         }
     }
@@ -170,7 +187,7 @@ class MediaCodecEncoder(
     }
 
     private fun stopAndRelease() {
-        if (mReleased.get()) {
+        if (!mInitialized.get() || mReleased.get()) {
             return
         }
         mReleased.set(true)
