@@ -13,7 +13,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.log10
-
+import kotlin.math.roundToInt
 
 class PCMReader(
     // Config to setup the recording
@@ -59,20 +59,17 @@ class PCMReader(
     @Throws(Exception::class)
     fun read(): ByteArray {
         val buffer = ByteArray(bufferSize)
-        val resultBytes = reader.read(buffer, 0, bufferSize)
+        val resultBytes = reader.read(buffer, 0, buffer.size)
         if (resultBytes < 0) {
             throw Exception(getReadFailureReason(resultBytes))
         }
 
-        val audioBuffer = ByteArray(resultBytes)
-        System.arraycopy(buffer, 0, audioBuffer, 0, resultBytes)
-
         if (resultBytes > 0) {
             // Update amplitude
-            amplitude = getAmplitude(audioBuffer, resultBytes)
+            amplitude = getAmplitude(buffer, resultBytes)
         }
 
-        return audioBuffer
+        return buffer
     }
 
     fun getAmplitude(): Double {
@@ -143,7 +140,7 @@ class PCMReader(
         }
 
         // Stay away from minimal buffer
-        return bufferSize * 4
+        return (bufferSize * 1.3).roundToInt()
     }
 
     private fun enableAutomaticGainControl() {
@@ -168,7 +165,8 @@ class PCMReader(
     }
 
     private fun getReadFailureReason(errorCode: Int): String {
-        val str = StringBuilder("Error when reading audio data:\n")
+        val str = StringBuilder("Error when reading audio data:").appendLine()
+
         when (errorCode) {
             AudioRecord.ERROR_INVALID_OPERATION -> str.append("ERROR_INVALID_OPERATION: Failure due to the improper use of a method.")
             AudioRecord.ERROR_BAD_VALUE -> str.append("ERROR_BAD_VALUE: Failure due to the use of an invalid value.")
@@ -176,24 +174,24 @@ class PCMReader(
             AudioRecord.ERROR -> str.append("ERROR: Generic operation failure")
             else -> str.append("Unknown errorCode: (").append(errorCode).append(")")
         }
+
         return str.toString()
     }
 
     // Assuming the input is signed int 16
     private fun getAmplitude(chunk: ByteArray, size: Int): Double {
-        var maxSample = -160
+        var max = -160
 
-        val byteBuffer = ByteBuffer.wrap(chunk, 0, size)
         val buf = ShortArray(size / 2)
-        byteBuffer.order(ByteOrder.nativeOrder()).asShortBuffer()[buf]
+        ByteBuffer.wrap(chunk, 0, size).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()[buf]
 
         for (b in buf) {
             val curSample = abs(b.toInt())
-            if (curSample > maxSample) {
-                maxSample = curSample
+            if (curSample > max) {
+                max = curSample
             }
         }
 
-        return 20 * log10(maxSample / 32767.0) // 16 signed bits 2^15 - 1
+        return 20 * log10(max / 32767.0) // 16 signed bits 2^15 - 1
     }
 }

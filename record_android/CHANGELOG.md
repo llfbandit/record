@@ -1,3 +1,7 @@
+## 1.2.6
+* fix: Improve amplitude computation.
+* fix: java.lang.IllegalStateException: Failed to stop the muxer
+
 ## 1.2.5
 * fix: Applying effects.
 * fix: Race condition leading to exception when releasing codec & muxer.
