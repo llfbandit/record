@@ -140,7 +140,7 @@ class PCMReader(
         }
 
         // Stay away from minimal buffer
-        return (bufferSize * 1.3).roundToInt()
+        return bufferSize * 2
     }
 
     private fun enableAutomaticGainControl() {
