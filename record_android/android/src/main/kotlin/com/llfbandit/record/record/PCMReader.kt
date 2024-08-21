@@ -13,7 +13,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.log10
-import kotlin.math.roundToInt
 
 class PCMReader(
     // Config to setup the recording
