@@ -12,31 +12,34 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @param path            Output file path.
  * @param containerFormat A valid [MediaMuxer.OutputFormat] value for the output container format.
  */
-class MuxerContainer(path: String, containerFormat: Int) : IContainerWriter {
-    private val mMuxer = MediaMuxer(path, containerFormat)
+class MuxerContainer(val path: String, private val containerFormat: Int) : IContainerWriter {
+    private var mMuxer: MediaMuxer? = null
     private var mStarted = AtomicBoolean(false)
-    private var mFinished = AtomicBoolean(false)
+    private var mStopped = AtomicBoolean(false)
 
     override fun start() {
-        if (mStarted.get() || mFinished.get()) return
+        if (mStarted.get() || mStopped.get()) return
 
-        mMuxer.start()
         mStarted.set(true)
+
+        mMuxer?.start()
     }
 
     override fun stop() {
-        if (!mStarted.get() || mFinished.get()) return
-
-        mMuxer.stop()
+        if (!mStarted.get() || mStopped.get()) return
 
         mStarted.set(false)
-        mFinished.set(true)
+        mStopped.set(true)
+
+        mMuxer?.stop()
     }
 
     override fun addTrack(mediaFormat: MediaFormat): Int {
-        if (mStarted.get() || mFinished.get()) return -1
+        if (mStarted.get() || mStopped.get()) return -1
 
-        return mMuxer.addTrack(mediaFormat)
+        mMuxer = MediaMuxer(path, containerFormat)
+
+        return mMuxer!!.addTrack(mediaFormat)
     }
 
     override fun writeSampleData(
@@ -44,13 +47,15 @@ class MuxerContainer(path: String, containerFormat: Int) : IContainerWriter {
         byteBuffer: ByteBuffer,
         bufferInfo: MediaCodec.BufferInfo
     ) {
-        if (!mStarted.get() || mFinished.get()) return
+        if (!mStarted.get() || mStopped.get()) return
 
-        mMuxer.writeSampleData(trackIndex, byteBuffer, bufferInfo)
+        mMuxer?.writeSampleData(trackIndex, byteBuffer, bufferInfo)
     }
 
     override fun release() {
         stop()
-        mMuxer.release()
+
+        mMuxer?.release()
+        mMuxer = null
     }
 }
