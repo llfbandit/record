@@ -187,7 +187,10 @@ internal class RecorderWrapper(
 
     private fun maybeStopBluetooth() {
         bluetoothReceiver?.removeListener(this)
-        bluetoothReceiver?.unregister()
+
+        if (bluetoothReceiver?.hasListeners() != true) {
+            bluetoothReceiver?.unregister()
+        }
     }
 
     override fun onBlScoConnected() {

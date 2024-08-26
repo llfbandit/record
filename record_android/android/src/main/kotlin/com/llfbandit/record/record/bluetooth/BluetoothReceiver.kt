@@ -23,6 +23,7 @@ class BluetoothReceiver(
     private val listeners = HashSet<BluetoothScoListener>()
     private val devices = HashSet<AudioDeviceInfo>()
     private var audioDeviceCallback: AudioDeviceCallback? = null
+    private var mRegistered: Boolean = false
 
     init {
         filter.addAction(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
@@ -34,6 +35,7 @@ class BluetoothReceiver(
 
     fun register() {
         context.registerReceiver(this, filter)
+        mRegistered = true
 
         audioDeviceCallback = object : AudioDeviceCallback() {
             override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
@@ -71,7 +73,11 @@ class BluetoothReceiver(
         }
 
         listeners.clear()
-        context.unregisterReceiver(this)
+
+        if (mRegistered) {
+            context.unregisterReceiver(this)
+            mRegistered = false
+        }
     }
 
     fun addListener(listener: BluetoothScoListener) {
@@ -90,6 +96,7 @@ class BluetoothReceiver(
         }
     }
 
+    @Suppress("DEPRECATION")
     fun startBluetooth(): Boolean {
         if (!audioManager.isBluetoothScoAvailableOffCall) {
             return false
@@ -102,6 +109,7 @@ class BluetoothReceiver(
         return true
     }
 
+    @Suppress("DEPRECATION")
     fun stopBluetooth() {
         if (audioManager.isBluetoothScoOn()) {
             audioManager.stopBluetoothSco()

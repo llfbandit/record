@@ -1,6 +1,8 @@
 ## 1.2.6
 * fix: Improve amplitude computation.
-* fix: java.lang.IllegalStateException: Failed to stop the muxer
+* fix: java.lang.IllegalStateException: Failed to stop the muxer.
+* fix: Exception raised on bluetooth receiver unregistration.
+* chore: Upgrade to latest AGP.
 
 ## 1.2.5
 * fix: Applying effects.
