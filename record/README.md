@@ -30,13 +30,22 @@ External dependencies:
 | aacHe           | ✔️            |         |   ?     |         |         |  ✔️ 
 | amrNb           | ✔️            |         |  ?      |   ✔️    |         |  
 | amrWb           | ✔️            |         |  ?      |          |        |  
-| opus            | ✔️            |         |  ✔️ 3   |         |         |  ✔️ 
+| opus            | ✔️            |         |  ?    |         |         |  ✔️ 
 | wav             | ✔️ 2          |   ✔️    |   ✔️   |    ✔️    |   ✔️  |   ✔️ 
 | flac            | ✔️ 2          |    ✔️    |  ?     |  ✔️     |   ✔️   |   ✔️
 | pcm16bits       | ✔️ 2          |   ✔️    |  ✔️    |   ✔️    |  ✔️    |  
 
-* Question marks (?) in web column mean that the formats are supported by the plugin
-but are not available in current (and tested) browsers (Chrome / Firefox).
+?: from my testings:
+| Encoder         | Firefox    | Chrome based   | Safari
+|-----------------|------------|----------------|---------
+| aacLc           |            |                |  ✔️*
+| opus            | ✔️*        |   ✔️*           | 
+| wav             | ✔️        |   ✔️           |   ✔️
+| pcm16bits       | ✔️        |   ✔️           |  ✔️
+
+\* Sample rate output is determined by your settings in OS. Bit depth is likely 32 bits.
+
+wav and pcm16bits are provided by the package directly.
 
 ## Stream
 | Encoder         | Android    | iOS     | web     | Windows | macOS   | linux
@@ -49,7 +58,6 @@ but are not available in current (and tested) browsers (Chrome / Firefox).
 \* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file!  
 1. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
 2. Unsupported on legacy Android recorder.
-3. Sample rate output is determined by your settings in OS. Bit depth is likely 32 bits.
 
 ## Usage
 
