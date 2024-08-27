@@ -1,3 +1,7 @@
+## 1.1.3
+* fix: Exception where format.sampleRate != hwFormat.sampleRate
+* feat(macOS): Support device by deviceID as well as deviceUID
+
 ## 1.1.2
 * fix: Remove print on conversion error.
 

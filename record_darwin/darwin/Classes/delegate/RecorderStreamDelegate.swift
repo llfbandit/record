@@ -27,7 +27,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     }
 #endif
     
-    let srcFormat = audioEngine.inputNode.outputFormat(forBus: 0)
+    let srcFormat = audioEngine.inputNode.inputFormat(forBus: 0)
     
     let dstFormat = AVAudioFormat(
       commonFormat: .pcmFormatInt16,
