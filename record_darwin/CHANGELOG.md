@@ -1,3 +1,6 @@
+## 1.1.3
+* fix: Exception where format.sampleRate != hwFormat.sampleRate
+
 ## 1.1.2
 * fix: Remove print on conversion error.
 
