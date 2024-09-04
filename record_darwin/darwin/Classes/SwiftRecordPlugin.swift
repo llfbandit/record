@@ -184,7 +184,12 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
     if let deviceMap = args["device"] as? [String : Any] {
       device = Device(map: deviceMap)
     }
-    
+
+    var iosConfig: IosConfig? = nil
+    if let iosConfigMap = args["iosConfig"] as? [String : Any] {
+      iosConfig = IosConfig(map: iosConfigMap)
+    }
+
     let config = RecordConfig(
       encoder: encoder,
       bitRate: args["bitRate"] as? Int ?? 128000,
@@ -193,7 +198,8 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
       device: device,
       autoGain: args["autoGain"] as? Bool ?? false,
       echoCancel: args["echoCancel"] as? Bool ?? false,
-      noiseSuppress: args["noiseSuppress"] as? Bool ?? false
+      noiseSuppress: args["noiseSuppress"] as? Bool ?? false,
+      iosConfig: iosConfig
     )
     
     return config
