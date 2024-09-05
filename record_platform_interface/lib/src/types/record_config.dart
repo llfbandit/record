@@ -51,6 +51,9 @@ class RecordConfig {
   /// Android specific configuration.
   final AndroidRecordConfig androidConfig;
 
+  /// iOS specific audioCategories
+  final IosRecordConfig iosConfig;
+
   const RecordConfig({
     this.encoder = AudioEncoder.aacLc,
     this.bitRate = 128000,
@@ -61,6 +64,7 @@ class RecordConfig {
     this.echoCancel = false,
     this.noiseSuppress = false,
     this.androidConfig = const AndroidRecordConfig(),
+    this.iosConfig = const IosRecordConfig(), 
   });
 
   Map<String, dynamic> toMap() {
@@ -74,6 +78,7 @@ class RecordConfig {
       'echoCancel': echoCancel,
       'noiseSuppress': noiseSuppress,
       'androidConfig': androidConfig.toMap(),
+      'iosConfig': iosConfig.toMap(),
     };
   }
 }
@@ -107,4 +112,22 @@ class AndroidRecordConfig {
       'muteAudio': muteAudio,
     };
   }
+}
+
+///
+class IosRecordConfig {
+
+  /// Constants that specify optional audio behaviors.
+  /// https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions
+  final List<IosAudioCategories> audioCategories;
+
+  const IosRecordConfig({
+    this.audioCategories = const [IosAudioCategories.defaultToSpeaker, IosAudioCategories.allowBluetooth, IosAudioCategories.allowBluetoothA2DP]
+  });
+  Map<String, dynamic> toMap() {
+    return {
+      "audioCategories": audioCategories.map((e) => e.name).join(',')
+    };
+  }
+  
 }
