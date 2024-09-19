@@ -71,7 +71,7 @@ if (await record.hasPermission()) {
   // Start recording to file
   await record.start(const RecordConfig(), path: 'aFullPath/myFile.m4a');
   // ... or to stream
-  final stream = await record.startStream(const RecordConfig(AudioEncoder.pcm16bits));
+  final stream = await record.startStream(const RecordConfig(encoder: AudioEncoder.pcm16bits));
 }
 
 // Stop recording...
