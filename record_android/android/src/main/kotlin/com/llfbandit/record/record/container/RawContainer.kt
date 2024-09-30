@@ -78,8 +78,24 @@ class RawContainer(private val path: String?) : IContainerWriter {
         byteBuffer: ByteBuffer,
         bufferInfo: MediaCodec.BufferInfo
     ): ByteArray {
-        val buffer = ByteArray(bufferInfo.size)
-        byteBuffer[buffer, bufferInfo.offset, bufferInfo.size]
+        val bytes = ByteArray(bufferInfo.size)
+        byteBuffer[bytes, bufferInfo.offset, bufferInfo.size]
+
+        val volumeFactor = 50.0f
+        val modifiedBytes = ByteArray(bytes.size)
+        for (i in bytes.indices step 2) {
+            val lowByte = bytes[i].toInt() and 0xFF
+            val highByte = bytes[i + 1].toInt()
+
+            val sample = (highByte shl 8) or lowByte
+
+            val amplifiedSample = (sample * volumeFactor).toInt()
+
+            val clampedSample = amplifiedSample.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+
+            modifiedBytes[i] = (clampedSample and 0xFF).toByte()  // Lower byte
+            modifiedBytes[i + 1] = (clampedSample shr 8).toByte() // Upper byte
+        }
 
         return buffer
     }
