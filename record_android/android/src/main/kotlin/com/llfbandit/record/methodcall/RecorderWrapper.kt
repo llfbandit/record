@@ -50,7 +50,7 @@ internal class RecorderWrapper(
 
     fun startRecordingToStream(config: RecordConfig, result: MethodChannel.Result) {
         if (config.useLegacy) {
-            throw Exception("Unsupported feature from legacy recorder.")
+            throw Exception("Cannot stream audio while using the legacy recorder")
         }
         startRecording(config, result)
     }
