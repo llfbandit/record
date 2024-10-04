@@ -14,8 +14,8 @@ import java.io.IOException
 import kotlin.math.log10
 
 class MediaRecorder(
-    private val context: Context,
-    private val recorderStateStreamHandler: RecorderStateStreamHandler,
+        private val context: Context,
+        private val recorderStateStreamHandler: RecorderStateStreamHandler,
 ) : IRecorder {
     companion object {
         private val TAG = MediaRecorder::class.java.simpleName
@@ -39,14 +39,14 @@ class MediaRecorder(
     override fun start(config: RecordConfig) {
         stopRecording()
 
-        val recorder = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            @Suppress("DEPRECATION")
-            MediaRecorder()
-        } else {
-            MediaRecorder(context)
-        }
+        val recorder =
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                    @Suppress("DEPRECATION") MediaRecorder()
+                } else {
+                    MediaRecorder(context)
+                }
 
-        recorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+        recorder.setAudioSource(config.audioSource)
         recorder.setAudioEncodingBitRate(config.bitRate)
         recorder.setAudioSamplingRate(config.sampleRate)
         recorder.setAudioChannels(2.coerceAtMost(1.coerceAtLeast(config.numChannels)))
@@ -151,8 +151,8 @@ class MediaRecorder(
                 }
             } catch (ex: IllegalStateException) {
                 Log.d(
-                    TAG,
-                    """
+                        TAG,
+                        """
                         Did you call pause() before before start() or after stop()?
                         ${ex.message}
                         """.trimIndent()
@@ -171,8 +171,8 @@ class MediaRecorder(
                 }
             } catch (ex: IllegalStateException) {
                 Log.d(
-                    TAG,
-                    """
+                        TAG,
+                        """
                         Did you call resume() before before start() or after stop()?
                         ${ex.message}
                         """.trimIndent()
@@ -184,17 +184,15 @@ class MediaRecorder(
     private fun updateState(state: RecordState) {
         when (state) {
             RecordState.PAUSE -> {
-                mIsRecording =true
-                mIsPaused =true
+                mIsRecording = true
+                mIsPaused = true
                 recorderStateStreamHandler.sendStateEvent(RecordState.PAUSE.id)
             }
-
             RecordState.RECORD -> {
                 mIsRecording = true
                 mIsPaused = false
                 recorderStateStreamHandler.sendStateEvent(RecordState.RECORD.id)
             }
-
             RecordState.STOP -> {
                 mIsRecording = false
                 mIsPaused = false
@@ -205,7 +203,8 @@ class MediaRecorder(
 
     private fun getOutputFormat(encoder: String): Int {
         return when (encoder) {
-            AudioEncoder.aacLc, AudioEncoder.aacEld, AudioEncoder.aacHe -> MediaRecorder.OutputFormat.MPEG_4
+            AudioEncoder.aacLc, AudioEncoder.aacEld, AudioEncoder.aacHe ->
+                    MediaRecorder.OutputFormat.MPEG_4
             AudioEncoder.amrNb, AudioEncoder.amrWb -> MediaRecorder.OutputFormat.THREE_GPP
             AudioEncoder.opus -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -213,7 +212,6 @@ class MediaRecorder(
                 }
                 MediaRecorder.OutputFormat.MPEG_4
             }
-
             else -> MediaRecorder.OutputFormat.DEFAULT
         }
     }
@@ -234,7 +232,6 @@ class MediaRecorder(
                     MediaRecorder.AudioEncoder.AAC
                 }
             }
-
             else -> {
                 Log.d(TAG, "Falling back to AAC LC")
                 MediaRecorder.AudioEncoder.AAC

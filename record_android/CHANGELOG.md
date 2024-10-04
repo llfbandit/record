@@ -1,3 +1,6 @@
+## 1.2.7
+* feat: Added `MediaRecorder.AudioSource` options to be passed into `AndroidRecordConfig`
+
 ## 1.2.6
 * fix: Improve amplitude computation.
 * fix: java.lang.IllegalStateException: Failed to stop the muxer.

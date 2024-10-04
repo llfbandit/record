@@ -64,7 +64,7 @@ class RecordConfig {
     this.echoCancel = false,
     this.noiseSuppress = false,
     this.androidConfig = const AndroidRecordConfig(),
-    this.iosConfig = const IosRecordConfig(), 
+    this.iosConfig = const IosRecordConfig(),
   });
 
   Map<String, dynamic> toMap() {
@@ -101,33 +101,39 @@ class AndroidRecordConfig {
   /// Use at your own risks!
   final bool muteAudio;
 
+  // Defines the audio source.
+  // An audio source defines both a default physical source of audio signal, and a recording configuration.
+  // Default is VOICE_COMMUNICATION
+  final AndroidAudioSource androidAudioSource;
+
   const AndroidRecordConfig({
     this.useLegacy = false,
     this.muteAudio = false,
+    this.androidAudioSource = AndroidAudioSource.defaultSource,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'useLegacy': useLegacy,
       'muteAudio': muteAudio,
+      'androidAudioSource': androidAudioSource.index,
     };
   }
 }
 
 ///
 class IosRecordConfig {
-
   /// Constants that specify optional audio behaviors.
   /// https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions
   final List<IosAudioCategories> audioCategories;
 
-  const IosRecordConfig({
-    this.audioCategories = const [IosAudioCategories.defaultToSpeaker, IosAudioCategories.allowBluetooth, IosAudioCategories.allowBluetoothA2DP]
-  });
+  const IosRecordConfig(
+      {this.audioCategories = const [
+        IosAudioCategories.defaultToSpeaker,
+        IosAudioCategories.allowBluetooth,
+        IosAudioCategories.allowBluetoothA2DP,
+      ]});
   Map<String, dynamic> toMap() {
-    return {
-      "audioCategories": audioCategories.map((e) => e.name).join(',')
-    };
+    return {"audioCategories": audioCategories.map((e) => e.name).join(',')};
   }
-  
 }

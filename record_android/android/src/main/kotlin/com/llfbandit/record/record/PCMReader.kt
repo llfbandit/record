@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaFormat
-import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
@@ -15,9 +14,9 @@ import kotlin.math.abs
 import kotlin.math.log10
 
 class PCMReader(
-    // Config to setup the recording
-    private val config: RecordConfig,
-    private val mediaFormat: MediaFormat,
+        // Config to setup the recording
+        private val config: RecordConfig,
+        private val mediaFormat: MediaFormat,
 ) {
     companion object {
         private val TAG = PCMReader::class.java.simpleName
@@ -88,17 +87,18 @@ class PCMReader(
         val sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
         bufferSize = getMinBufferSize(sampleRate, channels, audioFormat)
 
-        val reader = try {
-            AudioRecord(
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-                sampleRate,
-                channels,
-                audioFormat,
-                bufferSize
-            )
-        } catch (e: IllegalArgumentException) {
-            throw Exception("Unable to instantiate PCM reader.", e)
-        }
+        val reader =
+                try {
+                    AudioRecord(
+                            config.audioSource,
+                            sampleRate,
+                            channels,
+                            audioFormat,
+                            bufferSize,
+                    )
+                } catch (e: IllegalArgumentException) {
+                    throw Exception("Unable to instantiate PCM reader.", e)
+                }
         if (reader.state != AudioRecord.STATE_INITIALIZED) {
             throw Exception("PCM reader failed to initialize.")
         }
@@ -129,13 +129,11 @@ class PCMReader(
     @Throws(Exception::class)
     private fun getMinBufferSize(sampleRate: Int, channelConfig: Int, audioFormat: Int): Int {
         // Get min size of the buffer for writings
-        val bufferSize = AudioRecord.getMinBufferSize(
-            sampleRate,
-            channelConfig,
-            audioFormat
-        )
+        val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
         if (bufferSize == AudioRecord.ERROR_BAD_VALUE || bufferSize == AudioRecord.ERROR) {
-            throw Exception("Recording config is not supported by the hardware, or an invalid config was provided.")
+            throw Exception(
+                    "Recording config is not supported by the hardware, or an invalid config was provided."
+            )
         }
 
         // Stay away from minimal buffer
@@ -167,9 +165,16 @@ class PCMReader(
         val str = StringBuilder("Error when reading audio data:").appendLine()
 
         when (errorCode) {
-            AudioRecord.ERROR_INVALID_OPERATION -> str.append("ERROR_INVALID_OPERATION: Failure due to the improper use of a method.")
-            AudioRecord.ERROR_BAD_VALUE -> str.append("ERROR_BAD_VALUE: Failure due to the use of an invalid value.")
-            AudioRecord.ERROR_DEAD_OBJECT -> str.append("ERROR_DEAD_OBJECT: Object is no longer valid and needs to be recreated.")
+            AudioRecord.ERROR_INVALID_OPERATION ->
+                    str.append(
+                            "ERROR_INVALID_OPERATION: Failure due to the improper use of a method."
+                    )
+            AudioRecord.ERROR_BAD_VALUE ->
+                    str.append("ERROR_BAD_VALUE: Failure due to the use of an invalid value.")
+            AudioRecord.ERROR_DEAD_OBJECT ->
+                    str.append(
+                            "ERROR_DEAD_OBJECT: Object is no longer valid and needs to be recreated."
+                    )
             AudioRecord.ERROR -> str.append("ERROR: Generic operation failure")
             else -> str.append("Unknown errorCode: (").append(errorCode).append(")")
         }

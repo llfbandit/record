@@ -1,3 +1,6 @@
+## 1.1.1
+* feat: Add `MediaRecorder.AudioSource` option to `AndroidRecordConfig`
+
 ## 1.1.0
 * feat: Add `AndroidRecordConfig`.
 
