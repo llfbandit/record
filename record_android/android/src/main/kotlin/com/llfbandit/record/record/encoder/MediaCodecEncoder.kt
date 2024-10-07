@@ -79,9 +79,11 @@ class MediaCodecEncoder(
                 processInputBuffer()
             }
         } else if (msg.what == MSG_ENCODE_INPUT) {
-            mQueue.addLast(msg.obj as Sample)
-            if (mInputBufferIndex >= 0) {
-                processInputBuffer()
+            if (!mStopped.get()) {
+                mQueue.addLast(msg.obj as Sample)
+                if (mInputBufferIndex >= 0) {
+                    processInputBuffer()
+                }
             }
         }
 
@@ -124,6 +126,7 @@ class MediaCodecEncoder(
                         getPresentationTimestampUs(mInputBufferPosition),
                         MediaCodec.BUFFER_FLAG_END_OF_STREAM
                     )
+                    mInputBufferIndex = -1 // Reset index after sending EOS
                 }
                 return
             }
@@ -174,7 +177,6 @@ class MediaCodecEncoder(
 
     private fun finish() {
         stopAndRelease()
-        mStoppedCompleter?.release()
     }
 
     private fun stopAndRelease() {
@@ -185,6 +187,9 @@ class MediaCodecEncoder(
         mContainer?.stop()
         mContainer?.release()
         mContainer = null
+
+        mStoppedCompleter?.release()
+        mStoppedCompleter = null
     }
 
     private fun calculateInputRate() {

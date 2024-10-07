@@ -118,18 +118,21 @@ class RecordThread(
     }
 
     private fun stopAndRelease() {
-        mPcmReader?.stop()
-        mPcmReader?.release()
-        mPcmReader = null
+        try {
+            mPcmReader?.stop()
+            mPcmReader?.release()
+            mPcmReader = null
 
-        mEncoder?.stopEncoding()
-        mEncoder = null
+            mEncoder?.stopEncoding()
+            mEncoder = null
 
-        if (mHasBeenCanceled) {
-            Utils.deleteFile(config.path)
+            if (mHasBeenCanceled) {
+                Utils.deleteFile(config.path)
+            }
+            recorderListener.onStop()
+        } catch (ex: Exception) {
+            recorderListener.onFailure(ex)
         }
-
-        recorderListener.onStop()
     }
 
     private fun selectFormat(): Format {
