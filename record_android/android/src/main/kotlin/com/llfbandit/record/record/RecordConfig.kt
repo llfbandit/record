@@ -14,6 +14,7 @@ class RecordConfig(
     val noiseSuppress: Boolean = false,
     val useLegacy: Boolean = false,
     val muteAudio: Boolean = false,
+    val manageBluetoothAudio: Boolean = true,
 ) {
     val numChannels: Int = 2.coerceAtMost(1.coerceAtLeast(numChannels))
 }

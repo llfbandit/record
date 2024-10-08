@@ -139,6 +139,7 @@ class MethodCallHandlerImpl(
             Utils.firstNonNull(call.argument("noiseSuppress"), false),
             Utils.firstNonNull(androidConfig?.get("useLegacy") as Boolean?, false),
             Utils.firstNonNull(androidConfig?.get("muteAudio") as Boolean?, false),
+            Utils.firstNonNull(androidConfig?.get("manageBluetoothAudio") as Boolean?, true),
         )
     }
 }
