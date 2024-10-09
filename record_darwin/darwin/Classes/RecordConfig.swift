@@ -74,6 +74,7 @@ struct IosConfig {
 #if os(iOS)
 extension IosConfig {
   let audioCategories: [AVAudioSession.CategoryOptions]
+  let manageAudioSession: Bool
 
   init(map: [String: Any]) {
     let comps = map["audioCategories"] as? String
@@ -99,6 +100,7 @@ extension IosConfig {
       }
     }
     self.audioCategories = options ?? []
+    self.manageAudioSession = map["manageAudioSession"] as? Bool ?? true
   }
 }
 #endif

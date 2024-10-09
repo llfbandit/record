@@ -120,13 +120,19 @@ class IosRecordConfig {
   /// Constants that specify optional audio behaviors.
   /// https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions
   final List<IosAudioCategories> audioCategories;
+  /// Manage the shared AVAudioSession (defaults to `true`).
+  /// Set this to false if another plugin is already managing the AVAudioSession.
+  /// If false, audioCategories config will have no effect.
+  final bool manageAudioSession;
 
   const IosRecordConfig({
-    this.audioCategories = const [IosAudioCategories.defaultToSpeaker, IosAudioCategories.allowBluetooth, IosAudioCategories.allowBluetoothA2DP]
+    this.audioCategories = const [IosAudioCategories.defaultToSpeaker, IosAudioCategories.allowBluetooth, IosAudioCategories.allowBluetoothA2DP],
+    this.manageAudioSession = true,
   });
   Map<String, dynamic> toMap() {
     return {
-      "audioCategories": audioCategories.map((e) => e.name).join(',')
+      "audioCategories": audioCategories.map((e) => e.name).join(','),
+      "manageAudioSession": manageAudioSession,
     };
   }
   
