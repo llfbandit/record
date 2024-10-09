@@ -105,11 +105,15 @@ class AndroidRecordConfig {
   // An audio source defines both a default physical source of audio signal, and a recording configuration.
   // Default is VOICE_COMMUNICATION
   final AndroidAudioSource androidAudioSource;
+  /// Try to start a bluetooth audio connection to a headset.
+  /// Defaults to [true].
+  final bool manageBluetoothAudio;
 
   const AndroidRecordConfig({
     this.useLegacy = false,
     this.muteAudio = false,
     this.androidAudioSource = AndroidAudioSource.defaultSource,
+    this.manageBluetoothAudio = true,
   });
 
   Map<String, dynamic> toMap() {
@@ -117,23 +121,33 @@ class AndroidRecordConfig {
       'useLegacy': useLegacy,
       'muteAudio': muteAudio,
       'androidAudioSource': androidAudioSource.index,
+      'manageBluetoothAudio': manageBluetoothAudio,
     };
   }
 }
 
-///
+/// iOS specific configuration for recording.
 class IosRecordConfig {
   /// Constants that specify optional audio behaviors.
   /// https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions
-  final List<IosAudioCategories> audioCategories;
+  final List<IosAudioCategoryOption> categoryOptions;
+  /// Manage the shared AVAudioSession (defaults to `true`).
+  /// Set this to false if another plugin is already managing the AVAudioSession.
+  /// If false, audioCategories config will have no effect.
+  final bool manageAudioSession;
 
-  const IosRecordConfig(
-      {this.audioCategories = const [
-        IosAudioCategories.defaultToSpeaker,
-        IosAudioCategories.allowBluetooth,
-        IosAudioCategories.allowBluetoothA2DP,
-      ]});
+  const IosRecordConfig({
+    this.categoryOptions = const [
+      IosAudioCategoryOption.defaultToSpeaker,
+      IosAudioCategoryOption.allowBluetooth,
+      IosAudioCategoryOption.allowBluetoothA2DP,
+    ],
+    this.manageAudioSession = true,
+  });
   Map<String, dynamic> toMap() {
-    return {"audioCategories": audioCategories.map((e) => e.name).join(',')};
+    return {
+      "categoryOptions": categoryOptions.map((e) => e.name).join(','),
+      "manageAudioSession": manageAudioSession,
+    };
   }
 }

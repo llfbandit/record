@@ -79,9 +79,11 @@ class MediaCodecEncoder(
                 processInputBuffer()
             }
         } else if (msg.what == MSG_ENCODE_INPUT) {
-            mQueue.addLast(msg.obj as Sample)
-            if (mInputBufferIndex >= 0) {
-                processInputBuffer()
+            if (!mStopped.get()) {
+                mQueue.addLast(msg.obj as Sample)
+                if (mInputBufferIndex >= 0) {
+                    processInputBuffer()
+                }
             }
         }
 
@@ -124,6 +126,7 @@ class MediaCodecEncoder(
                         getPresentationTimestampUs(mInputBufferPosition),
                         MediaCodec.BUFFER_FLAG_END_OF_STREAM
                     )
+                    mInputBufferIndex = -1 // Reset index after sending EOS
                 }
                 return
             }
@@ -159,7 +162,7 @@ class MediaCodecEncoder(
             codec.releaseOutputBuffer(index, false)
 
             if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                finish()
+                stopAndRelease()
             }
         } catch (e: Exception) {
             onError(e)
@@ -172,11 +175,6 @@ class MediaCodecEncoder(
         listener.onEncoderFailure(e)
     }
 
-    private fun finish() {
-        stopAndRelease()
-        mStoppedCompleter?.release()
-    }
-
     private fun stopAndRelease() {
         mCodec?.stop()
         mCodec?.release()
@@ -185,6 +183,9 @@ class MediaCodecEncoder(
         mContainer?.stop()
         mContainer?.release()
         mContainer = null
+
+        mStoppedCompleter?.release()
+        mStoppedCompleter = null
     }
 
     private fun calculateInputRate() {

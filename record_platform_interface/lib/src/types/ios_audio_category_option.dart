@@ -1,6 +1,6 @@
 /// Constants that specify optional audio behaviors.
 /// https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions
-enum IosAudioCategories {
+enum IosAudioCategoryOption {
   mixWithOthers,
   duckOthers,
   allowBluetooth,

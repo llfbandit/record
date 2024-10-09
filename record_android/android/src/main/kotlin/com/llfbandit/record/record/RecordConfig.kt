@@ -3,18 +3,19 @@ package com.llfbandit.record.record
 import android.media.AudioDeviceInfo
 
 class RecordConfig(
-        val path: String?,
-        val encoder: String,
-        val bitRate: Int,
-        val sampleRate: Int,
-        numChannels: Int,
-        val device: AudioDeviceInfo?,
-        val autoGain: Boolean = false,
-        val echoCancel: Boolean = false,
-        val noiseSuppress: Boolean = false,
-        val useLegacy: Boolean = false,
-        val muteAudio: Boolean = false,
-        val audioSource: Int = 0,
+    val path: String?,
+    val encoder: String,
+    val bitRate: Int,
+    val sampleRate: Int,
+    numChannels: Int,
+    val device: AudioDeviceInfo?,
+    val autoGain: Boolean = false,
+    val echoCancel: Boolean = false,
+    val noiseSuppress: Boolean = false,
+    val useLegacy: Boolean = false,
+    val muteAudio: Boolean = false,
+    val manageBluetoothAudio: Boolean = true,
+    val audioSource: Int = 0,
 ) {
     val numChannels: Int = 2.coerceAtMost(1.coerceAtLeast(numChannels))
 }

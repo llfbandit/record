@@ -50,7 +50,7 @@ internal class RecorderWrapper(
 
     fun startRecordingToStream(config: RecordConfig, result: MethodChannel.Result) {
         if (config.useLegacy) {
-            throw Exception("Unsupported feature from legacy recorder.")
+            throw Exception("Cannot stream audio while using the legacy recorder")
         }
         startRecording(config, result)
     }
@@ -148,7 +148,9 @@ internal class RecorderWrapper(
     }
 
     private fun createRecorder(config: RecordConfig): IRecorder {
-        maybeStartBluetooth(config)
+        if (config.manageBluetoothAudio) {
+            maybeStartBluetooth(config)
+        }
 
         if (config.useLegacy) {
             return MediaRecorder(context, recorderStateStreamHandler)

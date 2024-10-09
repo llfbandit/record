@@ -67,11 +67,13 @@ public class Device {
   }
 }
 
+#if os(iOS)
 struct IosConfig {
-  let audioCategories: [AVAudioSession.CategoryOptions]
+  let categoryOptions: [AVAudioSession.CategoryOptions]
+  let manageAudioSession: Bool
 
   init(map: [String: Any]) {
-    let comps = map["audioCategories"] as? String
+    let comps = map["categoryOptions"] as? String
     let options: [AVAudioSession.CategoryOptions]? = comps?.split(separator: ",").compactMap {
       switch $0 {
       case "mixWithOthers":
@@ -93,6 +95,12 @@ struct IosConfig {
       default: nil
       }
     }
-    self.audioCategories = options ?? []
+    self.categoryOptions = options ?? []
+    self.manageAudioSession = map["manageAudioSession"] as? Bool ?? true
   }
 }
+#else
+struct IosConfig {
+  init(map: [String: Any]) {}
+}
+#endif

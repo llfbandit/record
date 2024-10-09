@@ -209,8 +209,9 @@ class MediaRecorder(
             AudioEncoder.opus -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     MediaRecorder.OutputFormat.OGG
+                } else {
+                    MediaRecorder.OutputFormat.MPEG_4
                 }
-                MediaRecorder.OutputFormat.MPEG_4
             }
             else -> MediaRecorder.OutputFormat.DEFAULT
         }

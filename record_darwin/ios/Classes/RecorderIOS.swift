@@ -48,7 +48,7 @@ extension AudioRecordingDelegate {
     let audioSession = AVAudioSession.sharedInstance()
 
     do {
-        try audioSession.setCategory(.playAndRecord, options: AVAudioSession.CategoryOptions(config.iosConfig?.audioCategories ?? []))
+        try audioSession.setCategory(.playAndRecord, options: AVAudioSession.CategoryOptions(config.iosConfig?.categoryOptions ?? []))
     } catch {
       throw RecorderError.error(message: "Failed to start recording", details: "setCategory: \(error.localizedDescription)")
     }
