@@ -13,8 +13,8 @@ environment:
 dependencies:
   path: ^1.8.0
   path_provider: ^2.0.1
-  audioplayers: ^6.0.0
-  web: ^0.5.1
+  audioplayers: ^6.1.0
+  web: ">=0.5.1 <2.0.0"
 
   flutter:
     sdk: flutter
