@@ -101,15 +101,21 @@ class AndroidRecordConfig {
   /// Use at your own risks!
   final bool muteAudio;
 
+  /// Try to start a bluetooth audio connection to a headset.
+  /// Defaults to [true].
+  final bool manageBluetoothAudio;
+
   const AndroidRecordConfig({
     this.useLegacy = false,
     this.muteAudio = false,
+    this.manageBluetoothAudio = true,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'useLegacy': useLegacy,
       'muteAudio': muteAudio,
+      'manageBluetoothAudio': manageBluetoothAudio,
     };
   }
 }
