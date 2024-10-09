@@ -68,6 +68,11 @@ public class Device {
 }
 
 struct IosConfig {
+  init(map: [String: Any]) {}
+}
+
+#if os(iOS)
+extension IosConfig {
   let audioCategories: [AVAudioSession.CategoryOptions]
 
   init(map: [String: Any]) {
@@ -96,3 +101,4 @@ struct IosConfig {
     self.audioCategories = options ?? []
   }
 }
+#endif

@@ -143,7 +143,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     // Convert input buffer (resample, num channels)
     var error: NSError? = nil
     converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputCallback)
-    if let error = error {
+    if error != nil {
       return
     }
     
