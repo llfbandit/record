@@ -46,7 +46,7 @@ class MediaRecorder(
             MediaRecorder(context)
         }
 
-        recorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+        recorder.setAudioSource(config.audioSource)
         recorder.setAudioEncodingBitRate(config.bitRate)
         recorder.setAudioSamplingRate(config.sampleRate)
         recorder.setAudioChannels(2.coerceAtMost(1.coerceAtLeast(config.numChannels)))
@@ -184,8 +184,8 @@ class MediaRecorder(
     private fun updateState(state: RecordState) {
         when (state) {
             RecordState.PAUSE -> {
-                mIsRecording =true
-                mIsPaused =true
+                mIsRecording = true
+                mIsPaused = true
                 recorderStateStreamHandler.sendStateEvent(RecordState.PAUSE.id)
             }
 

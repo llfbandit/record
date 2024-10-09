@@ -90,7 +90,7 @@ class PCMReader(
 
         val reader = try {
             AudioRecord(
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                config.audioSource,
                 sampleRate,
                 channels,
                 audioFormat,

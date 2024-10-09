@@ -148,7 +148,7 @@ internal class RecorderWrapper(
     }
 
     private fun createRecorder(config: RecordConfig): IRecorder {
-        if (config.manageBluetoothAudio) {
+        if (config.manageBluetooth) {
             maybeStartBluetooth(config)
         }
 

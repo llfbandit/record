@@ -64,7 +64,7 @@ class RecordConfig {
     this.echoCancel = false,
     this.noiseSuppress = false,
     this.androidConfig = const AndroidRecordConfig(),
-    this.iosConfig = const IosRecordConfig(), 
+    this.iosConfig = const IosRecordConfig(),
   });
 
   Map<String, dynamic> toMap() {
@@ -81,68 +81,4 @@ class RecordConfig {
       'iosConfig': iosConfig.toMap(),
     };
   }
-}
-
-/// Android specific configuration for recording.
-class AndroidRecordConfig {
-  /// Uses Android MediaRecorder if [true].
-  ///
-  /// Uses advanced recorder with media codecs and additionnal features
-  /// by default.
-  final bool useLegacy;
-
-  /// If [true], this will mute all audio streams like alarms, music, ring, ...
-  ///
-  /// This is useful when you want to record audio without any background noise.
-  ///
-  /// The streams are restored to their previous state after recording is stopped
-  /// and will stay at current state on pause/resume.
-  ///
-  /// Use at your own risks!
-  final bool muteAudio;
-
-  /// Try to start a bluetooth audio connection to a headset.
-  /// Defaults to [true].
-  final bool manageBluetoothAudio;
-
-  const AndroidRecordConfig({
-    this.useLegacy = false,
-    this.muteAudio = false,
-    this.manageBluetoothAudio = true,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'useLegacy': useLegacy,
-      'muteAudio': muteAudio,
-      'manageBluetoothAudio': manageBluetoothAudio,
-    };
-  }
-}
-
-/// iOS specific configuration for recording.
-class IosRecordConfig {
-  /// Constants that specify optional audio behaviors.
-  /// https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions
-  final List<IosAudioCategoryOption> categoryOptions;
-  /// Manage the shared AVAudioSession (defaults to `true`).
-  /// Set this to false if another plugin is already managing the AVAudioSession.
-  /// If false, audioCategories config will have no effect.
-  final bool manageAudioSession;
-
-  const IosRecordConfig({
-    this.categoryOptions = const [
-      IosAudioCategoryOption.defaultToSpeaker,
-      IosAudioCategoryOption.allowBluetooth,
-      IosAudioCategoryOption.allowBluetoothA2DP,
-    ],
-    this.manageAudioSession = true,
-  });
-  Map<String, dynamic> toMap() {
-    return {
-      "categoryOptions": categoryOptions.map((e) => e.name).join(','),
-      "manageAudioSession": manageAudioSession,
-    };
-  }
-  
 }
