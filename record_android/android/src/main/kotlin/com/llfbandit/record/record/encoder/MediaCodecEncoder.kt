@@ -162,7 +162,7 @@ class MediaCodecEncoder(
             codec.releaseOutputBuffer(index, false)
 
             if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                finish()
+                stopAndRelease()
             }
         } catch (e: Exception) {
             onError(e)
@@ -173,10 +173,6 @@ class MediaCodecEncoder(
         mStopped.set(true)
         stopAndRelease()
         listener.onEncoderFailure(e)
-    }
-
-    private fun finish() {
-        stopAndRelease()
     }
 
     private fun stopAndRelease() {
