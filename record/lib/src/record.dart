@@ -220,6 +220,8 @@ class AudioRecorder {
   /// Listen to recorder states [RecordState].
   ///
   /// Provides pause, resume and stop states.
+  ///
+  /// Also, you can retrieve async errors from it by adding [Function? onError].
   Stream<RecordState> onStateChanged() => _stateStreamCtrl.stream;
 
   /// Request for amplitude at given [interval].
