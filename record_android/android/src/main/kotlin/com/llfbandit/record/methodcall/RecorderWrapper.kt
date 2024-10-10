@@ -1,6 +1,5 @@
 package com.llfbandit.record.methodcall
 
-import android.app.Activity
 import android.content.Context
 import android.media.AudioDeviceInfo
 import com.llfbandit.record.record.RecordConfig
@@ -37,11 +36,6 @@ internal class RecorderWrapper(
         eventChannel?.setStreamHandler(recorderStateStreamHandler)
         eventRecordChannel = EventChannel(messenger, EVENTS_RECORD_CHANNEL + recorderId)
         eventRecordChannel?.setStreamHandler(recorderRecordStreamHandler)
-    }
-
-    fun setActivity(activity: Activity?) {
-        recorderStateStreamHandler.setActivity(activity)
-        recorderRecordStreamHandler.setActivity(activity)
     }
 
     fun startRecordingToFile(config: RecordConfig, result: MethodChannel.Result) {

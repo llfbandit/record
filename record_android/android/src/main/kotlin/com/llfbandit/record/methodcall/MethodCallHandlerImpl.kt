@@ -1,6 +1,5 @@
 package com.llfbandit.record.methodcall
 
-import android.app.Activity
 import android.content.Context
 import android.media.MediaRecorder
 import android.os.Build
@@ -22,7 +21,6 @@ class MethodCallHandlerImpl(
     private val messenger: BinaryMessenger,
     private val appContext: Context
 ) : MethodCallHandler {
-    private var activity: Activity? = null
     private val recorders = ConcurrentHashMap<String, RecorderWrapper>()
 
 
@@ -32,13 +30,6 @@ class MethodCallHandlerImpl(
         }
 
         recorders.clear()
-    }
-
-    fun setActivity(activity: Activity?) {
-        this.activity = activity
-        for (recorder in recorders.values) {
-            recorder.setActivity(activity)
-        }
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -116,7 +107,6 @@ class MethodCallHandlerImpl(
 
     private fun createRecorder(recorderId: String) {
         val recorder = RecorderWrapper(appContext, recorderId, messenger)
-        recorder.setActivity(activity)
         recorders[recorderId] = recorder
     }
 
