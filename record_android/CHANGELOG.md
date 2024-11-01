@@ -1,3 +1,12 @@
+## 1.3.0
+* feat: Add audio source config.
+* feat: Add manageBluetooth (SCO) option.
+* fix: Audio source is now AndroidAudioSource.defaultSource (without any effect pre-processor in theory).
+* fix: Recording not working when starting from an Android ForegroundService.
+* fix: MPEG4 container is not returned when requesting AudioEncoder.opus for MediaRecorder (legacy).
+* fix: Race condition when calling stop.
+* chore: Add debug log when effect is not available while requested.
+
 ## 1.2.6
 * fix: Improve amplitude computation.
 * fix: java.lang.IllegalStateException: Failed to stop the muxer.
