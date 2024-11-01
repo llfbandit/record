@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaFormat
-import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
@@ -146,6 +145,8 @@ class PCMReader(
         if (AutomaticGainControl.isAvailable()) {
             automaticGainControl = AutomaticGainControl.create(reader.audioSessionId)
             automaticGainControl?.enabled = config.autoGain
+        } else if (config.autoGain) {
+            Log.d(TAG, "Auto gain effect is not available.")
         }
     }
 
@@ -153,6 +154,8 @@ class PCMReader(
         if (NoiseSuppressor.isAvailable()) {
             noiseSuppressor = NoiseSuppressor.create(reader.audioSessionId)
             noiseSuppressor?.enabled = config.noiseSuppress
+        } else if (config.noiseSuppress) {
+            Log.d(TAG, "Noise suppressor effect is not available.")
         }
     }
 
@@ -160,6 +163,8 @@ class PCMReader(
         if (AcousticEchoCanceler.isAvailable()) {
             acousticEchoCanceler = AcousticEchoCanceler.create(reader.audioSessionId)
             acousticEchoCanceler?.enabled = config.echoCancel
+        } else if (config.echoCancel) {
+            Log.d(TAG, "Echo canceler effect is not available.")
         }
     }
 

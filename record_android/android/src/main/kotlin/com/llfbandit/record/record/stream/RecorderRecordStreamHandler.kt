@@ -1,9 +1,9 @@
 package com.llfbandit.record.record.stream
 
-import io.flutter.plugin.common.EventChannel
-import io.flutter.plugin.common.EventChannel.EventSink
 import android.os.Handler
 import android.os.Looper
+import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.EventChannel.EventSink
 
 class RecorderRecordStreamHandler : EventChannel.StreamHandler {
     // Event producer
