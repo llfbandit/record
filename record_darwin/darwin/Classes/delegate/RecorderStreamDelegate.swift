@@ -5,6 +5,13 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   private var audioEngine: AVAudioEngine?
   private var amplitude: Float = -160.0
   private let bus = 0
+  private var onPause: () -> ()
+  private var onStop: () -> ()
+  
+  init(onPause: @escaping () -> (), onStop: @escaping () -> ()) {
+    self.onPause = onPause
+    self.onStop = onStop
+  }
 
   func start(config: RecordConfig, recordEventHandler: RecordStreamHandler) throws {
     let audioEngine = AVAudioEngine()
@@ -80,10 +87,12 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     audioEngine = nil
     
     completionHandler(nil)
+    onStop()
   }
   
   func pause() {
     audioEngine?.pause()
+    onPause()
   }
   
   func resume() throws {

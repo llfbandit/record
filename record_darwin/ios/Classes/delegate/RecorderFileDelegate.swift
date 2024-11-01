@@ -4,6 +4,13 @@ import Foundation
 class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorderDelegate {
   private var audioRecorder: AVAudioRecorder?
   private var path: String?
+  private var onPause: () -> ()
+  private var onStop: () -> ()
+  
+  init(onPause: @escaping () -> (), onStop: @escaping () -> ()) {
+    self.onPause = onPause
+    self.onStop = onStop
+  }
 
   func start(config: RecordConfig, path: String) throws {
     try deleteFile(path: path)
@@ -29,6 +36,7 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
     audioRecorder = nil
 
     completionHandler(path)
+    onStop()
     
     path = nil
   }
@@ -39,6 +47,7 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
     }
     
     recorder.pause()
+    onPause()
   }
   
   func resume() {

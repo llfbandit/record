@@ -1,8 +1,9 @@
 ## 1.2.0
-* fix(darwin): Add privacy manifests to iOS & macOS.
-* fix(iOS): Cancel effects when stopping streaming.
 * feat(iOS): Add ios config with audio categories.
 * feat(iOS): Add manageAudioSession option for IosRecordConfig
+* fix(iOS): Cancel effects when stopping streaming.
+* fix(iOS): Forward pause state when recording is interrupted.
+* fix(darwin): Add privacy manifests to iOS & macOS.
 
 ## 1.1.2
 * fix: Remove print on conversion error.
