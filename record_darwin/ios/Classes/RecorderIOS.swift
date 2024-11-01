@@ -45,6 +45,10 @@ private func setInput(_ config: RecordConfig) throws {
 
 extension AudioRecordingDelegate {
   func initAVAudioSession(config: RecordConfig) throws {
+    if !(config.iosConfig?.manageAudioSession ?? false) {
+      return
+    }
+
     let audioSession = AVAudioSession.sharedInstance()
 
     do {

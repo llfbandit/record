@@ -8,9 +8,7 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
   func start(config: RecordConfig, path: String) throws {
     try deleteFile(path: path)
 
-    if config.iosConfig?.manageAudioSession ?? true {
-      try initAVAudioSession(config: config)
-    }
+    try initAVAudioSession(config: config)
 
     let url = URL(fileURLWithPath: path)
 
