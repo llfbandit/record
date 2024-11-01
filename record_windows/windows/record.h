@@ -32,7 +32,7 @@ namespace record_windows
 		Recorder(EventStreamHandler<>* stateEventHandler, EventStreamHandler<>* recordEventHandler);
 		virtual ~Recorder();
 
-		HRESULT Start(std::unique_ptr<RecordConfig> config, std::string path);
+		HRESULT Start(std::unique_ptr<RecordConfig> config, std::wstring path);
 		HRESULT StartStream(std::unique_ptr<RecordConfig> config);
 		HRESULT Pause();
 		HRESULT Resume();
@@ -41,7 +41,7 @@ namespace record_windows
 		bool IsRecording();
 		HRESULT Dispose();
 		std::map<std::string, double> GetAmplitude();
-		std::string GetRecordingPath();
+		std::wstring GetRecordingPath();
 		HRESULT isEncoderSupported(std::string encoderName, bool* supported);
 		
 		// IUnknown methods
@@ -57,7 +57,7 @@ namespace record_windows
 	private:
 		HRESULT CreateAudioCaptureDevice(LPCWSTR pszEndPointID);
 		HRESULT CreateSourceReaderAsync();
-		HRESULT CreateSinkWriter(std::string path);
+		HRESULT CreateSinkWriter(std::wstring path);
 		HRESULT CreateAudioProfileIn( IMFMediaType** ppMediaType);
 		HRESULT CreateAudioProfileOut( IMFMediaType** ppMediaType);
 
@@ -80,7 +80,7 @@ namespace record_windows
 		IMFPresentationDescriptor* m_pPresentationDescriptor;
 		IMFSourceReader* m_pReader;
 		IMFSinkWriter* m_pWriter;
-		std::string m_recordingPath;
+		std::wstring m_recordingPath;
 		bool m_mfStarted = false;
 		IMFMediaType* m_pMediaType;
 

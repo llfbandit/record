@@ -1,3 +1,6 @@
+## 1.0.4
+* fix: Process path as wide string (UTF-16).
+
 ## 1.0.3
 * fix: Crash when starting the recording when the writer can't be created.
 

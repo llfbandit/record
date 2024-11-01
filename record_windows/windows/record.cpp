@@ -53,7 +53,7 @@ namespace record_windows
 		m_pPresentationDescriptor(NULL),
 		m_stateEventHandler(stateEventHandler),
 		m_recordEventHandler(recordEventHandler),
-		m_recordingPath(std::string()),
+		m_recordingPath(std::wstring()),
 		m_pMediaType(NULL)
 	{
 	}
@@ -63,7 +63,7 @@ namespace record_windows
 		Dispose();
 	}
 
-	HRESULT Recorder::Start(std::unique_ptr<RecordConfig> config, std::string path)
+	HRESULT Recorder::Start(std::unique_ptr<RecordConfig> config, std::wstring path)
 	{
 		bool supported = false;
 		HRESULT hr = isEncoderSupported(config->encoderName, &supported);
@@ -288,7 +288,7 @@ namespace record_windows
 		SafeRelease(m_pWriter);
 		SafeRelease(m_pMediaType);
 		m_pConfig = nullptr;
-		m_recordingPath = std::string();
+		m_recordingPath = std::wstring();
 
 		return hr;
 	}
@@ -380,15 +380,14 @@ namespace record_windows
 		return hr;
 	}
 
-	HRESULT Recorder::CreateSinkWriter(std::string path)
+	HRESULT Recorder::CreateSinkWriter(std::wstring path)
 	{
 		IMFSinkWriter* pSinkWriter = NULL;
 		IMFMediaType* pMediaTypeOut = NULL;
 		IMFMediaType* pMediaTypeIn = NULL;
 		DWORD          streamIndex = 0;
 
-		std::wstring wsPath = std::wstring(path.begin(), path.end());
-		HRESULT hr = MFCreateSinkWriterFromURL(wsPath.c_str(), NULL, NULL, &pSinkWriter);
+		HRESULT hr = MFCreateSinkWriterFromURL(path.c_str(), NULL, NULL, &pSinkWriter);
 
 		// Set the output media type.
 		if (SUCCEEDED(hr))
@@ -470,7 +469,7 @@ namespace record_windows
 		}
 	}
 
-	std::string Recorder::GetRecordingPath()
+	std::wstring Recorder::GetRecordingPath()
 	{
 		return m_recordingPath;
 	}
