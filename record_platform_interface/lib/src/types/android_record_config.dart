@@ -4,6 +4,9 @@ class AndroidRecordConfig {
   ///
   /// Uses advanced recorder with media codecs and additionnal features
   /// by default.
+  ///
+  /// While advanced recorder allows additionnale features. Legacy recorder
+  /// could be more stable.
   final bool useLegacy;
 
   /// If [true], this will mute all audio streams like alarms, music, ring, ...
@@ -17,6 +20,7 @@ class AndroidRecordConfig {
   final bool muteAudio;
 
   /// Try to start a bluetooth audio connection to a headset (Bluetooth SCO).
+  ///
   /// Defaults to [true].
   final bool manageBluetooth;
 
@@ -45,8 +49,8 @@ class AndroidRecordConfig {
   }
 }
 
-// Constants for Android for setting specific audio source types
-// https://developer.android.com/reference/kotlin/android/media/MediaRecorder.AudioSource
+/// Constants for Android for setting specific audio source types
+/// https://developer.android.com/reference/kotlin/android/media/MediaRecorder.AudioSource
 enum AndroidAudioSource {
   defaultSource,
   mic,
