@@ -1,5 +1,6 @@
 ## 1.1.4
 * fix: Use relative asset path for worklet file.
+* fix: Input device is not forwarded to JS.
 
 ## 1.1.3
 * fix: Honor given encoder. This should fix Safari issues with AAC encoding.

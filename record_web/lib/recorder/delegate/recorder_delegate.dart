@@ -30,14 +30,14 @@ abstract class RecorderDelegate {
   ) async {
     final constraints = web.MediaStreamConstraints(
       audio: {
-        'autoGainControl': config.autoGain.toJS,
-        'echoCancellation': config.echoCancel.toJS,
-        'noiseSuppression': config.noiseSuppress.toJS,
-        'sampleRate': config.sampleRate.toJS,
-        'sampleSize': 16.toJS,
-        'channelCount': config.numChannels.toJS,
+        'autoGainControl': config.autoGain,
+        'echoCancellation': config.echoCancel,
+        'noiseSuppression': config.noiseSuppress,
+        'sampleRate': config.sampleRate,
+        'sampleSize': 16,
+        'channelCount': config.numChannels,
         if (config.device case final device?) 'deviceId': {'exact': device.id}
-      }.toJSBox,
+      }.jsify()!,
     );
 
     return web.window.navigator.mediaDevices.getUserMedia(constraints).toDart;
