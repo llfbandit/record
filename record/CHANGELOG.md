@@ -1,3 +1,7 @@
+## 5.2.0
+* chore: Updated transitive dependencies.
+* chore: Add some more documentation.
+
 ## 5.1.3
 * fix: Operations can't be called concurrently anymore. (i.e. when operations are unawaited by caller).
 
