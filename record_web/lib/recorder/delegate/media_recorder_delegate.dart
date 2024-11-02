@@ -29,12 +29,11 @@ class MediaRecorderDelegate extends RecorderDelegate {
   web.AnalyserNode? _analyser;
 
   final OnStateChanged onStateChanged;
-
-  final _defaultMimeType = 'audio/webm;codecs=opus';
+  RecordConfig? _config;
 
   MediaRecorderDelegate({required this.onStateChanged}) {
     ImportJsLibrary().import(
-      jsFixWebmDurationContent(),
+      './assets/packages/record_web/assets/js/record.fixwebmduration.js',
       jsFixWebmDurationContentId(),
     );
   }
@@ -99,15 +98,17 @@ class MediaRecorderDelegate extends RecorderDelegate {
       final mediaStream = await initMediaStream(config);
 
       // Try to assign dedicated mime type.
-      // If contrainst isn't set, browser will record with its default codec.
       final mimeType = getSupportedMimeType(config.encoder);
+      if (mimeType == null) {
+        throw '${config.encoder} not supported.';
+      }
 
       final mediaRecorder = web.MediaRecorder(
         mediaStream,
         web.MediaRecorderOptions(
           audioBitsPerSecond: config.bitRate,
           bitsPerSecond: config.bitRate,
-          mimeType: mimeType ?? _defaultMimeType,
+          mimeType: mimeType,
         ),
       );
       mediaRecorder.ondataavailable =
@@ -122,6 +123,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
       _mediaRecorder = mediaRecorder;
       _mediaStream = mediaStream;
+      _config = config;
 
       onStateChanged(RecordState.record);
     } catch (error) {
@@ -185,13 +187,19 @@ class MediaRecorderDelegate extends RecorderDelegate {
     if (_chunks.isNotEmpty) {
       _elapsedTime.stop();
 
-      final blob = await fixWebmDuration(
-        web.Blob(
-          _chunks.toJS,
-          web.BlobPropertyBag(type: _defaultMimeType),
-        ),
-        _elapsedTime.elapsedMilliseconds.toJS,
-      ).toDart;
+      final blob = switch (_config!.encoder) {
+        AudioEncoder.opus => await fixWebmDuration(
+            web.Blob(
+              _chunks.toJS,
+              web.BlobPropertyBag(type: _mediaRecorder!.mimeType),
+            ),
+            _elapsedTime.elapsedMilliseconds.toJS,
+          ).toDart,
+        _ => web.Blob(
+            _chunks.toJS,
+            web.BlobPropertyBag(type: _mediaRecorder!.mimeType),
+          ),
+      };
 
       audioUrl = web.URL.createObjectURL(blob);
     }
@@ -219,6 +227,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
     _analyser = null;
 
     _chunks = [];
+    _config = null;
   }
 
   void _createAudioContext(RecordConfig config, web.MediaStream stream) {

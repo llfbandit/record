@@ -130,7 +130,7 @@ class MicRecorderDelegate extends RecorderDelegate {
     // TODO Remove record.worklet.js from assets and use it from lib sources.
     // This will avoid to propagate it on non web platforms.
     await context.audioWorklet
-        .addModule('./assets/packages/record_web/assets/js/record.worklet.js')
+        .addModule('assets/packages/record_web/assets/js/record.worklet.js')
         .toDart;
 
     final workletNode = web.AudioWorkletNode(

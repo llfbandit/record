@@ -1,3 +1,19 @@
+## 1.2.0
+* feat(iOS): Add ios config with audio categories.
+* feat(iOS): Add manageAudioSession option for IosRecordConfig
+* fix(iOS): Cancel effects when stopping streaming.
+* fix(iOS): Forward pause state when recording is interrupted.
+* fix(darwin): Add privacy manifests to iOS & macOS.
+
+## 1.1.2
+* fix: Remove print on conversion error.
+* fix: Exception where format.sampleRate != hwFormat.sampleRate
+* feat(macOS): Support device by deviceID as well as deviceUID
+
+## 1.1.1
+* fix: Add swift version info to workaround compilation issues.
+* fix(iOS): Enabling auto gain & echo cancel.
+
 ## 1.1.0
 * fix(iOS): Don't interrupt recording from system alerts and never resume on others.
 * feat(iOS): Allow AD2P bluetooth

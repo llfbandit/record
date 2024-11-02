@@ -4,6 +4,7 @@ import android.media.MediaCodec
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Wrapper around [MediaMuxer].
@@ -11,20 +12,50 @@ import java.nio.ByteBuffer
  * @param path            Output file path.
  * @param containerFormat A valid [MediaMuxer.OutputFormat] value for the output container format.
  */
-class MuxerContainer(path: String, containerFormat: Int) : IContainerWriter {
-    private val muxer = MediaMuxer(path, containerFormat)
+class MuxerContainer(val path: String, private val containerFormat: Int) : IContainerWriter {
+    private var mMuxer: MediaMuxer? = null
+    private var mStarted = AtomicBoolean(false)
+    private var mStopped = AtomicBoolean(false)
 
-    override fun start() = muxer.start()
+    override fun start() {
+        if (mStarted.get() || mStopped.get()) return
 
-    override fun stop() = muxer.stop()
+        mStarted.set(true)
 
-    override fun release() = muxer.release()
+        mMuxer?.start()
+    }
 
-    override fun addTrack(mediaFormat: MediaFormat): Int = muxer.addTrack(mediaFormat)
+    override fun stop() {
+        if (!mStarted.get() || mStopped.get()) return
+
+        mStarted.set(false)
+        mStopped.set(true)
+
+        mMuxer?.stop()
+    }
+
+    override fun addTrack(mediaFormat: MediaFormat): Int {
+        if (mStarted.get() || mStopped.get()) return -1
+
+        mMuxer = MediaMuxer(path, containerFormat)
+
+        return mMuxer!!.addTrack(mediaFormat)
+    }
 
     override fun writeSampleData(
         trackIndex: Int,
         byteBuffer: ByteBuffer,
         bufferInfo: MediaCodec.BufferInfo
-    ) = muxer.writeSampleData(trackIndex, byteBuffer, bufferInfo)
+    ) {
+        if (!mStarted.get() || mStopped.get()) return
+
+        mMuxer?.writeSampleData(trackIndex, byteBuffer, bufferInfo)
+    }
+
+    override fun release() {
+        stop()
+
+        mMuxer?.release()
+        mMuxer = null
+    }
 }

@@ -13,6 +13,12 @@ import com.llfbandit.record.record.encoder.MediaCodecEncoder
 import com.llfbandit.record.record.encoder.PassthroughEncoder
 import kotlin.math.abs
 
+
+/**
+ * Represents an audio format.
+ * This class is responsible for creating the encoder and container for the specified format.
+ * It also provides the [MediaFormat] for the encoded audio stream.
+ */
 sealed class Format {
     /**
      * The MIME type of the encoded audio stream inside the container.
@@ -52,17 +58,17 @@ sealed class Format {
 
         return if (passthrough) {
             Pair(
-                PassthroughEncoder(mediaFormat, listener, getContainer(config.path)),
+                PassthroughEncoder(config, this, mediaFormat, listener),
                 mediaFormat
             )
         } else {
-            val encoder = findCodecForAdjustedFormat(config, mediaFormat)
-            encoder ?: throw Exception(
-                "No encoder found for given config $mediaFormat. You should try with other values."
+            val codec = findCodecForAdjustedFormat(config, mediaFormat)
+            codec ?: throw Exception(
+                "No codec found for given config $mediaFormat. You should try with other values."
             )
 
             Pair(
-                MediaCodecEncoder(encoder, mediaFormat, listener, getContainer(config.path)),
+                MediaCodecEncoder(config, this, mediaFormat, listener, codec),
                 mediaFormat
             )
         }

@@ -20,13 +20,17 @@ public class Utils {
   }
 
   public static void deleteFile(String path) {
-    if (path != null) {
+    if (path == null) return;
+
+    try {
       File file = new File(path);
 
       if (file.exists()) {
         //noinspection ResultOfMethodCallIgnored
         file.delete();
       }
+    } catch (SecurityException e) {
+      // Ignored
     }
   }
 }

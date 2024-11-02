@@ -2,9 +2,9 @@ import 'package:web/web.dart' as web;
 
 class ImportJsLibrary {
   /// Injects the library by its [url]
-  void import(String content, String id) {
+  void import(String src, String id) {
     if (!_isLoaded(id)) {
-      final scriptTag = _createScriptTag(content, id);
+      final scriptTag = _createScriptTag(src, id);
       head.appendChild(scriptTag);
     }
   }
@@ -18,12 +18,12 @@ class ImportJsLibrary {
     return head;
   }
 
-  web.HTMLScriptElement _createScriptTag(String content, String id) {
+  web.HTMLScriptElement _createScriptTag(String src, String id) {
     final web.HTMLScriptElement script = web.HTMLScriptElement()
       ..type = "text/javascript"
       ..charset = "utf-8"
       ..id = id
-      ..innerHTML = content;
+      ..src = src;
     return script;
   }
 

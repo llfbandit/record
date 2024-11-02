@@ -4,17 +4,17 @@ import 'package:record_platform_interface/record_platform_interface.dart';
 
 const mimeTypes = {
   // We apply same mime types for different encoding types for AAC
-  AudioEncoder.aacLc: ['audio/aac', 'audio/mp4'],
-  AudioEncoder.aacEld: ['audio/aac', 'audio/mp4'],
-  AudioEncoder.aacHe: ['audio/aac', 'audio/mp4'],
+  AudioEncoder.aacLc: ['audio/mp4;codecs=mp4a', 'audio/aac'],
+  AudioEncoder.aacEld: ['audio/mp4;codecs=mp4a', 'audio/aac'],
+  AudioEncoder.aacHe: ['audio/mp4;codecs=mp4a', 'audio/aac'],
 
   AudioEncoder.amrNb: ['audio/AMR'],
   AudioEncoder.amrWb: ['audio/AMR-WB'],
 
   AudioEncoder.opus: [
-    'audio/opus',
-    'audio/opus; codecs=opus',
     'audio/webm; codecs=opus',
+    'audio/opus; codecs=opus',
+    'audio/opus',
   ],
 
   AudioEncoder.flac: ['audio/flac', 'audio/x-flac'],

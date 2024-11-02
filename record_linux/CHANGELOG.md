@@ -1,3 +1,6 @@
+## 0.7.2
+* fix: fmedia invalid pipe path which may lead to inaccessible audio file.
+
 ## 0.7.1
 * chore: Remove channels & sample rates on InputDevice.
 

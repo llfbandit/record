@@ -7,7 +7,6 @@ import android.content.IntentFilter
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
-import android.os.Build
 import com.llfbandit.record.record.device.DeviceUtils
 
 interface BluetoothScoListener {
@@ -24,6 +23,7 @@ class BluetoothReceiver(
     private val listeners = HashSet<BluetoothScoListener>()
     private val devices = HashSet<AudioDeviceInfo>()
     private var audioDeviceCallback: AudioDeviceCallback? = null
+    private var mRegistered: Boolean = false
 
     init {
         filter.addAction(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
@@ -35,46 +35,49 @@ class BluetoothReceiver(
 
     fun register() {
         context.registerReceiver(this, filter)
+        mRegistered = true
 
-        if (Build.VERSION.SDK_INT >= 23) {
-            audioDeviceCallback = object : AudioDeviceCallback() {
-                override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
-                    devices.addAll(DeviceUtils.filterSources(addedDevices.asList()))
+        audioDeviceCallback = object : AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
+                devices.addAll(DeviceUtils.filterSources(addedDevices.asList()))
 
-                    val hasBluetoothSco = devices.any {
-                        it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                    }
-                    if (hasBluetoothSco) {
-                        startBluetooth()
-                    }
+                val hasBluetoothSco = devices.any {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
                 }
-
-                override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
-                    devices.removeAll(DeviceUtils.filterSources(removedDevices.asList()).toSet())
-
-                    val hasBluetoothSco = devices.any {
-                        it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                    }
-                    if (!hasBluetoothSco) {
-                        stopBluetooth()
-                    }
+                if (hasBluetoothSco) {
+                    startBluetooth()
                 }
             }
 
-            audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
+            override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
+                devices.removeAll(DeviceUtils.filterSources(removedDevices.asList()).toSet())
+
+                val hasBluetoothSco = devices.any {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                }
+                if (!hasBluetoothSco) {
+                    stopBluetooth()
+                }
+            }
         }
+
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
     }
 
     fun unregister() {
         stopBluetooth()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && audioDeviceCallback != null) {
+        if (audioDeviceCallback != null) {
             audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
             audioDeviceCallback = null
         }
 
         listeners.clear()
-        context.unregisterReceiver(this)
+
+        if (mRegistered) {
+            context.unregisterReceiver(this)
+            mRegistered = false
+        }
     }
 
     fun addListener(listener: BluetoothScoListener) {
@@ -93,6 +96,7 @@ class BluetoothReceiver(
         }
     }
 
+    @Suppress("DEPRECATION")
     fun startBluetooth(): Boolean {
         if (!audioManager.isBluetoothScoAvailableOffCall) {
             return false
@@ -105,6 +109,7 @@ class BluetoothReceiver(
         return true
     }
 
+    @Suppress("DEPRECATION")
     fun stopBluetooth() {
         if (audioManager.isBluetoothScoOn()) {
             audioManager.stopBluetoothSco()

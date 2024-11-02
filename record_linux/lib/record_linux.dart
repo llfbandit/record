@@ -226,7 +226,7 @@ class RecordLinux extends RecordPlatform {
     bool consumeOutput = true,
   }) async {
     final process = await Process.start(_fmediaBin, [
-      '--globcmd.pipe-name=$_pipeProcName/$recorderId',
+      '--globcmd.pipe-name=$_pipeProcName$recorderId',
       ...arguments,
     ]);
 

@@ -1,13 +1,15 @@
 package com.llfbandit.record.record.stream
 
-import android.app.Activity
+import android.os.Handler
+import android.os.Looper
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 
 class RecorderStateStreamHandler : EventChannel.StreamHandler {
     // Event producer
     private var eventSink: EventSink? = null
-    private var activity: Activity? = null
+
+    private val uiThreadHandler = Handler(Looper.getMainLooper())
 
     override fun onListen(arguments: Any?, events: EventSink?) {
         this.eventSink = events
@@ -18,18 +20,14 @@ class RecorderStateStreamHandler : EventChannel.StreamHandler {
     }
 
     fun sendStateEvent(state: Int) {
-        activity?.runOnUiThread {
+        uiThreadHandler.post {
             eventSink?.success(state)
         }
     }
 
     fun sendStateErrorEvent(ex: Exception) {
-        activity?.runOnUiThread {
+        uiThreadHandler.post {
             eventSink?.error("-1", ex.message, ex)
         }
-    }
-
-    fun setActivity(activity: Activity?) {
-        this.activity = activity
     }
 }

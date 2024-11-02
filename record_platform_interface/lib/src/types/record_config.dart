@@ -39,17 +39,26 @@ class RecordConfig {
   /// will be selected.
   final InputDevice? device;
 
-  /// The recorder will try to auto adjust recording volume in a limited range.
+  /// The recorder will try to auto adjust recording volume in a limited range (if available on the device).
+  ///
+  /// Recording volume may be lowered by using this.
   final bool autoGain;
 
-  /// The recorder will try to reduce echo.
+  /// The recorder will try to reduce echo (if available on the device).
+  ///
+  /// Recording volume may be lowered by using this.
   final bool echoCancel;
 
-  /// The recorder will try to negates the input noise.
+  /// The recorder will try to negates the input noise (if available on the device).
+  ///
+  /// Recording volume may be lowered by using this.
   final bool noiseSuppress;
 
   /// Android specific configuration.
   final AndroidRecordConfig androidConfig;
+
+  /// iOS specific configuration.
+  final IosRecordConfig iosConfig;
 
   const RecordConfig({
     this.encoder = AudioEncoder.aacLc,
@@ -61,6 +70,7 @@ class RecordConfig {
     this.echoCancel = false,
     this.noiseSuppress = false,
     this.androidConfig = const AndroidRecordConfig(),
+    this.iosConfig = const IosRecordConfig(),
   });
 
   Map<String, dynamic> toMap() {
@@ -74,37 +84,7 @@ class RecordConfig {
       'echoCancel': echoCancel,
       'noiseSuppress': noiseSuppress,
       'androidConfig': androidConfig.toMap(),
-    };
-  }
-}
-
-/// Android specific configuration for recording.
-class AndroidRecordConfig {
-  /// Uses Android MediaRecorder if [true].
-  ///
-  /// Uses advanced recorder with media codecs and additionnal features
-  /// by default.
-  final bool useLegacy;
-
-  /// If [true], this will mute all audio streams like alarms, music, ring, ...
-  ///
-  /// This is useful when you want to record audio without any background noise.
-  ///
-  /// The streams are restored to their previous state after recording is stopped
-  /// and will stay at current state on pause/resume.
-  ///
-  /// Use at your own risks!
-  final bool muteAudio;
-
-  const AndroidRecordConfig({
-    this.useLegacy = false,
-    this.muteAudio = false,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'useLegacy': useLegacy,
-      'muteAudio': muteAudio,
+      'iosConfig': iosConfig.toMap(),
     };
   }
 }

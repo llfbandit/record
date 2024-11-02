@@ -1,3 +1,13 @@
+## 1.1.4
+* fix: Use relative asset path for worklet file.
+* fix: Input device is not forwarded to JS.
+
+## 1.1.3
+* fix: Honor given encoder. This should fix Safari issues with AAC encoding.
+
+## 1.1.2
+* chore: Allow package:web ">=0.5.1 <2.0.0".
+
 ## 1.1.1
 * fix: Pausing for too long with Chromium based browsers breaks the recording.
 * fix: Migrate to package:web missing parts & example.

@@ -1,3 +1,7 @@
+## 1.2.0
+* feat: Add `IosRecordConfig`.
+* feat: Update `AndroidRecordConfig`.
+
 ## 1.1.0
 * feat: Add `AndroidRecordConfig`.
 

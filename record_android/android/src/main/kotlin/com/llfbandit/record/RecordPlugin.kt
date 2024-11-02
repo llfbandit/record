@@ -42,8 +42,6 @@ class RecordPlugin : FlutterPlugin, ActivityAware {
             permissionManager?.setActivity(binding.activity)
             activityBinding?.addRequestPermissionsResultListener(pm)
         }
-
-        callHandler?.setActivity(binding.activity)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
@@ -62,7 +60,6 @@ class RecordPlugin : FlutterPlugin, ActivityAware {
             activityBinding?.removeRequestPermissionsResultListener(pm)
         }
 
-        callHandler?.setActivity(null)
         activityBinding = null
     }
     /// END ActivityAware

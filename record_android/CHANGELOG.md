@@ -1,3 +1,37 @@
+## 1.3.0
+* feat: Add audio source config.
+* feat: Add manageBluetooth (SCO) option.
+* fix: Audio source is now AndroidAudioSource.defaultSource (without any effect pre-processor in theory).
+* fix: Recording not working when starting from an Android ForegroundService.
+* fix: MPEG4 container is not returned when requesting AudioEncoder.opus for MediaRecorder (legacy).
+* fix: Race condition when calling stop.
+* chore: Add debug log when effect is not available while requested.
+
+## 1.2.6
+* fix: Improve amplitude computation.
+* fix: java.lang.IllegalStateException: Failed to stop the muxer.
+* fix: Exception raised on bluetooth receiver unregistration.
+* chore: Upgrade to latest AGP.
+
+## 1.2.5
+* fix: Applying effects.
+* fix: Race condition leading to exception when releasing codec & muxer.
+
+## 1.2.4
+* fix: Revert to Java 8.
+
+## 1.2.3
+* fix: Revert AGP v8 setup to latest v7.
+* fix: Don't start bluetooth SCO when asking for another device type.
+
+## 1.2.2
+* fix: Threading issues. Model is now more robust and overall performance is much better.
+* fix: Recording on older Android devices ..., 8, 9.
+* fix: Recording on slow devices (e.g. writing on external SD cards, ...).
+* fix: Audio duration detection should be less a problem now.
+* chore: minSDK is now 23 (Android 6), targetSDK is now 34.
+* chore: code cleanup and adjustment from new minSDK.
+
 ## 1.2.1
 * fix: Stopping stream recording throws ExceptionInterruptedException.
 

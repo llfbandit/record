@@ -131,7 +131,7 @@ namespace record_windows {
 			std::string path;
 			GetValueFromEncodableMap(mapArgs, "path", path);
 
-			HRESULT hr = recorder->Start(std::move(config), path);
+			HRESULT hr = recorder->Start(std::move(config), Utf16FromUtf8(path));
 
 			if (SUCCEEDED(hr)) { result->Success(EncodableValue()); }
 			else { ErrorFromHR(hr, *result); }
@@ -152,7 +152,7 @@ namespace record_windows {
 
 			if (SUCCEEDED(hr))
 			{
-				result->Success(recordingPath.empty() ? EncodableValue() : EncodableValue(recordingPath));
+				result->Success(recordingPath.empty() ? EncodableValue() : EncodableValue(Utf8FromUtf16(recordingPath)));
 			}
 			else {
 				ErrorFromHR(hr, *result);
@@ -166,8 +166,7 @@ namespace record_windows {
 			if (SUCCEEDED(hr))
 			{
 				if (!recordingPath.empty()) {
-					std::wstring wsPath = std::wstring(recordingPath.begin(), recordingPath.end());
-					DeleteFile(wsPath.c_str());
+					DeleteFile(recordingPath.c_str());
 				}
 
 				result->Success(EncodableValue());
