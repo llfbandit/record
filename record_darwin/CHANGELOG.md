@@ -1,3 +1,6 @@
+## 1.2.1
+* Reuploaded package with correct repository config.
+
 ## 1.2.0
 * feat(iOS): Add ios config with audio categories.
 * feat(iOS): Add manageAudioSession option for IosRecordConfig
