@@ -1,12 +1,15 @@
 /// iOS specific configuration for recording.
 class IosRecordConfig {
   /// Constants that specify optional audio behaviors.
+  ///
   /// https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions
   final List<IosAudioCategoryOption> categoryOptions;
 
   /// Manage the shared AVAudioSession (defaults to `true`).
-  /// Set this to false if another plugin is already managing the AVAudioSession.
-  /// If false, audioCategories config will have no effect.
+  ///
+  /// Set this to `false` if another plugin is already managing the AVAudioSession.
+  ///
+  /// If `false`, there will be no check of the [RecordConfig] given.
   final bool manageAudioSession;
 
   const IosRecordConfig({
@@ -26,6 +29,7 @@ class IosRecordConfig {
 }
 
 /// Constants that specify optional audio behaviors.
+///
 /// https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions
 enum IosAudioCategoryOption {
   mixWithOthers,

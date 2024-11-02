@@ -5,8 +5,8 @@ class AndroidRecordConfig {
   /// Uses advanced recorder with media codecs and additionnal features
   /// by default.
   ///
-  /// While advanced recorder allows additionnale features. Legacy recorder
-  /// could be more stable.
+  /// While advanced recorder unlocks additionnal features, legacy recorder
+  /// is stability oriented.
   final bool useLegacy;
 
   /// If [true], this will mute all audio streams like alarms, music, ring, ...

@@ -98,6 +98,14 @@ Follow [Gradle setup](https://github.com/llfbandit/record/blob/master/record_and
 
 * [Audio formats sample rate hints](https://developer.android.com/guide/topics/media/media-formats#audio-formats)
 
+Effects (auto gain, echo cancel and noise suppressor) may be unvailable for a specific device.  
+Please, stop opening issues if it doesn't work for one device but for the others.
+
+There is no gain settings to play with, so you cannot control the volume of the audio being recorded.  
+The low volume of the audio is related to the hardware and varies from device to device.
+
+Applying effects will lower the output volume. Choosing source other than default or mic will likely lower the output volume also.
+
 ### iOS
 ```xml
 <key>NSMicrophoneUsageDescription</key>
