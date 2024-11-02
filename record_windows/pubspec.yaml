@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  record_platform_interface: ^1.0.2
+  record_platform_interface: ^1.2.0
 
 dev_dependencies:
   flutter_lints: ^4.0.0
