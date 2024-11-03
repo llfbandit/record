@@ -1,3 +1,7 @@
+## 1.2.2
+* fix(macOS): Compilation issue.
+* fix(darwin): Privacy manifests not bundled.
+
 ## 1.2.1
 * Reuploaded package with correct repository config.
 
