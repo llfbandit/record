@@ -8,6 +8,8 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVCaptureFileO
   private var amplitude:Float = -160.0
   private var stopCb: ((String?) -> ())?
   
+  init(onPause: @escaping () -> (), onStop: @escaping () -> ()) {}
+  
   func start(config: RecordConfig, path: String) throws {
     try deleteFile(path: path)
     
