@@ -25,13 +25,13 @@ External dependencies:
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
 |-----------------|----------------|---------|---------|---------|---------|---------
-| aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
-| aacEld          | ✔️            |   ✔️    |   ?     |         |  ✔️    | 
-| aacHe           | ✔️            |         |   ?     |         |         |  ✔️ 
+| aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️
+| aacEld          | ✔️            |   ✔️    |   ?     |         |  ✔️    |
+| aacHe           | ✔️            |         |   ?     |         |         |  ✔️
 | amrNb           | ✔️            |         |  ?      |   ✔️    |         |  
 | amrWb           | ✔️            |         |  ?      |          |        |  
-| opus            | ✔️            |         |  ?    |         |         |  ✔️ 
-| wav             | ✔️ 2          |   ✔️    |   ✔️   |    ✔️    |   ✔️  |   ✔️ 
+| opus            | ✔️            |   ✔️    |  ?     |         |         |  ✔️ 
+| wav             | ✔️ 2          |   ✔️    |   ✔️   |    ✔️    |   ✔️  |   ✔️
 | flac            | ✔️ 2          |    ✔️    |  ?     |  ✔️     |   ✔️   |   ✔️
 | pcm16bits       | ✔️ 2          |   ✔️    |  ✔️    |   ✔️    |  ✔️    |  
 
@@ -39,7 +39,7 @@ External dependencies:
 | Encoder         | Firefox    | Chrome based   | Safari
 |-----------------|------------|----------------|---------
 | aacLc           |            |                |  ✔️*
-| opus            | ✔️*        |   ✔️*           | 
+| opus            | ✔️*        |   ✔️*           |
 | wav             | ✔️        |   ✔️           |   ✔️
 | pcm16bits       | ✔️        |   ✔️           |  ✔️
 
@@ -51,7 +51,7 @@ wav and pcm16bits are provided by the package directly.
 | Encoder         | Android    | iOS     | web     | Windows | macOS   | linux
 |-----------------|------------|---------|---------|---------|---------|---------
 | aacLc       *   | ✔️ 2      |         |          |         |         |  
-| aacEld      *   | ✔️ 2      |         |          |         |         | 
+| aacEld      *   | ✔️ 2      |         |          |         |         |
 | aacHe       *   | ✔️ 2      |         |          |         |         |  
 | pcm16bits       | ✔️ 2      |  ✔️    |   ✔️    |  ✔️     | ✔️     |  
 
