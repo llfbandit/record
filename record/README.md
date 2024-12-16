@@ -19,8 +19,8 @@ External dependencies:
 | num of channels  | ✔️            |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | device selection | ✔️ 1 / 2      | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | auto gain        | ✔️ 2          |(always active?)| ✔️      |            |       |  
-| echo cancel      | ✔️ 2          |                 | ✔️      |            |       |  
-| noise suppresion | ✔️ 2          |                 | ✔️      |            |       |  
+| echo cancel      | ✔️ 2          |   ✔️             | ✔️      |            |       |  
+| noise suppresion | ✔️ 2          |   ✔️             | ✔️      |            |       |  
 
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
