@@ -77,21 +77,21 @@ struct IosConfig {
     let options: [AVAudioSession.CategoryOptions]? = comps?.split(separator: ",").compactMap {
       switch $0 {
       case "mixWithOthers":
-          .mixWithOthers
+        AVAudioSession.CategoryOptions.mixWithOthers
       case "duckOthers":
-          .duckOthers
+        AVAudioSession.CategoryOptions.duckOthers
       case "allowBluetooth":
-          .allowBluetooth
+        AVAudioSession.CategoryOptions.allowBluetooth
       case "defaultToSpeaker":
-          .defaultToSpeaker
+        AVAudioSession.CategoryOptions.defaultToSpeaker
       case "interruptSpokenAudioAndMixWithOthers":
-          .interruptSpokenAudioAndMixWithOthers
+        AVAudioSession.CategoryOptions.interruptSpokenAudioAndMixWithOthers
       case "allowBluetoothA2DP":
-          .allowBluetoothA2DP
+        AVAudioSession.CategoryOptions.allowBluetoothA2DP
       case "allowAirPlay":
-          .allowAirPlay
+        AVAudioSession.CategoryOptions.allowAirPlay
       case "overrideMutedMicrophoneInterruption":
-        if #available(iOS 14.5, *) { .overrideMutedMicrophoneInterruption } else { nil }
+        if #available(iOS 14.5, *) { AVAudioSession.CategoryOptions.overrideMutedMicrophoneInterruption } else { nil }
       default: nil
       }
     }
