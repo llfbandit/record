@@ -14,6 +14,7 @@ import com.llfbandit.record.record.format.Format
 import com.llfbandit.record.record.format.OpusFormat
 import com.llfbandit.record.record.format.PcmFormat
 import com.llfbandit.record.record.format.WaveFormat
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
@@ -84,6 +85,8 @@ class RecordThread(
     fun getAmplitude(): Double = mPcmReader?.getAmplitude() ?: -160.0
 
     fun startRecording() {
+        val startLatch = CountDownLatch(1)
+
         mExecutorService.execute {
             try {
                 val format = selectFormat()
@@ -96,6 +99,8 @@ class RecordThread(
                 mEncoder!!.startEncoding()
 
                 recordState()
+
+                startLatch.countDown()
 
                 while (isRecording()) {
                     if (isPaused()) {
@@ -112,9 +117,12 @@ class RecordThread(
             } catch (ex: Exception) {
                 recorderListener.onFailure(ex)
             } finally {
+                startLatch.countDown()
                 stopAndRelease()
             }
         }
+
+        startLatch.await()
     }
 
     private fun stopAndRelease() {
