@@ -169,8 +169,6 @@ class AudioRecorder {
 
   /// Lists capture/input devices available on the platform.
   ///
-  /// On Android and iOS, an empty list will be returned.
-  ///
   /// On web, and in general, you should already have permission before
   /// accessing this method otherwise the list may return an empty list.
   Future<List<InputDevice>> listInputDevices() async {
