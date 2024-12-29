@@ -17,6 +17,7 @@ class RecordLinux extends RecordPlatform {
   RecordState _state = RecordState.stop;
   String? _path;
   StreamController<RecordState>? _stateStreamCtrl;
+  Process? _fmediaStreamProcess;
 
   @override
   Future<void> create(String recorderId) async {}
@@ -130,11 +131,77 @@ class RecordLinux extends RecordPlatform {
   }
 
   @override
+  Future<Stream<Uint8List>> startStream(
+      String recorderId, RecordConfig config) async {
+    final supported = await isEncoderSupported(recorderId, config.encoder);
+    if (!supported) {
+      throw Exception('${config.encoder} is not supported.');
+    }
+
+    String numChannels;
+    if (config.numChannels == 6) {
+      numChannels = '5.1';
+    } else if (config.numChannels == 8) {
+      numChannels = '7.1';
+    } else if (config.numChannels == 1 || config.numChannels == 2) {
+      numChannels = config.numChannels.toString();
+    } else {
+      throw Exception('${config.numChannels} config is not supported.');
+    }
+
+    final streamController = StreamController<List<int>>();
+    var fileExtension = '';
+
+    switch (config.encoder) {
+      case AudioEncoder.flac:
+        fileExtension = '.flac';
+        break;
+      case AudioEncoder.opus:
+        fileExtension = '.opus';
+        break;
+      case AudioEncoder.wav:
+        fileExtension = '.wav';
+        break;
+      default:
+        throw Exception('${config.encoder} is not supported for streaming.');
+    }
+
+    await _callFMediaStream(
+      [
+        '--notui',
+        '--globcmd.pipe-name=$_pipeProcName$recorderId',
+        '--record',
+        '--out=@stdout$fileExtension',
+        '--rate=${config.sampleRate}',
+        '--channels=$numChannels',
+        '--globcmd=listen',
+        '--gain=6.0',
+        if (config.device != null) '--dev-capture=${config.device!.id}',
+        ..._getEncoderSettings(config.encoder, config.bitRate),
+      ],
+      recorderId: recorderId,
+      outStreamCtrl: streamController,
+      onStarted: () {
+        _updateState(RecordState.record);
+      },
+    ).catchError((error) {
+      print("Error in _callFMediaStream: $error");
+      streamController.addError(error);
+      streamController.close();
+    });
+
+    return streamController.stream.map((data) => Uint8List.fromList(data));
+  }
+
+  @override
   Future<String?> stop(String recorderId) async {
     final path = _path;
 
     await _callFMedia(['--globcmd=stop'], recorderId: recorderId);
     await _callFMedia(['--globcmd=quit'], recorderId: recorderId);
+
+    await _fmediaStreamProcess?.exitCode;
+    _fmediaStreamProcess = null;
 
     _updateState(RecordState.stop);
 
@@ -248,6 +315,43 @@ class RecordLinux extends RecordPlatform {
 
       if (outStreamCtrl == null) out.close();
       err.close();
+    }
+  }
+
+  Future<void> _callFMediaStream(
+    List<String> arguments, {
+    required String recorderId,
+    StreamController<List<int>>? outStreamCtrl,
+    VoidCallback? onStarted,
+    bool consumeOutput = true,
+  }) async {
+    _fmediaStreamProcess = await Process.start(_fmediaBin, arguments);
+
+    if (onStarted != null) {
+      onStarted();
+    }
+
+    // Listen to both stdout & stderr to not leak system resources.
+    if (consumeOutput) {
+      final out = outStreamCtrl ?? StreamController<List<int>>();
+      if (outStreamCtrl == null) out.stream.listen((event) {});
+      final err = StreamController<List<int>>();
+      err.stream.listen((event) {});
+
+      _fmediaStreamProcess!.stdout.listen(
+        (data) {
+          if (!out.isClosed) {
+            out.add(data);
+          }
+        },
+        onDone: () async {
+          if (outStreamCtrl != null && !outStreamCtrl.isClosed) {
+            outStreamCtrl.close();
+          } else if (!out.isClosed) {
+            out.close();
+          }
+        },
+      );
     }
   }
 
