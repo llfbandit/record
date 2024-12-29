@@ -1,5 +1,6 @@
 ## 1.0.5
 * fix: Send messages on main thread (workaround).
+* fix: Automatically remove file when no audio has been written.
 
 ## 1.0.4
 * fix: Process path as wide string (UTF-16).

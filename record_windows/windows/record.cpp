@@ -185,11 +185,34 @@ namespace record_windows
 
 	HRESULT Recorder::Stop()
 	{
+		if (m_dataWritten == 0)
+		{
+			return Cancel();
+		}
+
 		HRESULT hr = EndRecording();
 
 		if (SUCCEEDED(hr))
 		{
 			UpdateState(RecordState::stop);
+		}
+
+		return hr;
+	}
+
+	HRESULT Recorder::Cancel()
+	{
+		auto recordingPath = GetRecordingPath();
+		HRESULT hr = EndRecording();
+
+		if (SUCCEEDED(hr))
+		{
+			UpdateState(RecordState::stop);
+
+			if (!recordingPath.empty())
+			{
+				DeleteFile(recordingPath.c_str());
+			}
 		}
 
 		return hr;

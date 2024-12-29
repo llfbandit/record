@@ -37,6 +37,7 @@ namespace record_windows
 		HRESULT Pause();
 		HRESULT Resume();
 		HRESULT Stop();
+		HRESULT Cancel();
 		bool IsPaused();
 		bool IsRecording();
 		HRESULT Dispose();

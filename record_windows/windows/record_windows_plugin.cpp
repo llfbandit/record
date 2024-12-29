@@ -214,18 +214,14 @@ namespace record_windows {
 		}
 		else if (method_call.method_name().compare("cancel") == 0)
 		{
-			auto recordingPath = recorder->GetRecordingPath();
-			HRESULT hr = recorder->Stop();
+			HRESULT hr = recorder->Cancel();
 
 			if (SUCCEEDED(hr))
 			{
-				if (!recordingPath.empty()) {
-					DeleteFile(recordingPath.c_str());
-				}
-
 				result->Success(EncodableValue());
 			}
-			else {
+			else
+			{
 				ErrorFromHR(hr, *result);
 			}
 		}
