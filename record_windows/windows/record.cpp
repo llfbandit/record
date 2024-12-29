@@ -1,29 +1,5 @@
-/*
-*
-* https://learn.microsoft.com/en-us/windows/uwp/audio-video-camera/codec-query
-* https://learn.microsoft.com/en-us/uwp/api/windows.media.core.codecsubtypes?view=winrt-22621
-*
-* https://github.com/microsoft/Windows-universal-samples/blob/main/Samples/CameraStarterKit/cpp/MainPage.xaml.h
-* https://github.com/microsoft/Windows-universal-samples/blob/main/Samples/CameraStarterKit/cpp/MainPage.xaml.cpp
-*
-* https://learn.microsoft.com/en-us/windows/win32/medfound/audio-video-capture
-* WMF FLAC https://stackoverflow.com/questions/48930499/how-do-i-encode-raw-48khz-32bits-pcm-to-flac-using-microsoft-media-foundation
-* WMF AAC https://learn.microsoft.com/en-us/windows/win32/medfound/aac-encoder
-* WMF https://learn.microsoft.com/en-us/windows/win32/medfound/audio-video-capture-in-media-foundation
-* https://learn.microsoft.com/en-us/windows/win32/medfound/tutorial--using-the-sink-writer-to-encode-video
-* https://learn.microsoft.com/en-us/windows/win32/medfound/audio-subtype-guids
-* https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/mediafoundation/wavsink
-* https://learn.microsoft.com/fr-fr/windows/win32/api/_mf/
-* https://stackoverflow.com/questions/12917256/windows-media-foundation-recording-audio
-* https://github.com/sipsorcery/mediafoundationsamples/blob/master/MFAudioCaptureToSAR/MFAudioCaptureToSAR.cpp
-* https://chromium-review.googlesource.com/c/chromium/src/+/3293969
-*
-* https://learn.microsoft.com/en-us/windows/win32/medfound/uncompressed-audio-media-types
-*
-* https://learn.microsoft.com/en-us/windows/win32/medfound/tutorial--encoding-an-mp4-file-
-*/
-
 #include "record.h"
+#include "record_windows_plugin.h"
 
 namespace record_windows
 {
@@ -308,7 +284,9 @@ namespace record_windows
 		m_recordState = state;
 
 		if (m_stateEventHandler) {
-			m_stateEventHandler->Success(std::make_unique<flutter::EncodableValue>(state));
+			RecordWindowsPlugin::RunOnMainThread([this, state]() -> void {
+				m_stateEventHandler->Success(std::make_unique<flutter::EncodableValue>(state));
+			});
 		}
 	}
 

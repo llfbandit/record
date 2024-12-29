@@ -21,7 +21,7 @@ namespace record_windows {
 		return hr;
 	}
 
-	void ErrorFromHR(HRESULT hr, MethodResult<EncodableValue>& result)
+	static void ErrorFromHR(HRESULT hr, MethodResult<EncodableValue>& result)
 	{
 		_com_error err(hr);
 		std::string errorText = Utf8FromUtf16(err.ErrorMessage());
@@ -29,9 +29,21 @@ namespace record_windows {
 		result.Error("Record", "", EncodableValue(errorText));
 	}
 
+	static HWND GetRootWindow(flutter::FlutterView* view) {
+		return ::GetAncestor(view->GetNativeWindow(), GA_ROOT);
+	}
+
 	// static, Register the plugin
 	void RecordWindowsPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar) {
-		auto plugin = std::make_unique<RecordWindowsPlugin>();
+		auto plugin = std::make_unique<RecordWindowsPlugin>(
+			[registrar](auto delegate) {
+				return registrar->RegisterTopLevelWindowProcDelegate(delegate);
+			},
+			[registrar](auto proc_id) {
+				registrar->UnregisterTopLevelWindowProcDelegate(proc_id);
+			},
+			[registrar] { return GetRootWindow(registrar->GetView()); }
+		);
 
 		m_binaryMessenger = registrar->messenger();
 
@@ -48,7 +60,32 @@ namespace record_windows {
 		registrar->AddPlugin(std::move(plugin));
 	}
 
-	RecordWindowsPlugin::RecordWindowsPlugin() {
+	// static
+	std::queue<std::function<void()>> RecordWindowsPlugin::callbacks{};
+
+	// static
+	FlutterRootWindowProvider RecordWindowsPlugin::get_root_window{};
+
+	// static
+	void RecordWindowsPlugin::RunOnMainThread(std::function<void()> callback) {
+		callbacks.push(callback);
+		PostMessage(get_root_window(), WM_RUN_DELEGATE, 0, 0);
+	}
+
+	RecordWindowsPlugin::RecordWindowsPlugin(
+		WindowProcDelegateRegistrator registrator,
+		WindowProcDelegateUnregistrator unregistrator,
+		FlutterRootWindowProvider window_provider
+	):	m_win_proc_delegate_registrator(registrator),
+		m_win_proc_delegate_unregistrator(unregistrator) {
+
+		get_root_window = std::move(window_provider);
+
+		m_window_proc_id = m_win_proc_delegate_registrator(
+			[this](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+				return HandleWindowProc(hwnd, message, wparam, lparam);
+			}
+		);
 	}
 
 	RecordWindowsPlugin::~RecordWindowsPlugin() {
@@ -56,6 +93,23 @@ namespace record_windows {
 		{
 			recorder->Dispose();
 		}
+
+		m_win_proc_delegate_unregistrator(m_window_proc_id);
+	}
+
+	std::optional<LRESULT> RecordWindowsPlugin::HandleWindowProc(HWND hwnd,
+		UINT message,
+		WPARAM wparam,
+		LPARAM lparam) {
+		std::optional<LRESULT> result;
+		switch (message) {
+		case WM_RUN_DELEGATE:
+			callbacks.front()();
+			callbacks.pop();
+			result = 0;
+			break;
+		}
+		return result;
 	}
 
 	// Called when a method is called on this plugin's channel from Dart.
@@ -190,7 +244,8 @@ namespace record_windows {
 				EncodableMap({
 					{EncodableValue("current"), EncodableValue(amp["current"])},
 					{EncodableValue("max"), EncodableValue(amp["max"])}
-					}))
+					}
+				))
 			);
 		}
 		else if (method_call.method_name().compare("isEncoderSupported") == 0)

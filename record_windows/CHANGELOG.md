@@ -1,3 +1,6 @@
+## 1.0.5
+* fix: Send messages on main thread (workaround).
+
 ## 1.0.4
 * fix: Process path as wide string (UTF-16).
 

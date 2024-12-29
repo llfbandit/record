@@ -1,4 +1,5 @@
 #include "record.h"
+#include "record_windows_plugin.h"
 
 namespace record_windows
 {
@@ -68,7 +69,10 @@ namespace record_windows
 							// Send data to stream when there's no writer
 							if (m_recordEventHandler && !m_pWriter) {
 								std::vector<uint8_t> bytes(pChunk, pChunk + size);
-								m_recordEventHandler->Success(std::make_unique<flutter::EncodableValue>(bytes));
+
+								RecordWindowsPlugin::RunOnMainThread([this, bytes]() -> void {
+									m_recordEventHandler->Success(std::make_unique<flutter::EncodableValue>(bytes));
+								});
 							}
 
 							GetAmplitude(pChunk, size, 2);
