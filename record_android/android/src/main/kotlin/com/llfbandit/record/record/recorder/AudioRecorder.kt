@@ -66,6 +66,12 @@ class AudioRecorder(
         if (config.muteAudio) {
             muteAudio(true)
         }
+        if (config.audioManagerMode != AudioManager.MODE_NORMAL) {
+            setupAudioManagerMode()
+        }
+        if (config.setSpeakerphoneOn) {
+            setSpeakerphoneOn()
+        }
     }
 
     override fun stop(stopCb: ((path: String?) -> Unit)?) {
@@ -153,5 +159,29 @@ class AudioRecorder(
         muteStreams.forEach { stream ->
             muteSettings[stream] = audioManager.getStreamVolume(stream)
         }
+    }
+
+    private fun setupAudioManagerMode() {
+        val config = this.config ?: return
+        if (config.audioManagerMode == null) {
+            return
+        }
+        if (config.audioManagerMode == AudioManager.MODE_NORMAL) {
+            return
+        }
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.setMode(config.audioManagerMode ?: AudioManager.MODE_NORMAL)
+    }
+
+    private fun setSpeakerphoneOn() {
+        val config = this.config
+        if (config == null) {
+            return
+        }
+        if (config.setSpeakerphoneOn == false) {
+            return
+        }
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.setSpeakerphoneOn(true)
     }
 }

@@ -1,6 +1,7 @@
 package com.llfbandit.record.methodcall
 
 import android.content.Context
+import android.media.AudioManager
 import android.media.MediaRecorder
 import android.os.Build
 import com.llfbandit.record.Utils
@@ -142,6 +143,17 @@ class MethodCallHandlerImpl(
             else -> MediaRecorder.AudioSource.DEFAULT
         }
 
+        val audioManagerMode: Int = when(androidConfig?.get("audioManagerMode")) {
+            "modeNormal" -> AudioManager.MODE_NORMAL
+            "modeRingtone" -> AudioManager.MODE_RINGTONE
+            "modeInCall" -> AudioManager.MODE_IN_CALL
+            "modeInCommunication" -> AudioManager.MODE_IN_COMMUNICATION
+            "modeCallScreening" -> AudioManager.MODE_CALL_SCREENING
+            "modeCallRedirect" -> AudioManager.MODE_CALL_REDIRECT
+            "modeCommunicationRedirect" -> AudioManager.MODE_COMMUNICATION_REDIRECT
+            else -> AudioManager.MODE_NORMAL
+        }
+
         return RecordConfig(
             call.argument("path"),
             Utils.firstNonNull(call.argument("encoder"), "aacLc"),
@@ -155,7 +167,9 @@ class MethodCallHandlerImpl(
             Utils.firstNonNull(androidConfig?.get("useLegacy") as Boolean?, false),
             Utils.firstNonNull(androidConfig?.get("muteAudio") as Boolean?, false),
             Utils.firstNonNull(androidConfig?.get("manageBluetooth") as Boolean?, true),
-            audioSource
+            Utils.firstNonNull(androidConfig?.get("setSpeakerphoneOn") as Boolean?, false),
+            audioSource,
+            audioManagerMode
         )
     }
 }

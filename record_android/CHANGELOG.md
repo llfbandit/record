@@ -1,3 +1,8 @@
+## 1.3.1
+* feat: Add `audioManagerMode` support to configure `AudioManager` modes for improved device compatibility for acoustic echo cancellation.
+* feat: Add `setSpeakerphoneOn` option to enable speakerphone, addressing echo issues and enabling external playback scenarios.
+* feat: Update Dart `AndroidRecordConfig` to support new options (`audioManagerMode` and `setSpeakerphoneOn`).
+
 ## 1.3.0
 * feat: Add audio source config.
 * feat: Add manageBluetooth (SCO) option.
