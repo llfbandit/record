@@ -71,7 +71,7 @@ class AudioRecorder {
         _created ??= await _create();
         await _stopRecordStream();
 
-        return await RecordPlatform.instance.startStream(
+        return RecordPlatform.instance.startStream(
           _recorderId,
           config,
         );
@@ -118,7 +118,9 @@ class AudioRecorder {
 
       if (_created == null) return;
 
-      return RecordPlatform.instance.cancel(_recorderId);
+      await RecordPlatform.instance.cancel(_recorderId);
+
+      return _stopRecordStream();
     });
   }
 
@@ -199,17 +201,17 @@ class AudioRecorder {
   Future<void> dispose() async {
     return _safeCall(() async {
       _amplitudeTimer?.cancel();
-      _amplitudeStreamCtrl?.close();
+      await _amplitudeStreamCtrl?.close();
       _amplitudeStreamCtrl = null;
 
-      _stateStreamSubscription?.cancel();
-      _stateStreamCtrl.close();
+      await _stateStreamSubscription?.cancel();
+      await _stateStreamCtrl.close();
+
+      await _stopRecordStream();
 
       if (_created != null) {
         await RecordPlatform.instance.dispose(_recorderId);
       }
-
-      await _stopRecordStream();
 
       _created = null;
     });
@@ -224,13 +226,7 @@ class AudioRecorder {
 
   /// Request for amplitude at given [interval].
   Stream<Amplitude> onAmplitudeChanged(Duration interval) {
-    _amplitudeStreamCtrl ??= StreamController(
-      onCancel: () {
-        _amplitudeTimer?.cancel();
-        _amplitudeStreamCtrl?.close();
-        _amplitudeStreamCtrl = null;
-      },
-    );
+    _amplitudeStreamCtrl ??= StreamController();
 
     _amplitudeTimerInterval = interval;
     _startAmplitudeTimer();

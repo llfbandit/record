@@ -1,3 +1,6 @@
+## 5.2.1
+* fix: Properly cancel platform streams before disposing others resources.
+
 ## 5.2.0
 * chore: Updated transitive dependencies.
 * chore: Add some more documentation.
