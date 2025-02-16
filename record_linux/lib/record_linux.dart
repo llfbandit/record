@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 
-const _fmediaBin = 'fmedia';
-
-const _pipeProcName = 'record_linux';
+const _arecordBin = 'arecord';
+const _ffmpegBin = 'ffmpeg';
 
 class RecordLinux extends RecordPlatform {
   static void registerWith() {
@@ -17,6 +16,7 @@ class RecordLinux extends RecordPlatform {
   RecordState _state = RecordState.stop;
   String? _path;
   StreamController<RecordState>? _stateStreamCtrl;
+  Process? _arecordProcess;
 
   @override
   Future<void> create(String recorderId) async {}
@@ -65,8 +65,7 @@ class RecordLinux extends RecordPlatform {
   @override
   Future<void> pause(String recorderId) async {
     if (_state == RecordState.record) {
-      await _callFMedia(['--globcmd=pause'], recorderId: recorderId);
-
+      _arecordProcess?.kill(ProcessSignal.sigstop);
       _updateState(RecordState.pause);
     }
   }
@@ -74,8 +73,7 @@ class RecordLinux extends RecordPlatform {
   @override
   Future<void> resume(String recorderId) async {
     if (_state == RecordState.pause) {
-      await _callFMedia(['--globcmd=unpause'], recorderId: recorderId);
-
+      _arecordProcess?.kill(ProcessSignal.sigcont);
       _updateState(RecordState.record);
     }
   }
@@ -97,44 +95,54 @@ class RecordLinux extends RecordPlatform {
     }
 
     String numChannels;
-    if (config.numChannels == 6) {
-      numChannels = '5.1';
-    } else if (config.numChannels == 8) {
-      numChannels = '7.1';
-    } else if (config.numChannels == 1 || config.numChannels == 2) {
+    if (config.numChannels == 1 || config.numChannels == 2) {
       numChannels = config.numChannels.toString();
     } else {
       throw Exception('${config.numChannels} config is not supported.');
     }
 
-    await _callFMedia(
-      [
-        '--notui',
-        '--background',
-        '--record',
-        '--out=$path',
-        '--rate=${config.sampleRate}',
-        '--channels=$numChannels',
-        '--globcmd=listen',
-        '--gain=6.0',
-        if (config.device != null) '--dev-capture=${config.device!.id}',
-        ..._getEncoderSettings(config.encoder, config.bitRate),
-      ],
-      onStarted: () {
-        _path = path;
-        _updateState(RecordState.record);
-      },
-      consumeOutput: false,
-      recorderId: recorderId,
-    );
+    final args = [
+      '-f',
+      'cd',
+      '-r',
+      config.sampleRate.toString(),
+      '-c',
+      numChannels,
+      '-t',
+      'raw',
+      '-'
+    ];
+
+    _arecordProcess = await Process.start(_arecordBin, args);
+
+    final ffmpegArgs = [
+      '-f',
+      's16le',
+      '-ar',
+      config.sampleRate.toString(),
+      '-ac',
+      numChannels,
+      '-i',
+      '-',
+      ..._getEncoderSettings(config.encoder, path)
+    ];
+
+    final ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
+    _arecordProcess!.stdout.pipe(ffmpegProcess.stdin);
+
+    _arecordProcess!.stderr.listen((event) {});
+    ffmpegProcess.stderr.listen((event) {});
+
+    _path = path;
+    _updateState(RecordState.record);
   }
 
   @override
   Future<String?> stop(String recorderId) async {
     final path = _path;
 
-    await _callFMedia(['--globcmd=stop'], recorderId: recorderId);
-    await _callFMedia(['--globcmd=quit'], recorderId: recorderId);
+    _arecordProcess?.kill();
+    _arecordProcess = null;
 
     _updateState(RecordState.stop);
 
@@ -154,81 +162,14 @@ class RecordLinux extends RecordPlatform {
     }
   }
 
-  @override
-  Future<List<InputDevice>> listInputDevices(String recorderId) async {
-    final outStreamCtrl = StreamController<List<int>>();
-
-    final out = <String>[];
-    outStreamCtrl.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((chunk) {
-      out.add(chunk);
-    });
-
-    try {
-      await _callFMedia(['--list-dev'],
-          recorderId: '', outStreamCtrl: outStreamCtrl);
-
-      return _listInputDevices(recorderId, out);
-    } finally {
-      outStreamCtrl.close();
-    }
-  }
-
-  @override
-  Stream<RecordState> onStateChanged(String recorderId) {
-    _stateStreamCtrl ??= StreamController(
-      onCancel: () {
-        _stateStreamCtrl?.close();
-        _stateStreamCtrl = null;
-      },
-    );
-
-    return _stateStreamCtrl!.stream;
-  }
-
-  List<String> _getEncoderSettings(AudioEncoder encoder, int bitRate) {
-    switch (encoder) {
-      case AudioEncoder.aacLc:
-        return ['--aac-profile=LC', ..._getAacQuality(bitRate)];
-      case AudioEncoder.aacHe:
-        return ['--aac-profile=HEv2', ..._getAacQuality(bitRate)];
-      case AudioEncoder.flac:
-        return ['--flac-compression=6', '--format=int16'];
-      case AudioEncoder.opus:
-        final rate = (bitRate ~/ 1000).clamp(6, 510);
-        return ['--opus.bitrate=$rate'];
-      case AudioEncoder.wav:
-        return [];
-      default:
-        return [];
-    }
-  }
-
-  List<String> _getAacQuality(int bitRate) {
-    final rate = bitRate ~/ 1000;
-    // Prefer VBR
-    // if (rate <= 320) {
-    //   final quality = (rate / 64).ceil().clamp(1, 5).toInt();
-    //   return ['--aac-quality=$quality'];
-    // }
-
-    final quality = rate.clamp(8, 800).toInt();
-    return ['--aac-quality=$quality'];
-  }
-
-  Future<void> _callFMedia(
+  Future<void> _callArecord(
     List<String> arguments, {
     required String recorderId,
     StreamController<List<int>>? outStreamCtrl,
     VoidCallback? onStarted,
     bool consumeOutput = true,
   }) async {
-    final process = await Process.start(_fmediaBin, [
-      '--globcmd.pipe-name=$_pipeProcName$recorderId',
-      ...arguments,
-    ]);
+    final process = await Process.start('arecord', arguments);
 
     if (onStarted != null) {
       onStarted();
@@ -251,90 +192,74 @@ class RecordLinux extends RecordPlatform {
     }
   }
 
-  // Playback/Loopback:
-  // device #1: FOO (High Definition Audio) - Default
-  // Default Format: 2 channel, 48000 Hz
-  // Capture:
-  // device #1: Microphone (High Definition Audio Device) - Default
-  // Default Format: 2 channel, 44100 Hz
-  Future<List<InputDevice>> _listInputDevices(
-    String recorderId,
-    List<String> out,
-  ) async {
+  List<InputDevice> _parseInputDevices(List<String> output) {
     final devices = <InputDevice>[];
-    var deviceLine = '';
 
-    void extract({String? secondLine}) {
-      if (deviceLine.isNotEmpty) {
-        final device = _extractDevice(deviceLine, secondLine: secondLine);
-        if (device != null) devices.add(device);
-        deviceLine = '';
+    for (final line in output) {
+      if (line.startsWith('card')) {
+        final parts = line.split(':');
+        final cardInfo = parts[0].split(' ');
+        final cardId = cardInfo[1];
+        final cardName = parts[1].trim();
+        devices.add(InputDevice(id: cardId, label: cardName));
+      } else if (line.startsWith('    Subdevice')) {
+        final subdeviceInfo = line.split(':');
+        final subdeviceName = subdeviceInfo[1].trim();
+        final lastDevice = devices.last;
+        devices.add(InputDevice(id: lastDevice.id, label: '${lastDevice.label} - $subdeviceName'));
       }
     }
-
-    var hasCaptureDevices = false;
-    for (var line in out) {
-      // Forwards to capture devices
-      if (!hasCaptureDevices) {
-        hasCaptureDevices = (line == 'Capture:');
-        continue;
-      }
-
-      if (line.startsWith(RegExp(r'^device #'))) {
-        // Extract previous device if second line was missing
-        extract();
-        deviceLine = line;
-      } else if (line.startsWith(RegExp(r'^\s*Default Format:'))) {
-        extract(secondLine: line);
-      }
-    }
-
-    // Extract previous device if second line was missing
-    extract();
 
     return devices;
   }
 
-  InputDevice? _extractDevice(String firstLine, {String? secondLine}) {
-    final match = RegExp(r'(?:.*device #)(\d+): (\w.+)').firstMatch(firstLine);
-    if (match == null || match.groupCount != 2) return null;
+  @override
+  Future<List<InputDevice>> listInputDevices(String recorderId) async {
+    final outStreamCtrl = StreamController<List<int>>();
 
-    // ID
-    final id = match.group(1);
-    if (id == null) return null;
+    final out = <String>[];
+    outStreamCtrl.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((chunk) {
+      out.add(chunk);
+    });
 
-    // Label
-    var label = match.group(2)!;
-    // Remove default from label
-    final index = label.indexOf(' - Default');
-    if (index != -1) {
-      label = label.substring(0, index);
+    try {
+      await _callArecord(['-l'], recorderId: recorderId, outStreamCtrl: outStreamCtrl);
+
+      return _parseInputDevices(out);
+    } finally {
+      outStreamCtrl.close();
     }
+  }
 
-    // int? channels;
-    // int? sampleRate;
-    // if (secondLine != null) {
-    //   final match = RegExp(
-    //     r'(?:.*Default Format: )(\d+) channel, (\d+) Hz',
-    //   ).firstMatch(secondLine);
-
-    //   if (match != null && match.groupCount == 2) {
-    //     // Number of channels
-    //     final channelsStr = match.group(1);
-    //     channels = channelsStr != null ? int.tryParse(channelsStr) : null;
-
-    //     // Sampling rate
-    //     final samplingStr = match.group(2);
-    //     sampleRate = samplingStr != null ? int.tryParse(samplingStr) : null;
-    //   }
-    // }
-
-    return InputDevice(
-      id: id,
-      label: label,
-      // channels: channels,
-      // sampleRate: sampleRate,
+  @override
+  Stream<RecordState> onStateChanged(String recorderId) {
+    _stateStreamCtrl ??= StreamController(
+      onCancel: () {
+        _stateStreamCtrl?.close();
+        _stateStreamCtrl = null;
+      },
     );
+
+    return _stateStreamCtrl!.stream;
+  }
+
+  List<String> _getEncoderSettings(AudioEncoder encoder, String path) {
+    switch (encoder) {
+      case AudioEncoder.aacLc:
+      case AudioEncoder.aacHe:
+        return ['-c:a', 'aac', '-b:a', '128k', path];
+      case AudioEncoder.wav:
+        return ['-c:a', 'pcm_s16le', path];
+      case AudioEncoder.flac:
+        return ['-c:a', 'flac', path];
+      case AudioEncoder.opus:
+        return ['-c:a', 'libopus', '-b:a', '128k', path];
+      default:
+        return [];
+    }
   }
 
   void _updateState(RecordState state) {
