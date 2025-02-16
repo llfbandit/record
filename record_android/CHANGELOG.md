@@ -1,5 +1,6 @@
 ## 1.3.1
 * fix: Stop does not complete when called immediately after startStream.
+* fix: No static method `addLast`.
 
 ## 1.3.0
 * feat: Add audio source config.

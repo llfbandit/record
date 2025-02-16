@@ -80,7 +80,7 @@ class MediaCodecEncoder(
             }
         } else if (msg.what == MSG_ENCODE_INPUT) {
             if (!mStopped.get()) {
-                mQueue.addLast(msg.obj as Sample)
+                mQueue.add(msg.obj as Sample)
                 if (mInputBufferIndex >= 0) {
                     processInputBuffer()
                 }
