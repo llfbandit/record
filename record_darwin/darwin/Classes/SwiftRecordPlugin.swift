@@ -22,7 +22,9 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
     let instance = SwiftRecordPlugin(binaryMessenger: binaryMessenger)
     
     registrar.addMethodCallDelegate(instance, channel: methodChannel)
+#if os(iOS)
     registrar.addApplicationDelegate(instance)
+#endif
   }
   
   // MARK: Plugin
@@ -33,11 +35,13 @@ public class SwiftRecordPlugin: NSObject, FlutterPlugin {
   init(binaryMessenger: FlutterBinaryMessenger) {
     self.m_binaryMessenger = binaryMessenger
   }
-  
+
+#if os(iOS)
   public func applicationWillTerminate(_ application: UIApplication) {
     dispose()
   }
-  
+#endif
+
   public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
     dispose()
   }

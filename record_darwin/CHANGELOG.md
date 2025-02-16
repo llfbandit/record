@@ -1,3 +1,6 @@
+## 1.2.3
+* fix(iOS): Properly dispose recorder on app termination.
+
 ## 1.2.2
 * fix(macOS): Compilation issue.
 * fix(darwin): Privacy manifests not bundled.
