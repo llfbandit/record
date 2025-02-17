@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
+import 'package:flutter/foundation.dart';
 
 import 'package:record_platform_interface/record_platform_interface.dart';
 
@@ -95,12 +95,7 @@ Future<void> start(
     throw Exception('${config.encoder} is not supported.');
   }
 
-  String numChannels;
-  if (config.numChannels == 1 || config.numChannels == 2) {
-    numChannels = config.numChannels.toString();
-  } else {
-    throw Exception('${config.numChannels} config is not supported.');
-  }
+  String numChannels = config.numChannels.clamp(1, 2).toString();
 
   bool parecordCanEncode = config.encoder == AudioEncoder.flac || config.encoder == AudioEncoder.wav;
 
@@ -123,6 +118,14 @@ Future<void> start(
   // parecord can output flac and wav directly, only use ffmpeg for other encoders
   if (!parecordCanEncode) {
     
+    /// Constructs the arguments for the FFmpeg command.
+    ///
+    /// The arguments include:
+    /// - `-f`: Specifies the format of the input data. In this case, 's16le' which stands for signed 16-bit little-endian.
+    /// - `-ar`: Sets the audio sampling rate. The value is obtained from `config.sampleRate`.
+    /// - `-ac`: Sets the number of audio channels. The value is provided by `numChannels`.
+    /// - `-i`: Specifies the input file. Here, '-' indicates that the input is from standard input (stdin) from the parecord Process.
+    /// - `_getEncoderSettings`: A function that returns additional encoder settings based on the provided encoder type, output path, and bit rate.
     final ffmpegArgs = [
       '-f',
       's16le',
@@ -199,6 +202,28 @@ Future<void> start(
     }
   }
 
+  // Output can be retrieved with `pactl list sources`
+  // --- Example ---
+  // Source #2325
+	// State: SUSPENDED
+	// Name: alsa_output.usb-Generic_Blue_Microphones_LT_2201070607069D01069D_111000-00.analog-stereo.monitor
+	// Description: Monitor of Blue Microphones Analog Stereo
+	// Driver: PipeWire
+	// Sample Specification: s16le 2ch 48000Hz
+	// Channel Map: front-left,front-right
+	// Owner Module: 4294967295
+	// Mute: no
+	// Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	//         balance 0.00
+	// Base Volume: 65536 / 100% / 0.00 dB
+	// Monitor of Sink: alsa_output.usb-Generic_Blue_Microphones_LT_2201070607069D01069D_111000-00.analog-stereo
+	// Latency: 0 usec, configured 0 usec
+	// Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	// Properties:
+	// 	alsa.card = "2"
+	// 	alsa.card_name = "Blue Microphones"
+	// 	alsa.class = "generic"
+	// 	alsa.components = "USB046d:0ab7"
   List<InputDevice> _parseInputDevices(List<String> output) {
     final devices = <InputDevice>[];
     String? currentDeviceId;
