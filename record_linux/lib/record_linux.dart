@@ -107,6 +107,7 @@ Future<void> start(
     '--format=s16le',
     '--rate=${config.sampleRate}',
     '--channels=$numChannels',
+    '--latency-msec=100',
     if (config.device != null) '--device=${config.device!.id}',
     if (config.autoGain) '--property=auto_gain_control=1',
     if (config.echoCancel) '--property=echo_cancellation=1',
@@ -138,11 +139,6 @@ Future<void> start(
   @override
   Future<String?> stop(String recorderId) async {
     final path = _path;
-
-    if (_parecordProcess != null) {
-      // for some reason, parecord needs "2+ seconds" of record time to not cut the end of the audio
-      await Future.delayed(const Duration(milliseconds: 2000));
-    }
 
     _parecordProcess?.kill();
     _parecordProcess = null;
