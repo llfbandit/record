@@ -5,7 +5,7 @@ import 'dart:ui';
 
 import 'package:record_platform_interface/record_platform_interface.dart';
 
-const _arecordBin = 'arecord';
+const _parecordBin = 'parecord';
 const _ffmpegBin = 'ffmpeg';
 
 class RecordLinux extends RecordPlatform {
@@ -16,7 +16,8 @@ class RecordLinux extends RecordPlatform {
   RecordState _state = RecordState.stop;
   String? _path;
   StreamController<RecordState>? _stateStreamCtrl;
-  Process? _arecordProcess;
+  Process? _parecordProcess;
+  Process? _ffmpegProcess;
 
   @override
   Future<void> create(String recorderId) async {}
@@ -65,7 +66,7 @@ class RecordLinux extends RecordPlatform {
   @override
   Future<void> pause(String recorderId) async {
     if (_state == RecordState.record) {
-      _arecordProcess?.kill(ProcessSignal.sigstop);
+      _parecordProcess?.kill(ProcessSignal.sigstop);
       _updateState(RecordState.pause);
     }
   }
@@ -73,76 +74,78 @@ class RecordLinux extends RecordPlatform {
   @override
   Future<void> resume(String recorderId) async {
     if (_state == RecordState.pause) {
-      _arecordProcess?.kill(ProcessSignal.sigcont);
+      _parecordProcess?.kill(ProcessSignal.sigcont);
       _updateState(RecordState.record);
     }
   }
 
-  @override
-  Future<void> start(
-    String recorderId,
-    RecordConfig config, {
-    required String path,
-  }) async {
-    await stop(recorderId);
+@override
+Future<void> start(
+  String recorderId,
+  RecordConfig config, {
+  required String path,
+}) async {
+  await stop(recorderId);
 
-    final file = File(path);
-    if (file.existsSync()) await file.delete();
+  final file = File(path);
+  if (file.existsSync()) await file.delete();
 
-    final supported = await isEncoderSupported(recorderId, config.encoder);
-    if (!supported) {
-      throw Exception('${config.encoder} is not supported.');
-    }
-
-    String numChannels;
-    if (config.numChannels == 1 || config.numChannels == 2) {
-      numChannels = config.numChannels.toString();
-    } else {
-      throw Exception('${config.numChannels} config is not supported.');
-    }
-
-    final args = [
-      '-f',
-      'cd',
-      '-r',
-      config.sampleRate.toString(),
-      '-c',
-      numChannels,
-      '-t',
-      'raw',
-      '-'
-    ];
-
-    _arecordProcess = await Process.start(_arecordBin, args);
-
-    final ffmpegArgs = [
-      '-f',
-      's16le',
-      '-ar',
-      config.sampleRate.toString(),
-      '-ac',
-      numChannels,
-      '-i',
-      '-',
-      ..._getEncoderSettings(config.encoder, path)
-    ];
-
-    final ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
-    _arecordProcess!.stdout.pipe(ffmpegProcess.stdin);
-
-    _arecordProcess!.stderr.listen((event) {});
-    ffmpegProcess.stderr.listen((event) {});
-
-    _path = path;
-    _updateState(RecordState.record);
+  final supported = await isEncoderSupported(recorderId, config.encoder);
+  if (!supported) {
+    throw Exception('${config.encoder} is not supported.');
   }
+
+  String numChannels;
+  if (config.numChannels == 1 || config.numChannels == 2) {
+    numChannels = config.numChannels.toString();
+  } else {
+    throw Exception('${config.numChannels} config is not supported.');
+  }
+
+  final args = [
+    '--raw',
+    '--format=s16le',
+    '--rate=${config.sampleRate}',
+    '--channels=$numChannels',
+    if (config.device != null) '--device=${config.device!.id}',
+    if (config.autoGain) '--property=auto_gain_control=1',
+    if (config.echoCancel) '--property=echo_cancellation=1',
+    if (config.noiseSuppress) '--property=noise_suppression=1',
+  ];
+
+  _parecordProcess = await Process.start(_parecordBin, args);
+
+  final ffmpegArgs = [
+    '-f',
+    's16le',
+    '-ar',
+    config.sampleRate.toString(),
+    '-ac',
+    numChannels,
+    '-i',
+    '-',
+    ..._getEncoderSettings(config.encoder, path, config.bitRate)
+  ];
+
+  _ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
+
+  _parecordProcess!.stdout.pipe(_ffmpegProcess!.stdin);
+
+  _path = path;
+  _updateState(RecordState.record);
+}
 
   @override
   Future<String?> stop(String recorderId) async {
     final path = _path;
 
-    _arecordProcess?.kill();
-    _arecordProcess = null;
+    if (_parecordProcess != null) {
+      // for some reason, parecord needs "2+ seconds" of record time to not cut the end of the audio
+      await Future.delayed(const Duration(milliseconds: 2000));
+    }
+
+    _parecordProcess?.kill();
+    _parecordProcess = null;
 
     _updateState(RecordState.stop);
 
@@ -162,14 +165,14 @@ class RecordLinux extends RecordPlatform {
     }
   }
 
-  Future<void> _callArecord(
+  Future<void> _callPactl(
     List<String> arguments, {
     required String recorderId,
     StreamController<List<int>>? outStreamCtrl,
     VoidCallback? onStarted,
     bool consumeOutput = true,
   }) async {
-    final process = await Process.start('arecord', arguments);
+    final process = await Process.start('pactl', arguments);
 
     if (onStarted != null) {
       onStarted();
@@ -194,19 +197,28 @@ class RecordLinux extends RecordPlatform {
 
   List<InputDevice> _parseInputDevices(List<String> output) {
     final devices = <InputDevice>[];
+    String? currentDeviceId;
+    String? currentDeviceName;
 
     for (final line in output) {
-      if (line.startsWith('card')) {
-        final parts = line.split(':');
-        final cardInfo = parts[0].split(' ');
-        final cardId = cardInfo[1];
-        final cardName = parts[1].trim();
-        devices.add(InputDevice(id: cardId, label: cardName));
-      } else if (line.startsWith('    Subdevice')) {
-        final subdeviceInfo = line.split(':');
-        final subdeviceName = subdeviceInfo[1].trim();
-        final lastDevice = devices.last;
-        devices.add(InputDevice(id: lastDevice.id, label: '${lastDevice.label} - $subdeviceName'));
+      if (line.startsWith('Source #')) {
+        if (currentDeviceId != null && currentDeviceName != null) {
+          if (!currentDeviceName.startsWith('Monitor of')) {
+            devices.add(InputDevice(id: currentDeviceId, label: currentDeviceName));
+          }
+        }
+        currentDeviceId = line.split('#')[1].trim();
+        currentDeviceName = null;
+      } else if (line.trim().startsWith('Name:')) {
+        currentDeviceName = line.split(':')[1].trim();
+      } else if (line.trim().startsWith('Description:')) {
+        currentDeviceName = line.split(':')[1].trim();
+      }
+    }
+
+    if (currentDeviceId != null && currentDeviceName != null) {
+      if (!currentDeviceName.startsWith('Monitor of')) {
+        devices.add(InputDevice(id: currentDeviceId, label: currentDeviceName));
       }
     }
 
@@ -226,7 +238,7 @@ class RecordLinux extends RecordPlatform {
     });
 
     try {
-      await _callArecord(['-l'], recorderId: recorderId, outStreamCtrl: outStreamCtrl);
+      await _callPactl(['list', 'sources'], recorderId: recorderId, outStreamCtrl: outStreamCtrl);
 
       return _parseInputDevices(out);
     } finally {
@@ -246,17 +258,17 @@ class RecordLinux extends RecordPlatform {
     return _stateStreamCtrl!.stream;
   }
 
-  List<String> _getEncoderSettings(AudioEncoder encoder, String path) {
+  List<String> _getEncoderSettings(AudioEncoder encoder, String path, int bitRate) {
     switch (encoder) {
       case AudioEncoder.aacLc:
       case AudioEncoder.aacHe:
-        return ['-c:a', 'aac', '-b:a', '128k', path];
+        return ['-c:a', 'aac', '-b:a', '${bitRate/1000}k', path];
       case AudioEncoder.wav:
         return ['-c:a', 'pcm_s16le', path];
       case AudioEncoder.flac:
         return ['-c:a', 'flac', path];
       case AudioEncoder.opus:
-        return ['-c:a', 'libopus', '-b:a', '128k', path];
+        return ['-c:a', 'libopus', '-b:a', '${bitRate/1000}k', path];
       default:
         return [];
     }
