@@ -102,35 +102,42 @@ Future<void> start(
     throw Exception('${config.numChannels} config is not supported.');
   }
 
+  bool parecordCanEncode = config.encoder == AudioEncoder.flac || config.encoder == AudioEncoder.wav;
+
   final args = [
     '--raw',
     '--format=s16le',
     '--rate=${config.sampleRate}',
     '--channels=$numChannels',
     '--latency-msec=100',
+    if (parecordCanEncode) '--file-format=${config.encoder.name}',
     if (config.device != null) '--device=${config.device!.id}',
     if (config.autoGain) '--property=auto_gain_control=1',
     if (config.echoCancel) '--property=echo_cancellation=1',
     if (config.noiseSuppress) '--property=noise_suppression=1',
+    if (parecordCanEncode) path,
   ];
 
   _parecordProcess = await Process.start(_parecordBin, args);
 
-  final ffmpegArgs = [
-    '-f',
-    's16le',
-    '-ar',
-    config.sampleRate.toString(),
-    '-ac',
-    numChannels,
-    '-i',
-    '-',
-    ..._getEncoderSettings(config.encoder, path, config.bitRate)
-  ];
+  // parecord can output flac and wav directly, only use ffmpeg for other encoders
+  if (!parecordCanEncode) {
+    
+    final ffmpegArgs = [
+      '-f',
+      's16le',
+      '-ar',
+      config.sampleRate.toString(),
+      '-ac',
+      numChannels,
+      '-i',
+      '-',
+      ..._getEncoderSettings(config.encoder, path, config.bitRate)
+    ];
 
-  _ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
-
-  _parecordProcess!.stdout.pipe(_ffmpegProcess!.stdin);
+    _ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
+    _parecordProcess!.stdout.pipe(_ffmpegProcess!.stdin);
+  }
 
   _path = path;
   _updateState(RecordState.record);
@@ -142,6 +149,7 @@ Future<void> start(
 
     _parecordProcess?.kill();
     _parecordProcess = null;
+    _ffmpegProcess = null;
 
     _updateState(RecordState.stop);
 
