@@ -139,6 +139,7 @@ class Recorder {
     case AudioEncoder.aacLc.rawValue,
       AudioEncoder.aacEld.rawValue, /*"aacHe", "amrNb", "amrWb", "opus",*/
       AudioEncoder.flac.rawValue,
+      AudioEncoder.opus.rawValue,
       AudioEncoder.pcm16bits.rawValue,
       AudioEncoder.wav.rawValue:
       return true
