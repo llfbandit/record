@@ -18,11 +18,11 @@ command:
   # When a dependency in a package is listed it will be replaced with the following versions.
   bootstrap:
     environment:
-      sdk: ^3.3.0
-      flutter: ">=3.16.0"
+      sdk: ^3.4.0
+      flutter: ">=3.22.0"
     dev_dependencies:
       # Linter rules (https://pub.dev/packages/flutter_lints)
-      flutter_lints: ^4.0.0
+      flutter_lints: ^5.0.0
 
   clean:
     hooks:

@@ -293,17 +293,10 @@ class AudioRecorder {
 
 /// A class that represents a semaphore.
 class _Semaphore {
-  final int maxCount;
+  final int maxCount = 1;
 
   int _counter = 0;
   final _waitQueue = Queue<Completer>();
-
-  // ignore: unused_element
-  _Semaphore([this.maxCount = 1]) {
-    if (maxCount < 1) {
-      throw RangeError.value(maxCount, "maxCount");
-    }
-  }
 
   /// Acquires a permit from this semaphore, asynchronously blocking until one
   /// is available.

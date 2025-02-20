@@ -4,8 +4,8 @@ version: 0.7.2
 homepage: https://github.com/llfbandit/record/tree/master/record_linux
 
 environment:
-  sdk: ^3.3.0
-  flutter: ">=3.16.0"
+  sdk: ^3.4.0
+  flutter: ">=3.22.0"
 
 dependencies:
   flutter:
@@ -17,7 +17,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^4.0.0
+  flutter_lints: ^5.0.0
 
 # The following section is specific to Flutter.
 flutter:

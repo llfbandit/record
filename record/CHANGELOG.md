@@ -1,5 +1,6 @@
 ## 5.2.1
 * fix: Properly cancel platform streams before disposing others resources.
+* chore: Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
 
 ## 5.2.0
 * chore: Updated transitive dependencies.
