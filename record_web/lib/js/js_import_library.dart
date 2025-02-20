@@ -1,4 +1,5 @@
 import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 
 class ImportJsLibrary {
   /// Injects the library by its [url]
@@ -31,7 +32,7 @@ class ImportJsLibrary {
     for (var i = 0; i < head.children.length; i++) {
       final element = head.children.item(i);
 
-      if (element is web.HTMLScriptElement) {
+      if (element != null && element.isA<web.HTMLScriptElement>()) {
         if (element.id == id) {
           return true;
         }

@@ -1,3 +1,7 @@
+## 1.1.5
+* feat: Improve compatibility for AAC encoders with browsers.
+* fix: Check on loaded `js_webm_duration_fix.js` file.
+
 ## 1.1.4
 * fix: Use relative asset path for worklet file.
 * fix: Input device is not forwarded to JS.
