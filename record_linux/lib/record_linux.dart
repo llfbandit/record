@@ -236,8 +236,8 @@ Future<void> start(
             devices.add(InputDevice(id: currentDeviceId, label: currentDeviceName));
           }
         }
-        currentDeviceId = line.split('#')[1].trim();
-        currentDeviceName = null;
+      } else if (line.trim().startsWith('node.name')) {
+        currentDeviceId = line.split('=')[1].trim();
       } else if (line.trim().startsWith('Name:')) {
         currentDeviceName = line.split(':')[1].trim();
       } else if (line.trim().startsWith('Description:')) {
