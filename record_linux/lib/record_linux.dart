@@ -224,6 +224,7 @@ Future<void> start(
 	// 	alsa.card_name = "Blue Microphones"
 	// 	alsa.class = "generic"
 	// 	alsa.components = "USB046d:0ab7"
+  //  node.name = "alsa_input.usb-Generic_Blue_Microphones_LT_2201070607069D01069D_111000-00.analog-stereo"
   List<InputDevice> _parseInputDevices(List<String> output) {
     final devices = <InputDevice>[];
     String? currentDeviceId;
