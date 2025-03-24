@@ -34,8 +34,16 @@ class AudioRecorder {
     _stateStreamCtrl ??= StreamController<RecordState>.broadcast();
     final stream = RecordPlatform.instance.onStateChanged(_recorderId);
     _stateStreamSubscription = stream.listen(
-      _stateStreamCtrl!.add,
-      onError: _stateStreamCtrl!.addError,
+      (state) {
+        if (_stateStreamCtrl?.hasListener ?? false) {
+          _stateStreamCtrl?.add(state);
+        }
+      },
+      onError: (error) {
+        if (_stateStreamCtrl?.hasListener ?? false) {
+          _stateStreamCtrl?.addError(error);
+        }
+      },
     );
 
     return true;
