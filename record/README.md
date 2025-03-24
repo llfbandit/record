@@ -8,7 +8,7 @@ No external dependencies:
 - On web, well... your browser! (and its underlying platform).
 
 External dependencies:
-- On linux, encoding is provided by [fmedia](https://stsaz.github.io/fmedia/). It **must** be installed separately.
+- On linux, encoding is provided by `parecord` and `ffmpeg`. It **must** be installed separately.
 
 ## Platform feature parity matrix
 | Feature          | Android       | iOS             | web     | Windows    | macOS  | linux
@@ -18,16 +18,16 @@ External dependencies:
 | permission check | ✔️            |   ✔️             |  ✔️    |            |  ✔️   |
 | num of channels  | ✔️            |   ✔️             |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | device selection | ✔️ 1 / 2      | (auto BT/mic)    |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| auto gain        | ✔️ 2          | ✔️ (stream)      | ✔️      |            |  ✔️ (stream)     |  
-| echo cancel      | ✔️ 2          | ✔️ (stream)      | ✔️      |            |  ✔️ (stream)     |  
-| noise suppresion | ✔️ 2          |                  | ✔️      |            |       |  
+| auto gain        | ✔️ 2          | ✔️ (stream)      | ✔️      |            |  ✔️ (stream)     | 
+| echo cancel      | ✔️ 2          | ✔️ (stream)      | ✔️      |            |  ✔️ (stream)     | 
+| noise suppresion | ✔️ 2          |                  | ✔️      |            |       | 
 
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
 |-----------------|----------------|---------|---------|---------|---------|---------
 | aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
 | aacEld          | ✔️            |   ✔️    |   ?     |         |  ✔️    | 
-| aacHe           | ✔️            |         |   ?     |         |         |  ✔️ 
+| aacHe           | ✔️            |         |   ?     |         |         |   
 | amrNb           | ✔️            |         |  ?      |   ✔️    |         |  
 | amrWb           | ✔️            |         |  ?      |          |        |  
 | opus            | ✔️            |         |  ?    |         |         |  ✔️ 

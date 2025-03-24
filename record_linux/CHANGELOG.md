@@ -1,3 +1,6 @@
+## 1.0.0
+* fix: use PulseAudio recorder (parecord) instead of fmedia as library.
+
 ## 0.7.2
 * fix: fmedia invalid pipe path which may lead to inaccessible audio file.
 
