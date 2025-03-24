@@ -11,7 +11,7 @@ const _uuid = Uuid();
 class AudioRecorder {
   StreamController<Amplitude>? _amplitudeStreamCtrl;
 
-  final _stateStreamCtrl = StreamController<RecordState>.broadcast();
+  StreamController<RecordState>? _stateStreamCtrl;
   StreamSubscription? _stateStreamSubscription;
 
   StreamController<Uint8List>? _recordStreamCtrl;
@@ -31,10 +31,11 @@ class AudioRecorder {
   Future<bool> _create() async {
     await RecordPlatform.instance.create(_recorderId);
 
+    _stateStreamCtrl ??= StreamController<RecordState>.broadcast();
     final stream = RecordPlatform.instance.onStateChanged(_recorderId);
     _stateStreamSubscription = stream.listen(
-      _stateStreamCtrl.add,
-      onError: _stateStreamCtrl.addError,
+      _stateStreamCtrl!.add,
+      onError: _stateStreamCtrl!.addError,
     );
 
     return true;
@@ -205,7 +206,8 @@ class AudioRecorder {
       _amplitudeStreamCtrl = null;
 
       await _stateStreamSubscription?.cancel();
-      await _stateStreamCtrl.close();
+      await _stateStreamCtrl?.close();
+      _stateStreamCtrl = null;
 
       await _stopRecordStream();
 
@@ -222,7 +224,10 @@ class AudioRecorder {
   /// Provides pause, resume and stop states.
   ///
   /// Also, you can retrieve async errors from it by adding [Function? onError].
-  Stream<RecordState> onStateChanged() => _stateStreamCtrl.stream;
+  Stream<RecordState> onStateChanged() {
+    _stateStreamCtrl ??= StreamController<RecordState>.broadcast();
+    return _stateStreamCtrl!.stream;
+  }
 
   /// Request for amplitude at given [interval].
   Stream<Amplitude> onAmplitudeChanged(Duration interval) {
