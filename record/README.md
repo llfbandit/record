@@ -13,14 +13,14 @@ External dependencies:
 ## Platform feature parity matrix
 | Feature          | Android       | iOS             | web     | Windows    | macOS  | linux
 |------------------|---------------|-----------------|---------|------------|-------|-----------
-| pause/resume     | ✔️            |   ✔️           | ✔️     |      ✔️    | ✔️    |  ✔️
-| amplitude(dBFS)  | ✔️            |   ✔️           |  ✔️     |    ✔️     |  ✔️   |
-| permission check | ✔️            |   ✔️           |  ✔️    |            |  ✔️   |
-| num of channels  | ✔️            |   ✔️           |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| device selection | ✔️ 1 / 2      | (auto BT/mic)   |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| auto gain        | ✔️ 2          |(always active?)| ✔️      |            |       |  
-| echo cancel      | ✔️ 2          |                 | ✔️      |            |       |  
-| noise suppresion | ✔️ 2          |                 | ✔️      |            |       |  
+| pause/resume     | ✔️            |   ✔️             | ✔️     |      ✔️    | ✔️    |  ✔️
+| amplitude(dBFS)  | ✔️            |   ✔️             |  ✔️     |    ✔️     |  ✔️   |
+| permission check | ✔️            |   ✔️             |  ✔️    |            |  ✔️   |
+| num of channels  | ✔️            |   ✔️             |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| device selection | ✔️ 1 / 2      | (auto BT/mic)    |  ✔️    |    ✔️      |  ✔️   |  ✔️
+| auto gain        | ✔️ 2          | ✔️ (stream)      | ✔️      |            |  ✔️ (stream)     |  
+| echo cancel      | ✔️ 2          | ✔️ (stream)      | ✔️      |            |  ✔️ (stream)     |  
+| noise suppresion | ✔️ 2          |                  | ✔️      |            |       |  
 
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
