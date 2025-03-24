@@ -1,3 +1,9 @@
+## 6.0.0
+* feat: Make all streams as broadcast streams.
+* chore: Split iOS & macOS platforms.
+* chore: Replace `fmedia` with `parecord` & `ffmpeg`.
+* chore: Update README.md.
+
 ## 5.2.1
 * fix: Properly cancel platform streams before disposing others resources.
 * chore: Updates minimum supported SDK version to Flutter 3.22/Dart 3.4.
