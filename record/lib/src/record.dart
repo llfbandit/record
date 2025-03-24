@@ -231,7 +231,7 @@ class AudioRecorder {
 
   /// Request for amplitude at given [interval].
   Stream<Amplitude> onAmplitudeChanged(Duration interval) {
-    _amplitudeStreamCtrl ??= StreamController();
+    _amplitudeStreamCtrl ??= StreamController<Amplitude>.broadcast();
 
     _amplitudeTimerInterval = interval;
     _startAmplitudeTimer();
