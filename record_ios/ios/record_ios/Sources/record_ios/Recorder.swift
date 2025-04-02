@@ -1,5 +1,7 @@
 import Foundation
 import AVFoundation
+import MediaPlayer
+
 
 class Recorder {
   private var m_maxAmplitude: Float = -160.0
@@ -35,12 +37,24 @@ class Recorder {
     )
     
     try delegate.start(config: config, path: path)
-    
+
+    updateNowPlayingInfo(isRecording: true)
+
     self.delegate = delegate
     
     updateState(RecordState.record)
   }
-  
+
+  func updateNowPlayingInfo(isRecording: Bool) {
+      var nowPlayingInfo = [String: Any]()
+      if isRecording {
+        nowPlayingInfo[MPMediaItemPropertyTitle] = "Recording in progress"
+      } else {
+        nowPlayingInfo[MPMediaItemPropertyTitle] = "Tap to resume recording"
+      }
+      MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+    }
+
   func startStream(config: RecordConfig) throws {
     stop(completionHandler: {(path) -> () in })
     
@@ -55,7 +69,9 @@ class Recorder {
       onPause: {() -> () in self.updateState(RecordState.pause)},
       onStop: {() -> () in self.updateState(RecordState.stop)}
     )
-    
+
+    updateNowPlayingInfo(isRecording: false)
+
     try delegate.start(config: config, recordEventHandler: m_recordEventHandler)
     
     self.delegate = delegate
