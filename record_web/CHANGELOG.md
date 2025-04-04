@@ -1,3 +1,6 @@
+## 1.1.6
+* fix: Amplitude not reported in WASM mode.
+
 ## 1.1.5
 * feat: Improve compatibility for AAC encoders with browsers.
 * fix: Check on loaded `js_webm_duration_fix.js` file.

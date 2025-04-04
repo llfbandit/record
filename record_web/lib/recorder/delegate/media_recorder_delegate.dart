@@ -252,10 +252,11 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
     final bufferLength = analyser.frequencyBinCount; // Always fftSize / 2
     final dataArray = Float32List(bufferLength.toInt());
+    final jsArray = dataArray.toJS;
 
-    analyser.getFloatFrequencyData(dataArray.toJS);
+    analyser.getFloatFrequencyData(jsArray);
 
-    return dataArray
+    return jsArray.toDart
         .reduce((value, element) => math.max(value, element))
         .toDouble();
   }
