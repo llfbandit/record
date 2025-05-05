@@ -104,14 +104,13 @@ class RecordThread(
 
                 while (isRecording()) {
                     if (isPaused()) {
+                        recorderListener.onPause()
                         mIsPausedSem.acquire()
-                        // Check again if recording has been stopped
-                        if (!isRecording()) break
-                    }
-
-                    val buffer = mPcmReader!!.read()
-                    if (buffer.isNotEmpty()) {
-                        mEncoder!!.encode(buffer)
+                    } else {
+                        val buffer = mPcmReader!!.read()
+                        if (buffer.isNotEmpty()) {
+                            mEncoder!!.encode(buffer)
+                        }
                     }
                 }
             } catch (ex: Exception) {
@@ -137,9 +136,10 @@ class RecordThread(
             if (mHasBeenCanceled) {
                 Utils.deleteFile(config.path)
             }
-            recorderListener.onStop()
         } catch (ex: Exception) {
             recorderListener.onFailure(ex)
+        } finally {
+            recorderListener.onStop()
         }
     }
 
@@ -160,7 +160,7 @@ class RecordThread(
         mIsRecording.set(true)
         mIsPaused.set(true)
 
-        recorderListener.onPause()
+        // pause event is fired in recording loop
     }
 
     private fun recordState() {

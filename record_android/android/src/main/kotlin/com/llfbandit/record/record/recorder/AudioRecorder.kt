@@ -106,11 +106,11 @@ class AudioRecorder(
 
     // OnAudioRecordListener
     override fun onRecord() {
-        recorderStateStreamHandler.sendStateEvent(RecordState.RECORD.id)
+        recorderStateStreamHandler.sendStateEvent(RecordState.RECORD)
     }
 
     override fun onPause() {
-        recorderStateStreamHandler.sendStateEvent(RecordState.PAUSE.id)
+        recorderStateStreamHandler.sendStateEvent(RecordState.PAUSE)
     }
 
     override fun onStop() {
@@ -121,7 +121,7 @@ class AudioRecorder(
         stopCb?.invoke(config?.path)
         stopCb = null
 
-        recorderStateStreamHandler.sendStateEvent(RecordState.STOP.id)
+        recorderStateStreamHandler.sendStateEvent(RecordState.STOP)
     }
 
     override fun onFailure(ex: Exception) {

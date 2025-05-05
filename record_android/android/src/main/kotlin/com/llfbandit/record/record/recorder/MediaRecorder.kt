@@ -82,14 +82,12 @@ class MediaRecorder(
         Utils.deleteFile(mConfig?.path)
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
     override fun pause() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             pauseRecording()
         }
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
     override fun resume() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             resumeRecording()
@@ -186,19 +184,19 @@ class MediaRecorder(
             RecordState.PAUSE -> {
                 mIsRecording = true
                 mIsPaused = true
-                recorderStateStreamHandler.sendStateEvent(RecordState.PAUSE.id)
+                recorderStateStreamHandler.sendStateEvent(RecordState.PAUSE)
             }
 
             RecordState.RECORD -> {
                 mIsRecording = true
                 mIsPaused = false
-                recorderStateStreamHandler.sendStateEvent(RecordState.RECORD.id)
+                recorderStateStreamHandler.sendStateEvent(RecordState.RECORD)
             }
 
             RecordState.STOP -> {
                 mIsRecording = false
                 mIsPaused = false
-                recorderStateStreamHandler.sendStateEvent(RecordState.STOP.id)
+                recorderStateStreamHandler.sendStateEvent(RecordState.STOP)
             }
         }
     }
