@@ -30,7 +30,7 @@ apply plugin: 'org.jetbrains.kotlin.android'
 android {
     namespace 'com.llfbandit.record'
     
-    compileSdk 34
+    compileSdk = flutter.compileSdkVersion
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -46,6 +46,6 @@ android {
     }
 
     defaultConfig {
-        minSdk 23
+        minSdkVersion 23
     }
 }
