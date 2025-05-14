@@ -1,7 +1,6 @@
 // ignore_for_file: avoid_print
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -23,9 +22,6 @@ mixin AudioRecorderMixin {
 
     stream.listen(
       (data) {
-        print(
-          recorder.convertBytesToInt16(Uint8List.fromList(data)),
-        );
         file.writeAsBytesSync(data, mode: FileMode.append);
       },
       onDone: () {

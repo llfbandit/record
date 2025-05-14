@@ -1,5 +1,6 @@
 ## 1.3.2
 * fix: Pause state accuracy.
+* fix: AAC ADTS streaming.
 
 ## 1.3.1
 * fix: Stop does not complete when called immediately after startStream.

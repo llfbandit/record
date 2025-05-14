@@ -156,8 +156,14 @@ class MediaCodecEncoder(
     private fun processOutputBuffer(codec: MediaCodec, index: Int, info: MediaCodec.BufferInfo) {
         try {
             val outputBuffer = codec.getOutputBuffer(index)
-            if (outputBuffer != null) {
-                mContainer?.writeSampleData(mContainerTrack, outputBuffer, info)
+            if (outputBuffer != null && mContainer != null) {
+                if (mContainer!!.isStream()) {
+                    listener.onEncoderStream(
+                        mContainer!!.writeStream(mContainerTrack, outputBuffer, info)
+                    )
+                } else {
+                    mContainer!!.writeSampleData(mContainerTrack, outputBuffer, info)
+                }
             }
             codec.releaseOutputBuffer(index, false)
 
