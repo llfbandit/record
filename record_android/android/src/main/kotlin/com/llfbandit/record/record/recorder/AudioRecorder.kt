@@ -38,7 +38,8 @@ class AudioRecorder(
     // Stop callback to be synchronized between stop method return & record stop
     private var stopCb: ((path: String?) -> Unit)? = null
 
-    private var muteSettings = HashMap<Int, Int>()
+    // Audio manager settings saved/restored
+    private var amPrevMuteSettings = HashMap<Int, Int>()
     private val muteStreams = arrayOf(
         AudioManager.STREAM_ALARM,
         AudioManager.STREAM_DTMF,
@@ -48,9 +49,11 @@ class AudioRecorder(
         AudioManager.STREAM_SYSTEM,
         AudioManager.STREAM_VOICE_CALL,
     )
+    private var amPrevAudioMode: Int = AudioManager.MODE_NORMAL
+    private var amPrevSpeakerphone = false
 
     init {
-        initMuteSettings()
+        saveAudioManagerSettings()
     }
 
     /**
@@ -63,9 +66,7 @@ class AudioRecorder(
         recorderThread = RecordThread(config, this)
         recorderThread!!.startRecording()
 
-        if (config.muteAudio) {
-            muteAudio(true)
-        }
+        assignAudioManagerSettings(config)
     }
 
     override fun stop(stopCb: ((path: String?) -> Unit)?) {
@@ -114,9 +115,8 @@ class AudioRecorder(
     }
 
     override fun onStop() {
-        if (config?.muteAudio == true) {
-            muteAudio(false)
-        }
+        // Restore audio manager properties
+        restoreAudioManagerSettings()
 
         stopCb?.invoke(config?.path)
         stopCb = null
@@ -133,25 +133,62 @@ class AudioRecorder(
         recorderRecordStreamHandler.sendRecordChunkEvent(chunk)
     }
 
-    private fun muteAudio(mute: Boolean) {
+    // Save initial audio manager settings
+    @Suppress("DEPRECATION")
+    private fun saveAudioManagerSettings() {
+        amPrevMuteSettings.clear()
+
         val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
+        muteStreams.forEach { stream ->
+            amPrevMuteSettings[stream] = audioManager.getStreamVolume(stream)
+        }
+
+        amPrevAudioMode = audioManager.mode
+        amPrevSpeakerphone = audioManager.isSpeakerphoneOn
+    }
+
+    // Assign audio manager settings
+    @Suppress("DEPRECATION")
+    private fun assignAudioManagerSettings(config: RecordConfig) {
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        if (config.muteAudio) {
+            muteAudio(audioManager, true)
+        }
+        if (config.audioManagerMode != AudioManager.MODE_NORMAL) {
+            audioManager.mode = config.audioManagerMode
+        }
+        if (config.speakerphone) {
+            audioManager.setSpeakerphoneOn(true)
+        }
+    }
+
+    // Restore initial audio manager settings
+    @Suppress("DEPRECATION")
+    private fun restoreAudioManagerSettings() {
+        val conf = config ?: return
+
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        if (conf.muteAudio) {
+            muteAudio(audioManager, false)
+        }
+        if (conf.audioManagerMode != AudioManager.MODE_NORMAL) {
+            audioManager.mode = amPrevAudioMode
+        }
+        if (conf.speakerphone) {
+            audioManager.setSpeakerphoneOn(amPrevSpeakerphone)
+        }
+    }
+
+    private fun muteAudio(audioManager: AudioManager, mute: Boolean) {
         val muteValue = AudioManager.ADJUST_MUTE
         val unmuteValue = AudioManager.ADJUST_UNMUTE
 
         muteStreams.forEach { stream ->
-            val volumeLevel = if (mute) muteValue else (muteSettings[stream] ?: unmuteValue)
+            val volumeLevel = if (mute) muteValue else (amPrevMuteSettings[stream] ?: unmuteValue)
             audioManager.setStreamVolume(stream, volumeLevel, 0)
-        }
-    }
-
-    private fun initMuteSettings() {
-        muteSettings.clear()
-
-        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
-        muteStreams.forEach { stream ->
-            muteSettings[stream] = audioManager.getStreamVolume(stream)
         }
     }
 }

@@ -1,6 +1,7 @@
 ## 1.3.2
 * fix: Pause state accuracy.
 * fix: AAC ADTS streaming.
+* feat: Add `audioManagerMode` and `speakerphone` options to mitigate echo cancellation issues with specific devices. (Thanks to @keyur2maru for the original PR)
 
 ## 1.3.1
 * fix: Stop does not complete when called immediately after startStream.

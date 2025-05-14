@@ -32,11 +32,29 @@ class AndroidRecordConfig {
   /// Most of the time, you should use [AndroidAudioSource.defaultSource] or [AndroidAudioSource.mic].
   final AndroidAudioSource audioSource;
 
+  /// Set the speakerphone on.
+  /// If [true], this will set the speakerphone on and might help to resolve
+  /// acoustic echo cancellation issues on some devices.
+  ///
+  /// Defaults to [false].
+  final bool speakerphone;
+
+  /// Defines the audio manager mode.
+  /// This is used to set the audio manager mode before recording.
+  ///
+  /// Switching to [AudioManagerMode.modeInCommunication] might help to resolve
+  /// acoustic echo cancellation issues on some devices.
+  ///
+  /// Defaults to [AudioManagerMode.modeNormal].
+  final AudioManagerMode audioManagerMode;
+
   const AndroidRecordConfig({
     this.useLegacy = false,
     this.muteAudio = false,
     this.manageBluetooth = true,
     this.audioSource = AndroidAudioSource.defaultSource,
+    this.speakerphone = false,
+    this.audioManagerMode = AudioManagerMode.modeNormal,
   });
 
   Map<String, dynamic> toMap() {
@@ -45,11 +63,14 @@ class AndroidRecordConfig {
       'muteAudio': muteAudio,
       'manageBluetooth': manageBluetooth,
       'audioSource': audioSource.name,
+      'speakerphone': speakerphone,
+      'audioManagerMode': audioManagerMode.name,
     };
   }
 }
 
 /// Constants for Android for setting specific audio source types
+///
 /// https://developer.android.com/reference/kotlin/android/media/MediaRecorder.AudioSource
 enum AndroidAudioSource {
   defaultSource,
@@ -61,6 +82,29 @@ enum AndroidAudioSource {
   voiceRecognition,
   voiceCommunication,
   remoteSubMix,
+
+  /// Build.VERSION_CODES.N
   unprocessed,
+
+  /// Build.VERSION_CODES.Q
   voicePerformance,
+}
+
+/// Constants for Android for setting specific audio manager modes
+///
+/// https://developer.android.com/reference/kotlin/android/media/AudioManager#setmode
+enum AudioManagerMode {
+  modeNormal,
+  modeRingtone,
+  modeInCall,
+  modeInCommunication,
+
+  /// Build.VERSION_CODES.R
+  modeCallScreening,
+
+  /// Build.VERSION_CODES.TIRAMISU
+  modeCallRedirect,
+
+  /// Build.VERSION_CODES.TIRAMISU
+  modeCommunicationRedirect,
 }

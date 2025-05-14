@@ -1,6 +1,7 @@
 package com.llfbandit.record.methodcall
 
 import android.content.Context
+import android.media.AudioManager
 import android.media.MediaRecorder
 import android.os.Build
 import com.llfbandit.record.Utils
@@ -118,7 +119,7 @@ class MethodCallHandlerImpl(
     private fun getRecordConfig(call: MethodCall): RecordConfig {
         val androidConfig = call.argument("androidConfig") as Map<*, *>?
 
-        val audioSource: Int = when(androidConfig?.get("audioSource")) {
+        val audioSource: Int = when (androidConfig?.get("audioSource")) {
             "defaultSource" -> MediaRecorder.AudioSource.DEFAULT
             "mic" -> MediaRecorder.AudioSource.MIC
             "voiceUplink" -> MediaRecorder.AudioSource.VOICE_UPLINK
@@ -142,6 +143,32 @@ class MethodCallHandlerImpl(
             else -> MediaRecorder.AudioSource.DEFAULT
         }
 
+        val audioManagerMode: Int = when (androidConfig?.get("audioManagerMode")) {
+            "modeNormal" -> AudioManager.MODE_NORMAL
+            "modeRingtone" -> AudioManager.MODE_RINGTONE
+            "modeInCall" -> AudioManager.MODE_IN_CALL
+            "modeInCommunication" -> AudioManager.MODE_IN_COMMUNICATION
+            "modeCallScreening" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                AudioManager.MODE_CALL_SCREENING
+            } else {
+                AudioManager.MODE_NORMAL
+            }
+
+            "modeCallRedirect" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                AudioManager.MODE_CALL_REDIRECT
+            } else {
+                AudioManager.MODE_NORMAL
+            }
+
+            "modeCommunicationRedirect" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                AudioManager.MODE_COMMUNICATION_REDIRECT
+            } else {
+                AudioManager.MODE_NORMAL
+            }
+
+            else -> AudioManager.MODE_NORMAL
+        }
+
         return RecordConfig(
             call.argument("path"),
             Utils.firstNonNull(call.argument("encoder"), "aacLc"),
@@ -155,7 +182,9 @@ class MethodCallHandlerImpl(
             Utils.firstNonNull(androidConfig?.get("useLegacy") as Boolean?, false),
             Utils.firstNonNull(androidConfig?.get("muteAudio") as Boolean?, false),
             Utils.firstNonNull(androidConfig?.get("manageBluetooth") as Boolean?, true),
-            audioSource
+            audioSource,
+            Utils.firstNonNull(androidConfig?.get("speakerphone") as Boolean?, false),
+            audioManagerMode
         )
     }
 }

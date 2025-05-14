@@ -1,6 +1,7 @@
 package com.llfbandit.record.record
 
 import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.media.MediaRecorder
 
 class RecordConfig(
@@ -16,7 +17,9 @@ class RecordConfig(
     val useLegacy: Boolean = false,
     val muteAudio: Boolean = false,
     val manageBluetooth: Boolean = true,
-    val audioSource: Int = MediaRecorder.AudioSource.DEFAULT
+    val audioSource: Int = MediaRecorder.AudioSource.DEFAULT,
+    val speakerphone: Boolean = false,
+    val audioManagerMode: Int = AudioManager.MODE_NORMAL
 ) {
     val numChannels: Int = 2.coerceAtMost(1.coerceAtLeast(numChannels))
 }
