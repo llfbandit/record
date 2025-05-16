@@ -1,3 +1,6 @@
+## 1.3.3
+* fix: Gradle compile SDK to 34.
+
 ## 1.3.2
 * fix: Pause state accuracy.
 * fix: AAC ADTS streaming.
