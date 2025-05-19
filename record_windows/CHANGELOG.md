@@ -1,3 +1,6 @@
+## 1.0.6
+* fix: Attempt to fix crash when recording on w10.
+
 ## 1.0.5
 * fix: Send messages on main thread (workaround).
 * fix: Automatically remove file when no audio has been written.
