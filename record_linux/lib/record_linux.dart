@@ -146,6 +146,41 @@ class RecordLinux extends RecordPlatform {
   }
 
   @override
+  Future<Stream<Uint8List>> startStream(
+    String recorderId,
+    RecordConfig config) async {
+    await stop(recorderId);
+
+    final numChannels = config.numChannels.clamp(1, 2);
+
+    final args = [
+      '--raw',
+      '--format=s16le',
+      '--rate=${config.sampleRate}',
+      '--channels=$numChannels',
+      '--latency-msec=100',
+      if (config.device != null) '--device=${config.device!.id}',
+      if (config.autoGain) '--property=auto_gain_control=1',
+      if (config.echoCancel) '--property=echo_cancellation=1',
+      if (config.noiseSuppress) '--property=noise_suppression=1',
+    ];
+
+    _parecordProcess = await Process.start(_parecordBin, args);
+
+    
+    _updateState(RecordState.record);
+
+    /*
+      casting stream to Uint8list and returning
+      
+    */
+    return _parecordProcess!.stdout.map((list){
+      return (list is Uint8List) ? list : Uint8List.fromList(list);
+    });
+    
+  }
+
+  @override
   Future<String?> stop(String recorderId) async {
     final path = _path;
 
