@@ -94,24 +94,15 @@ class RecordLinux extends RecordPlatform {
       throw Exception('${config.encoder} is not supported.');
     }
 
-    final numChannels = config.numChannels.clamp(1, 2);
 
     bool parecordCanEncode = config.encoder == AudioEncoder.flac ||
         config.encoder == AudioEncoder.wav;
 
-    final args = [
-      '--raw',
-      '--format=s16le',
-      '--rate=${config.sampleRate}',
-      '--channels=$numChannels',
-      '--latency-msec=100',
-      if (parecordCanEncode) '--file-format=${config.encoder.name}',
-      if (config.device != null) '--device=${config.device!.id}',
-      if (config.autoGain) '--property=auto_gain_control=1',
-      if (config.echoCancel) '--property=echo_cancellation=1',
-      if (config.noiseSuppress) '--property=noise_suppression=1',
-      if (parecordCanEncode) path,
-    ];
+
+    final numChannels = config.numChannels.clamp(1, 2);
+
+    final args = _parecordArgsSetup(config, path, false, parecordCanEncode);
+
 
     _parecordProcess = await Process.start(_parecordBin, args);
 
@@ -151,7 +142,39 @@ class RecordLinux extends RecordPlatform {
     RecordConfig config) async {
     await stop(recorderId);
 
+    final args = _parecordArgsSetup(config, '', true, false);
+
+    _parecordProcess = await Process.start(_parecordBin, args);
+
+    
+    _updateState(RecordState.record);
+
+
+    return _parecordProcess!.stdout.map((list){
+      return (list is Uint8List) ? list : Uint8List.fromList(list);
+    });
+    
+  }
+
+  List<String> _parecordArgsSetup(RecordConfig config,String path,bool isStream,bool parecordCanEncode){
+
     final numChannels = config.numChannels.clamp(1, 2);
+
+    if(isStream){
+      final args = [
+        '--raw',
+        '--format=s16le',
+        '--rate=${config.sampleRate}',
+        '--channels=$numChannels',
+        '--latency-msec=100',
+        if (config.device != null) '--device=${config.device!.id}',
+        if (config.autoGain) '--property=auto_gain_control=1',
+        if (config.echoCancel) '--property=echo_cancellation=1',
+        if (config.noiseSuppress) '--property=noise_suppression=1',
+      ];
+
+      return args;
+    }
 
     final args = [
       '--raw',
@@ -159,25 +182,15 @@ class RecordLinux extends RecordPlatform {
       '--rate=${config.sampleRate}',
       '--channels=$numChannels',
       '--latency-msec=100',
+      if (parecordCanEncode) '--file-format=${config.encoder.name}',
       if (config.device != null) '--device=${config.device!.id}',
       if (config.autoGain) '--property=auto_gain_control=1',
       if (config.echoCancel) '--property=echo_cancellation=1',
       if (config.noiseSuppress) '--property=noise_suppression=1',
+      if (parecordCanEncode) path,
     ];
 
-    _parecordProcess = await Process.start(_parecordBin, args);
-
-    
-    _updateState(RecordState.record);
-
-    /*
-      casting stream to Uint8list and returning
-      
-    */
-    return _parecordProcess!.stdout.map((list){
-      return (list is Uint8List) ? list : Uint8List.fromList(list);
-    });
-    
+    return args;
   }
 
   @override
