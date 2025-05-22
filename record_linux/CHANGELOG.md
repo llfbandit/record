@@ -1,3 +1,7 @@
+## 1.1.0
+* feat: Allow pcm16bits streaming.
+* chore: code cleanup.
+
 ## 1.0.0
 * fix: use PulseAudio recorder (parecord) instead of fmedia as library.
 

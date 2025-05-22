@@ -30,7 +30,7 @@ External dependencies:
 | aacHe           | ✔️            |         |   ?     |         |         |   
 | amrNb           | ✔️            |         |  ?      |   ✔️    |         |  
 | amrWb           | ✔️            |         |  ?      |          |        |  
-| opus            | ✔️            |         |  ?    |         |         |  ✔️ 
+| opus            | ✔️            |         |  ?       |         |         |  ✔️ 
 | wav             | ✔️ 2          |   ✔️    |   ✔️   |    ✔️    |   ✔️  |   ✔️ 
 | flac            | ✔️ 2          |    ✔️    |  ?     |  ✔️     |   ✔️   |   ✔️
 | pcm16bits       | ✔️ 2          |   ✔️    |  ✔️    |   ✔️    |  ✔️    |  
@@ -51,7 +51,7 @@ wav and pcm16bits are provided by the package directly.
 | Encoder         | Android    | iOS     | web     | Windows | macOS   | linux
 |-----------------|------------|---------|---------|---------|---------|---------
 | aacLc       *   | ✔️ 2      |         |          |         |         |  
-| pcm16bits       | ✔️ 2      |  ✔️    |   ✔️    |  ✔️     | ✔️     |  
+| pcm16bits       | ✔️ 2      |  ✔️    |   ✔️    |  ✔️     | ✔️     | ✔️
 
 \* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file!  
 1. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
