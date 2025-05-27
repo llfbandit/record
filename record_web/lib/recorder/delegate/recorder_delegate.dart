@@ -1,10 +1,23 @@
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:web/web.dart' as web;
 
 typedef OnStateChanged = void Function(RecordState state);
+
+class AdjustedConfig {
+  web.AudioContext context;
+  int numChannels;
+  num sampleRate;
+
+  AdjustedConfig({
+    required this.context,
+    required this.numChannels,
+    required this.sampleRate,
+  });
+}
 
 abstract class RecorderDelegate {
   Future<void> dispose();
@@ -41,6 +54,58 @@ abstract class RecorderDelegate {
     );
 
     return web.window.navigator.mediaDevices.getUserMedia(constraints).toDart;
+  }
+
+  AdjustedConfig adjustConfig(
+    web.MediaStream mediaStream,
+    RecordConfig config,
+  ) {
+    final tracks = mediaStream.getAudioTracks().toDart;
+
+    if (tracks.isEmpty) {
+      throw Exception('No tracks. Unable to apply constraints.');
+    }
+
+    // Get actual track properties.
+    final settings = tracks.first.getSettings();
+
+    // Check for sampleRate support (i.e. Firefox)
+    final supportSampleRate = settings.hasProperty('sampleRate'.toJS).toDart;
+
+    final AdjustedConfig result;
+
+    if (supportSampleRate) {
+      result = AdjustedConfig(
+        context: web.AudioContext(
+          web.AudioContextOptions(sampleRate: settings.sampleRate.toDouble()),
+        ),
+        numChannels: settings.channelCount,
+        sampleRate: settings.sampleRate,
+      );
+    } else {
+      final context = web.AudioContext();
+      result = AdjustedConfig(
+        context: context,
+        numChannels: settings.channelCount,
+        sampleRate: context.sampleRate,
+      );
+    }
+
+    if (kDebugMode) {
+      if (!supportSampleRate) {
+        debugPrint(
+          'Browser doesn\'t support sampleRate. Recording may be inaccurate.',
+        );
+      }
+      if (config.numChannels != result.numChannels) {
+        debugPrint('Channels adjusted to ${result.numChannels}');
+      }
+      if (config.sampleRate != result.sampleRate) {
+        debugPrint('Sample rate adjusted to ${result.sampleRate}');
+      }
+    }
+
+    return result;
   }
 
   Future<void> resetContext(

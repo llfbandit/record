@@ -112,47 +112,22 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   Future<void> _start(RecordConfig config, {bool isStream = false}) async {
     final mediaStream = await initMediaStream(config);
-    _mediaStream = mediaStream;
 
-    // TODO: Remove Firefox detection to better handle sample rate support with
-    // track constraints (failed to convert ConstaintULong for now).
-    final isFirefox =
-        web.window.navigator.userAgent.toLowerCase().contains('firefox');
-    final context = switch (isFirefox) {
-      true => web.AudioContext(),
-      false => web.AudioContext(
-          web.AudioContextOptions(sampleRate: config.sampleRate.toDouble()),
-        ),
-    };
+    final effectiveConfig = adjustConfig(mediaStream, config);
 
-    final source = context.createMediaStreamSource(mediaStream);
+    final source = effectiveConfig.context.createMediaStreamSource(mediaStream);
 
-    // TODO Remove record.worklet.js from assets and use it from lib sources.
-    // This will avoid to propagate it on non web platforms.
-    await context.audioWorklet
-        .addModule('assets/packages/record_web/assets/js/record.worklet.js')
-        .toDart;
+    final workletNode = await _createWorkletNode(effectiveConfig);
 
-    final workletNode = web.AudioWorkletNode(
-      context,
-      'recorder.worklet',
-      web.AudioWorkletNodeOptions(
-        parameterData: {
-          'numChannels'.toJS: config.numChannels.toJS,
-          'sampleRate'.toJS: config.sampleRate.toJS,
-        }.jsify()! as JSObject,
-      ),
-    );
-
-    source.connect(workletNode)?.connect(context.destination);
+    source.connect(workletNode)?.connect(effectiveConfig.context.destination);
 
     if (!isStream) {
       _encoder?.cleanup();
 
       if (config.encoder == AudioEncoder.wav) {
         _encoder = WavEncoder(
-          sampleRate: config.sampleRate,
-          numChannels: config.numChannels,
+          sampleRate: effectiveConfig.sampleRate.toInt(),
+          numChannels: effectiveConfig.numChannels,
         );
       } else if (config.encoder == AudioEncoder.pcm16bits) {
         _encoder = PcmEncoder();
@@ -169,10 +144,29 @@ class MicRecorderDelegate extends RecorderDelegate {
 
     _source = source;
     _workletNode = workletNode;
-    _context = context;
+    _context = effectiveConfig.context;
     _mediaStream = mediaStream;
 
     onStateChanged(RecordState.record);
+  }
+
+  Future<web.AudioWorkletNode> _createWorkletNode(AdjustedConfig config) async {
+    // TODO Remove record.worklet.js from assets and use it from lib sources.
+    // This will avoid to propagate it on non web platforms.
+    await config.context.audioWorklet
+        .addModule('assets/packages/record_web/assets/js/record.worklet.js')
+        .toDart;
+
+    return web.AudioWorkletNode(
+      config.context,
+      'recorder.worklet',
+      web.AudioWorkletNodeOptions(
+        parameterData: {
+          'numChannels'.toJS: config.numChannels.toJS,
+          'sampleRate'.toJS: config.sampleRate.toJS,
+        }.jsify()! as JSObject,
+      ),
+    );
   }
 
   void _onMessage(web.MessageEvent event) {

@@ -1,3 +1,6 @@
+## 1.1.7
+* fix: Fallback to browser actual capabilities for PCM & WAVE.
+
 ## 1.1.6
 * fix: Amplitude not reported in WASM mode.
 

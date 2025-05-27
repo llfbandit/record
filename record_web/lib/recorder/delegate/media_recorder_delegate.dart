@@ -231,7 +231,9 @@ class MediaRecorderDelegate extends RecorderDelegate {
   }
 
   void _createAudioContext(RecordConfig config, web.MediaStream stream) {
-    final audioCtx = web.AudioContext();
+    final effectiveConfig = adjustConfig(stream, config);
+
+    final audioCtx = effectiveConfig.context;
 
     final source = audioCtx.createMediaStreamSource(stream);
 
