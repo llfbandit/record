@@ -10,13 +10,13 @@ typedef OnStateChanged = void Function(RecordState state);
 class AdjustedConfig {
   web.AudioContext context;
   int numChannels;
-  num sampleRate;
 
   AdjustedConfig({
     required this.context,
     required this.numChannels,
-    required this.sampleRate,
   });
+
+  num get sampleRate => context.sampleRate;
 }
 
 abstract class RecorderDelegate {
@@ -69,34 +69,12 @@ abstract class RecorderDelegate {
     // Get actual track properties.
     final settings = tracks.first.getSettings();
 
-    // Check for sampleRate support (i.e. Firefox)
-    final supportSampleRate = settings.hasProperty('sampleRate'.toJS).toDart;
-
-    final AdjustedConfig result;
-
-    if (supportSampleRate) {
-      result = AdjustedConfig(
-        context: web.AudioContext(
-          web.AudioContextOptions(sampleRate: settings.sampleRate.toDouble()),
-        ),
-        numChannels: settings.channelCount,
-        sampleRate: settings.sampleRate,
-      );
-    } else {
-      final context = web.AudioContext();
-      result = AdjustedConfig(
-        context: context,
-        numChannels: settings.channelCount,
-        sampleRate: context.sampleRate,
-      );
-    }
+    final result = AdjustedConfig(
+      context: _adjustContext(settings),
+      numChannels: _adjustNumChannels(config, settings),
+    );
 
     if (kDebugMode) {
-      if (!supportSampleRate) {
-        debugPrint(
-          'Browser doesn\'t support sampleRate. Recording may be inaccurate.',
-        );
-      }
       if (config.numChannels != result.numChannels) {
         debugPrint('Channels adjusted to ${result.numChannels}');
       }
@@ -129,8 +107,24 @@ abstract class RecorderDelegate {
           await ctx.close().toDart;
         }
       } catch (e) {
-        debugPrint(e.toString());
+        web.console.warn(e.toString().toJS);
       }
     }
+  }
+
+  web.AudioContext _adjustContext(web.MediaTrackSettings settings) {
+    // Check for sampleRate support (i.e. Firefox)
+    return settings.hasProperty('sampleRate'.toJS).toDart
+        ? web.AudioContext(
+            web.AudioContextOptions(sampleRate: settings.sampleRate.toDouble()),
+          )
+        : web.AudioContext();
+  }
+
+  int _adjustNumChannels(RecordConfig config, web.MediaTrackSettings settings) {
+    // Check for channelCount support (i.e. Safari)
+    return settings.hasProperty('channelCount'.toJS).toDart
+        ? settings.channelCount
+        : config.numChannels;
   }
 }
