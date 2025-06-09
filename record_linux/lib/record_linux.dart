@@ -175,7 +175,7 @@ class RecordLinux extends RecordPlatform {
 
   @override
   Stream<RecordState> onStateChanged(String recorderId) {
-    _stateStreamCtrl ??= StreamController();
+    _stateStreamCtrl ??= StreamController<RecordState>.broadcast();
     return _stateStreamCtrl!.stream;
   }
 
