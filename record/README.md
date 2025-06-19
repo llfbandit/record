@@ -89,6 +89,7 @@ record.dispose(); // As always, don't forget this one.
 - min SDK: 23 (amrNb/amrWb: 26, Opus: 29)
 
 ### iOS
+Add this to the Info.plist file:
 ```xml
 <key>NSMicrophoneUsageDescription</key>
 <string>Some message to describe why you need this permission</string>
@@ -96,6 +97,7 @@ record.dispose(); // As always, don't forget this one.
 - min SDK: 12.0
 
 ### macOS
+Add this to the Info.plist file:
 ```xml
 <key>NSMicrophoneUsageDescription</key>
 <string>Some message to describe why you need this permission</string>
