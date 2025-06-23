@@ -57,6 +57,7 @@ class AndroidRecordConfig {
     this.audioManagerMode = AudioManagerMode.modeNormal,
   });
 
+  /// Transforms model to JSON map.
   Map<String, dynamic> toMap() {
     return {
       'useLegacy': useLegacy,

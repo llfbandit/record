@@ -1,3 +1,6 @@
+## 1.3.0
+* feat: Add `audioManagerMode` and `speakerphone` options to `AndroidRecordConfig`.
+
 ## 1.2.0
 * feat: Add `IosRecordConfig`.
 * feat: Update `AndroidRecordConfig`.
