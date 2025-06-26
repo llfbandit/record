@@ -23,9 +23,11 @@ class RecordLinux extends RecordPlatform {
   Future<void> create(String recorderId) async {}
 
   @override
-  Future<void> dispose(String recorderId) {
-    _stateStreamCtrl?.close();
-    return stop(recorderId);
+  Future<void> dispose(String recorderId) async {
+    await _stateStreamCtrl?.close();
+    _stateStreamCtrl = null;
+
+    await stop(recorderId);
   }
 
   @override
@@ -175,7 +177,7 @@ class RecordLinux extends RecordPlatform {
 
   @override
   Stream<RecordState> onStateChanged(String recorderId) {
-    _stateStreamCtrl ??= StreamController();
+    _stateStreamCtrl ??= StreamController.broadcast();
     return _stateStreamCtrl!.stream;
   }
 
@@ -367,8 +369,8 @@ class RecordLinux extends RecordPlatform {
 
     _state = state;
 
-    if (_stateStreamCtrl?.hasListener ?? false) {
-      _stateStreamCtrl?.add(state);
+    if (_stateStreamCtrl case final controller? when controller.hasListener) {
+      controller.add(state);
     }
   }
 }

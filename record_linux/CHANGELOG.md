@@ -1,3 +1,6 @@
+## 1.1.1
+* fix: nullify state stream controller when disposing and make it as broadcast controller.
+
 ## 1.1.0
 * feat: Allow pcm16bits streaming.
 * chore: code cleanup.
