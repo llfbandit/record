@@ -30,7 +30,7 @@ External dependencies:
 | aacHe           | ✔️            |         |   ?     |         |         |   
 | amrNb           | ✔️            |         |  ?      |   ✔️    |         |  
 | amrWb           | ✔️            |         |  ?      |          |        |  
-| opus            | ✔️            |   ✔️    |  ?       |         |         |  ✔️ 
+| opus            | ✔️            |   ✔️ 4    |  ?       |         |         |  ✔️ 
 | wav             | ✔️ 2          |   ✔️    |   ✔️   |    ✔️    |   ✔️  |   ✔️ 
 | flac            | ✔️ 2          |    ✔️    |  ?     |  ✔️     |   ✔️   |   ✔️
 | pcm16bits       | ✔️ 2          |   ✔️    |  ✔️    |   ✔️    |  ✔️    |  
@@ -57,6 +57,7 @@ wav and pcm16bits are provided by the package directly.
 1. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
 2. Unsupported on legacy Android recorder.
 3. Stream mode only.
+4. Opus in CAF container. This means that your file will be playable only on iOS platforms.
 
 ## Usage
 
