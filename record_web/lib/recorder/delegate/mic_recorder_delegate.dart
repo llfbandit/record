@@ -113,21 +113,21 @@ class MicRecorderDelegate extends RecorderDelegate {
   Future<void> _start(RecordConfig config, {bool isStream = false}) async {
     final mediaStream = await initMediaStream(config);
 
-    final effectiveConfig = adjustConfig(mediaStream, config);
+    final context = getContext(mediaStream, config);
 
-    final source = effectiveConfig.context.createMediaStreamSource(mediaStream);
+    final source = context.createMediaStreamSource(mediaStream);
 
-    final workletNode = await _createWorkletNode(effectiveConfig);
+    final workletNode = await _createWorkletNode(context, config);
 
-    source.connect(workletNode)?.connect(effectiveConfig.context.destination);
+    source.connect(workletNode)?.connect(context.destination);
 
     if (!isStream) {
       _encoder?.cleanup();
 
       if (config.encoder == AudioEncoder.wav) {
         _encoder = WavEncoder(
-          sampleRate: effectiveConfig.sampleRate.toInt(),
-          numChannels: effectiveConfig.numChannels,
+          sampleRate: config.sampleRate.toInt(),
+          numChannels: config.numChannels,
         );
       } else if (config.encoder == AudioEncoder.pcm16bits) {
         _encoder = PcmEncoder();
@@ -144,21 +144,22 @@ class MicRecorderDelegate extends RecorderDelegate {
 
     _source = source;
     _workletNode = workletNode;
-    _context = effectiveConfig.context;
+    _context = context;
     _mediaStream = mediaStream;
 
     onStateChanged(RecordState.record);
   }
 
-  Future<web.AudioWorkletNode> _createWorkletNode(AdjustedConfig config) async {
-    // TODO Remove record.worklet.js from assets and use it from lib sources.
-    // This will avoid to propagate it on non web platforms.
-    await config.context.audioWorklet
+  Future<web.AudioWorkletNode> _createWorkletNode(
+    web.AudioContext context,
+    RecordConfig config,
+  ) async {
+    await context.audioWorklet
         .addModule('assets/packages/record_web/assets/js/record.worklet.js')
         .toDart;
 
     return web.AudioWorkletNode(
-      config.context,
+      context,
       'recorder.worklet',
       web.AudioWorkletNodeOptions(
         parameterData: {

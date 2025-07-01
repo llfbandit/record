@@ -83,7 +83,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
     for (let channel = 0; channel < this._numChannels; channel++) {
       // Push a copy of the array.
       // The underlying implementation may reuse it which will break the recording.
-      this._buffers[channel].push([...input[channel]])
+      this._buffers[channel].push([...input[channel % input.length]])
     }
 
     this._bytesWritten += input[0].length

@@ -60,14 +60,7 @@ abstract class RecorderDelegate {
     web.MediaStream mediaStream,
     RecordConfig config,
   ) {
-    final tracks = mediaStream.getAudioTracks().toDart;
-
-    if (tracks.isEmpty) {
-      throw Exception('No tracks. Unable to apply constraints.');
-    }
-
-    // Get actual track properties.
-    final settings = tracks.first.getSettings();
+    final settings = _getTrackSettings(mediaStream);
 
     final result = AdjustedConfig(
       context: _adjustContext(settings),
@@ -84,6 +77,14 @@ abstract class RecorderDelegate {
     }
 
     return result;
+  }
+
+  web.AudioContext getContext(
+    web.MediaStream mediaStream,
+    RecordConfig config,
+  ) {
+    final settings = _getTrackSettings(mediaStream);
+    return _adjustContext(settings);
   }
 
   Future<void> resetContext(
@@ -110,6 +111,17 @@ abstract class RecorderDelegate {
         web.console.warn(e.toString().toJS);
       }
     }
+  }
+
+  /// Get actual track properties.
+  web.MediaTrackSettings _getTrackSettings(web.MediaStream mediaStream) {
+    final tracks = mediaStream.getAudioTracks().toDart;
+
+    if (tracks.isEmpty) {
+      throw Exception('No tracks. Unable to apply constraints.');
+    }
+
+    return tracks.first.getSettings();
   }
 
   web.AudioContext _adjustContext(web.MediaTrackSettings settings) {

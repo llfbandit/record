@@ -1,3 +1,6 @@
+## 1.1.9
+* fix: (Regression on) Fallback to browser actual capabilities for sampleRate when using stream.
+
 ## 1.1.8
 * fix: Fallback to browser actual capabilities for channelCount.
 
