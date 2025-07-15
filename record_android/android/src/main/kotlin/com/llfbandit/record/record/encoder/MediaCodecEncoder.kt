@@ -155,10 +155,23 @@ class MediaCodecEncoder(
 
     private fun processOutputBuffer(codec: MediaCodec, index: Int, info: MediaCodec.BufferInfo) {
         try {
-            val outputBuffer = codec.getOutputBuffer(index)
-            if (outputBuffer != null) {
-                mContainer?.writeSampleData(mContainerTrack, outputBuffer, info)
+            val isCodecConfig = (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0
+            if (isCodecConfig) {
+                // The CSD is passed to muxer in MediaFormat.
+                // So we ignore it.
+            } else if (info.size != 0) { // Should not write 0-sized buffer
+                val outputBuffer = codec.getOutputBuffer(index)
+                if (outputBuffer != null && mContainer != null) {
+                    if (mContainer!!.isStream()) {
+                        listener.onEncoderStream(
+                            mContainer!!.writeStream(mContainerTrack, outputBuffer, info)
+                        )
+                    } else {
+                        mContainer!!.writeSampleData(mContainerTrack, outputBuffer, info)
+                    }
+                }
             }
+
             codec.releaseOutputBuffer(index, false)
 
             if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
