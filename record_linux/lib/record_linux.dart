@@ -98,11 +98,13 @@ class RecordLinux extends RecordPlatform {
 
     _deleteFile(path);
 
-    // Always get raw PCM output from parecord for amplitude monitoring
+    // Step 1: Use parecord to capture raw PCM audio from the microphone
+    // We always capture raw PCM (not encoded) so we can calculate amplitude
     final args = _getParecordArgs(config, path: null, canEncode: false);
     _parecordProcess = await Process.start(_parecordBin, args);
 
-    // Always use ffmpeg for encoding to ensure consistent output
+    // Step 2: Pipe the raw PCM through amplitude monitoring to ffmpeg for encoding
+    // parecord (capture) -> amplitude calculation -> ffmpeg (encode to file)
     _startFfmpegWithAmplitudeMonitoring(config, _parecordProcess!, path);
 
     _path = path;
@@ -390,6 +392,12 @@ class RecordLinux extends RecordPlatform {
   }
 
 
+  /// Sets up ffmpeg to encode audio while monitoring amplitude.
+  /// 
+  /// Audio flow: parecord (capture) -> amplitude calculation -> ffmpeg (encode)
+  /// - parecord: Captures raw PCM audio from the microphone
+  /// - amplitude calculation: Analyzes PCM samples for VU meter (doesn't modify audio)
+  /// - ffmpeg: Encodes the PCM data to the desired format (AAC, WAV, FLAC, etc.)
   Future<void> _startFfmpegWithAmplitudeMonitoring(
     RecordConfig config,
     Process parecordProc,
@@ -416,10 +424,12 @@ class RecordLinux extends RecordPlatform {
       }
     });
     
-    // Create a passthrough stream that calculates amplitude
+    // Create a passthrough stream controller to intercept audio data
     _amplitudeStreamController = StreamController<List<int>>();
     
-    // Listen to parecord output, calculate amplitude, and forward to our controller
+    // Listen to raw PCM data from parecord:
+    // 1. Calculate amplitude for VU meter
+    // 2. Forward the unchanged PCM data to our stream controller
     parecordProc.stdout.listen((data) {
       _calculateAmplitude(Uint8List.fromList(data));
       if (!_amplitudeStreamController!.isClosed) {
@@ -429,7 +439,8 @@ class RecordLinux extends RecordPlatform {
       _amplitudeStreamController?.close();
     });
     
-    // Pipe the amplitude stream to ffmpeg (this handles backpressure properly)
+    // Pipe the PCM data from our controller to ffmpeg for encoding
+    // This uses pipe() for proper backpressure handling
     _amplitudeStreamController!.stream.pipe(_ffmpegProcess!.stdin);
   }
 }
