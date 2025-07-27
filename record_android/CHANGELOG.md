@@ -1,3 +1,6 @@
+## next
+* fix: malformed AAC on Android.
+
 ## 1.3.3
 * fix: Gradle compile SDK to 34.
 
