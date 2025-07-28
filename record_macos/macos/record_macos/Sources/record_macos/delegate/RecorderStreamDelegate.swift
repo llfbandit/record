@@ -29,6 +29,11 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
         )
       }
     }
+
+    // Set up voice processing on macOS before getting the format if echo cancel or auto gain is to be applied
+    if config.echoCancel || config.autoGain {
+      try setVoiceProcessing(echoCancel: config.echoCancel, autoGain: config.autoGain, audioEngine: audioEngine)
+    }
     
     let srcFormat = audioEngine.inputNode.inputFormat(forBus: 0)
     
@@ -127,41 +132,71 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     
     return bytes
   }
-  
+
   private func stream(
     buffer: AVAudioPCMBuffer,
     dstFormat: AVAudioFormat,
     converter: AVAudioConverter,
     recordEventHandler: RecordStreamHandler
   ) -> Void {
+    let bufferToConvert: AVAudioPCMBuffer
+    let converterToUse: AVAudioConverter
+
+    if buffer.format.channelCount > 1 {
+      // Create a mono version of the buffer and a new converter for it
+      guard let monoFormat = AVAudioFormat(
+        commonFormat: .pcmFormatFloat32,
+        sampleRate: buffer.format.sampleRate,
+        channels: 1,
+        interleaved: false
+      ) else { return }
+
+      guard let monoBuffer = AVAudioPCMBuffer(pcmFormat: monoFormat, frameCapacity: buffer.frameLength) else { return }
+      monoBuffer.frameLength = buffer.frameLength
+
+      // Copy the first channel
+      if let src = buffer.floatChannelData, let dst = monoBuffer.floatChannelData {
+          memcpy(dst[0], src[0], Int(buffer.frameLength) * MemoryLayout<Float>.size)
+      }
+
+      guard let monoConverter = AVAudioConverter(from: monoFormat, to: dstFormat) else { return }
+      monoConverter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
+
+      bufferToConvert = monoBuffer
+      converterToUse = monoConverter
+    } else {
+      bufferToConvert = buffer
+      converterToUse = converter
+    }
+
     let inputCallback: AVAudioConverterInputBlock = { inNumPackets, outStatus in
       outStatus.pointee = .haveData
-      return buffer
+      return bufferToConvert
     }
-    
+
     // Determine frame capacity
-    let capacity = (UInt32(dstFormat.sampleRate) * dstFormat.channelCount * buffer.frameLength) / (UInt32(buffer.format.sampleRate) * buffer.format.channelCount)
-    
+    let capacity = AVAudioFrameCount(Double(bufferToConvert.frameLength) * dstFormat.sampleRate / bufferToConvert.format.sampleRate)
+
     // Destination buffer
     guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: dstFormat, frameCapacity: capacity) else {
       print("Unable to create output buffer")
       stop { path in }
       return
     }
-    
+
     // Convert input buffer (resample, num channels)
     var error: NSError? = nil
-    converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputCallback)
+    converterToUse.convert(to: convertedBuffer, error: &error, withInputFrom: inputCallback)
     if error != nil {
       return
     }
-    
+
     if let channelData = convertedBuffer.int16ChannelData {
       // Fill samples
       let channelDataPointer = channelData.pointee
       let samples = stride(from: 0,
                            to: Int(convertedBuffer.frameLength),
-                           by: buffer.stride).map{ channelDataPointer[$0] }
+                           by: convertedBuffer.stride).map{ channelDataPointer[$0] }
 
       // Update current amplitude
       updateAmplitude(samples)
@@ -169,14 +204,14 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       // Send bytes
       if let eventSink = recordEventHandler.eventSink {
         let bytes = Data(_: convertInt16toUInt8(samples))
-        
+
         DispatchQueue.main.async {
           eventSink(FlutterStandardTypedData(bytes: bytes))
         }
       }
     }
   }
-  
+
   // Set up AGC & echo cancel
   private func setVoiceProcessing(echoCancel: Bool, autoGain: Bool, audioEngine: AVAudioEngine) throws {
     do {
