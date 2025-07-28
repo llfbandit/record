@@ -1,6 +1,7 @@
 ## 6.1.0
 * feat: Add AudioInterruptionMode to `RecordConfig`.
 * feat: Add stream buffer size option.
+* fix: See dedicated packages for more info.
 * chore: Updated transitive dependencies.
 
 ## 6.0.0
