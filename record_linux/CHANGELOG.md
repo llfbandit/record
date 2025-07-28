@@ -1,3 +1,6 @@
+## 1.2.0
+* feat: Implement amplitude (dBFS)
+
 ## 1.1.1
 * fix: nullify state stream controller when disposing and make it as broadcast controller.
 
