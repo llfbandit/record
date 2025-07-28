@@ -3,6 +3,8 @@ import Foundation
 import Flutter
 
 class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
+  var config: RecordConfig?
+  
   private var audioEngine: AVAudioEngine?
   private var amplitude: Float = -160.0
   private let bus = 0
@@ -72,6 +74,8 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     try audioEngine.start()
     
     self.audioEngine = audioEngine
+    
+    self.config = config
   }
   
   func stop(completionHandler: @escaping (String?) -> ()) {
@@ -89,6 +93,8 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     
     completionHandler(nil)
     onStop()
+    
+    config = nil
   }
   
   func pause() {

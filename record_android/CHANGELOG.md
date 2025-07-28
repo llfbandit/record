@@ -1,4 +1,5 @@
 ## next
+* feat: Add AudioInterruptionMode to `RecordConfig`.
 * fix: malformed AAC on Android.
 
 ## 1.3.3

@@ -2,6 +2,8 @@ import AVFoundation
 import Foundation
 
 class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorderDelegate {
+  var config: RecordConfig?
+  
   private var audioRecorder: AVAudioRecorder?
   private var path: String?
   private var onPause: () -> ()
@@ -29,6 +31,7 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
     
     audioRecorder = recorder
     self.path = path
+    self.config = config
   }
 
   func stop(completionHandler: @escaping (String?) -> ()) {
@@ -39,6 +42,7 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
     onStop()
     
     path = nil
+    config = nil
   }
   
   func pause() {

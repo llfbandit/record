@@ -60,6 +60,14 @@ class RecordConfig {
   /// iOS specific configuration.
   final IosRecordConfig iosConfig;
 
+  /// Recorder behaviour when audio is interrupted by another source.
+  ///
+  /// System alerts are ignored.
+  /// Some other sources may not be detected (e.g. browser).
+  ///
+  /// Platforms: Android & iOS.
+  final AudioInterruptionMode audioInterruption;
+
   const RecordConfig({
     this.encoder = AudioEncoder.aacLc,
     this.bitRate = 128000,
@@ -71,6 +79,7 @@ class RecordConfig {
     this.noiseSuppress = false,
     this.androidConfig = const AndroidRecordConfig(),
     this.iosConfig = const IosRecordConfig(),
+    this.audioInterruption = AudioInterruptionMode.pause,
   });
 
   Map<String, dynamic> toMap() {
@@ -85,6 +94,7 @@ class RecordConfig {
       'noiseSuppress': noiseSuppress,
       'androidConfig': androidConfig.toMap(),
       'iosConfig': iosConfig.toMap(),
+      'audioInterruption': audioInterruption.index,
     };
   }
 }

@@ -1,3 +1,6 @@
+## 1.4.0
+* feat: Add AudioInterruptionMode to `RecordConfig`.
+
 ## 1.3.0
 * feat: Add `audioManagerMode` and `speakerphone` options to `AndroidRecordConfig`.
 

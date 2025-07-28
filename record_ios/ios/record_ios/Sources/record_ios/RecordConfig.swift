@@ -12,6 +12,12 @@ public enum AudioEncoder: String {
   case wav = "wav"
 }
 
+public enum AudioInterruptionMode: Int {
+  case none = 0
+  case pause = 1
+  case pauseResume = 2
+}
+
 public class RecordConfig {
   let encoder: String
   let bitRate: Int
@@ -22,6 +28,7 @@ public class RecordConfig {
   let echoCancel: Bool
   let noiseSuppress: Bool
   let iosConfig: IosConfig?
+  let audioInterruption: AudioInterruptionMode
 
   init(encoder: String,
        bitRate: Int,
@@ -31,7 +38,8 @@ public class RecordConfig {
        autoGain: Bool = false,
        echoCancel: Bool = false,
        noiseSuppress: Bool = false,
-       iosConfig: IosConfig? = nil
+       iosConfig: IosConfig? = nil,
+       audioInterruption: AudioInterruptionMode = AudioInterruptionMode.pause
   ) {
     self.encoder = encoder
     self.bitRate = bitRate
@@ -42,6 +50,7 @@ public class RecordConfig {
     self.echoCancel = echoCancel
     self.noiseSuppress = noiseSuppress
     self.iosConfig = iosConfig
+    self.audioInterruption = audioInterruption
   }
 }
 

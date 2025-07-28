@@ -25,18 +25,19 @@ class AacFormat : Format() {
             setInteger(MediaFormat.KEY_BIT_RATE, config.bitRate)
 
             // Specifics
-            when (config.encoder) {
-                AudioEncoder.aacLc -> setInteger(
+            @Suppress("CascadeIf")
+            if (config.encoder == AudioEncoder.AacLc) {
+                setInteger(
                     MediaFormat.KEY_AAC_PROFILE,
                     MediaCodecInfo.CodecProfileLevel.AACObjectLC
                 )
-
-                AudioEncoder.aacEld -> setInteger(
+            } else if (config.encoder == AudioEncoder.AacEld) {
+                setInteger(
                     MediaFormat.KEY_AAC_PROFILE,
                     MediaCodecInfo.CodecProfileLevel.AACObjectELD
                 )
-
-                AudioEncoder.aacHe -> setInteger(
+            } else if (config.encoder == AudioEncoder.AacHe) {
+                setInteger(
                     MediaFormat.KEY_AAC_PROFILE,
                     MediaCodecInfo.CodecProfileLevel.AACObjectHE
                 )

@@ -28,12 +28,12 @@ object AudioFormats {
 
     fun getMimeType(encoder: String?): String? {
         return when (encoder) {
-            AudioEncoder.aacLc, AudioEncoder.aacEld, AudioEncoder.aacHe -> MediaFormat.MIMETYPE_AUDIO_AAC
-            AudioEncoder.amrNb -> MediaFormat.MIMETYPE_AUDIO_AMR_NB
-            AudioEncoder.amrWb -> MediaFormat.MIMETYPE_AUDIO_AMR_WB
-            AudioEncoder.wav, AudioEncoder.pcm16bits -> MediaFormat.MIMETYPE_AUDIO_RAW
-            AudioEncoder.opus -> MediaFormat.MIMETYPE_AUDIO_OPUS
-            AudioEncoder.flac -> MediaFormat.MIMETYPE_AUDIO_FLAC
+            AudioEncoder.AacLc.value, AudioEncoder.AacEld.value, AudioEncoder.AacHe.value -> MediaFormat.MIMETYPE_AUDIO_AAC
+            AudioEncoder.AmrNb.value -> MediaFormat.MIMETYPE_AUDIO_AMR_NB
+            AudioEncoder.AmrWb.value -> MediaFormat.MIMETYPE_AUDIO_AMR_WB
+            AudioEncoder.Wav.value, AudioEncoder.Pcm16bits.value -> MediaFormat.MIMETYPE_AUDIO_RAW
+            AudioEncoder.Opus.value -> MediaFormat.MIMETYPE_AUDIO_OPUS
+            AudioEncoder.Flac.value -> MediaFormat.MIMETYPE_AUDIO_FLAC
             else -> null
         }
     }
