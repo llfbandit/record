@@ -1,3 +1,8 @@
+## 6.1.0
+* feat: Add AudioInterruptionMode to `RecordConfig`.
+* feat: Add stream buffer size option.
+* chore: Updated transitive dependencies.
+
 ## 6.0.0
 * feat: Make all streams as broadcast streams.
 * chore: Split iOS & macOS platforms.

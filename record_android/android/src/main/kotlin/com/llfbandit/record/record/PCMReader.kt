@@ -85,7 +85,7 @@ class PCMReader(
     @Throws(Exception::class)
     private fun createReader(): AudioRecord {
         val sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-        bufferSize = getMinBufferSize(sampleRate, channels, audioFormat)
+        bufferSize = config.streamBufferSize ?: getMinBufferSize(sampleRate, channels, audioFormat)
 
         val reader = try {
             AudioRecord(

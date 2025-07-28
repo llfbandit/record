@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  record_platform_interface: ^1.2.0
+  record_platform_interface: ^1.4.0
 
 flutter:
   plugin:

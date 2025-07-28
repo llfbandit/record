@@ -201,7 +201,8 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
       echoCancel: args["echoCancel"] as? Bool ?? false,
       noiseSuppress: args["noiseSuppress"] as? Bool ?? false,
       iosConfig: iosConfig,
-      audioInterruption: audioInterruption
+      audioInterruption: audioInterruption,
+      streamBufferSize: args["streamBufferSize"] as? Int
     )
     
     return config

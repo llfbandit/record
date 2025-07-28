@@ -21,6 +21,7 @@ class RecordConfig(
     val speakerphone: Boolean = false,
     val audioManagerMode: Int = AudioManager.MODE_NORMAL,
     audioInterruption: Int,
+    val streamBufferSize: Int?
 ) {
     val numChannels: Int = 2.coerceAtMost(1.coerceAtLeast(numChannels))
     val audioInterruption: AudioInterruption = when (audioInterruption) {

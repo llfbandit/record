@@ -187,6 +187,7 @@ class MethodCallHandlerImpl(
             Utils.firstNonNull(androidConfig?.get("speakerphone") as Boolean?, false),
             audioManagerMode,
             Utils.firstNonNull(call.argument("audioInterruption"), AudioInterruption.PAUSE.ordinal),
+            call.argument("streamBufferSize")
         )
     }
 }

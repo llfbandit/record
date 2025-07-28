@@ -29,6 +29,7 @@ public class RecordConfig {
   let noiseSuppress: Bool
   let iosConfig: IosConfig?
   let audioInterruption: AudioInterruptionMode
+  let streamBufferSize: Int?
 
   init(encoder: String,
        bitRate: Int,
@@ -39,7 +40,8 @@ public class RecordConfig {
        echoCancel: Bool = false,
        noiseSuppress: Bool = false,
        iosConfig: IosConfig? = nil,
-       audioInterruption: AudioInterruptionMode = AudioInterruptionMode.pause
+       audioInterruption: AudioInterruptionMode = AudioInterruptionMode.pause,
+       streamBufferSize: Int?
   ) {
     self.encoder = encoder
     self.bitRate = bitRate
@@ -51,6 +53,7 @@ public class RecordConfig {
     self.noiseSuppress = noiseSuppress
     self.iosConfig = iosConfig
     self.audioInterruption = audioInterruption
+    self.streamBufferSize = streamBufferSize
   }
 }
 

@@ -21,6 +21,7 @@ public class RecordConfig {
   let autoGain: Bool
   let echoCancel: Bool
   let noiseSuppress: Bool
+  let streamBufferSize: Int?
 
   init(encoder: String,
        bitRate: Int,
@@ -29,7 +30,8 @@ public class RecordConfig {
        device: Device? = nil,
        autoGain: Bool = false,
        echoCancel: Bool = false,
-       noiseSuppress: Bool = false
+       noiseSuppress: Bool = false,
+       streamBufferSize: Int?
   ) {
     self.encoder = encoder
     self.bitRate = bitRate
@@ -39,6 +41,7 @@ public class RecordConfig {
     self.autoGain = autoGain
     self.echoCancel = echoCancel
     self.noiseSuppress = noiseSuppress
+    self.streamBufferSize = streamBufferSize
   }
 }
 

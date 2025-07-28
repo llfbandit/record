@@ -183,7 +183,8 @@ public class RecordMacOsPlugin: NSObject, FlutterPlugin {
       device: device,
       autoGain: args["autoGain"] as? Bool ?? false,
       echoCancel: args["echoCancel"] as? Bool ?? false,
-      noiseSuppress: args["noiseSuppress"] as? Bool ?? false
+      noiseSuppress: args["noiseSuppress"] as? Bool ?? false,
+      streamBufferSize: args["streamBufferSize"] as? Int
     )
     
     return config

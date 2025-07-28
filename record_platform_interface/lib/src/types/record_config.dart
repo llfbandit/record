@@ -68,6 +68,13 @@ class RecordConfig {
   /// Platforms: Android & iOS.
   final AudioInterruptionMode audioInterruption;
 
+  /// Useful for those who need finer data when streaming.
+  ///
+  /// Underlying implementations may adjust to other value or throw exception if under miminum size required.
+  ///
+  /// Platforms: Android, iOS, macOS & web.
+  final int? streamBufferSize;
+
   const RecordConfig({
     this.encoder = AudioEncoder.aacLc,
     this.bitRate = 128000,
@@ -80,6 +87,7 @@ class RecordConfig {
     this.androidConfig = const AndroidRecordConfig(),
     this.iosConfig = const IosRecordConfig(),
     this.audioInterruption = AudioInterruptionMode.pause,
+    this.streamBufferSize,
   });
 
   Map<String, dynamic> toMap() {
@@ -95,6 +103,7 @@ class RecordConfig {
       'androidConfig': androidConfig.toMap(),
       'iosConfig': iosConfig.toMap(),
       'audioInterruption': audioInterruption.index,
+      'streamBufferSize': streamBufferSize,
     };
   }
 }

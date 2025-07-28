@@ -16,11 +16,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
 
   func start(config: RecordConfig, recordEventHandler: RecordStreamHandler) throws {
     let audioEngine = AVAudioEngine()
-    
-#if os(iOS)
-    try initAVAudioSession(config: config)
-    try setVoiceProcessing(echoCancel: config.echoCancel, autoGain: config.autoGain, audioEngine: audioEngine)
-#else
+
     // set input device to the node
     if let deviceId = config.device?.id,
        let inputDeviceId = getAudioDeviceIDFromUID(uid: deviceId) {
@@ -33,7 +29,6 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
         )
       }
     }
-#endif
     
     let srcFormat = audioEngine.inputNode.inputFormat(forBus: 0)
     
@@ -59,7 +54,11 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     }
     converter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
     
-    audioEngine.inputNode.installTap(onBus: bus, bufferSize: 2048, format: srcFormat) { (buffer, _) -> Void in
+    audioEngine.inputNode.installTap(
+      onBus: bus,
+      bufferSize: AVAudioFrameCount(config.streamBufferSize ?? 1024),
+      format: srcFormat) { (buffer, _) -> Void in
+
       self.stream(
         buffer: buffer,
         dstFormat: dstFormat,
@@ -75,14 +74,6 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   }
   
   func stop(completionHandler: @escaping (String?) -> ()) {
-    #if os(iOS)
-    if let audioEngine = audioEngine {
-      do {
-        try setVoiceProcessing(echoCancel: false, autoGain: false, audioEngine: audioEngine)
-      } catch {}
-    }
-    #endif
-    
     audioEngine?.inputNode.removeTap(onBus: bus)
     audioEngine?.stop()
     audioEngine = nil
