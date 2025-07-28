@@ -1,3 +1,8 @@
+## 1.4.0
+* feat: Add AudioInterruptionMode to `RecordConfig`.
+* feat: Add stream buffer size option.
+* fix: malformed AAC on Android.
+
 ## 1.3.3
 * fix: Gradle compile SDK to 34.
 

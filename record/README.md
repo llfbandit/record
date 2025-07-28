@@ -14,7 +14,7 @@ External dependencies:
 | Feature          | Android       | iOS             | web     | Windows    | macOS  | linux
 |------------------|---------------|-----------------|---------|------------|-------|-----------
 | pause/resume     | ✔️            |   ✔️             | ✔️     |      ✔️    | ✔️    |  ✔️
-| amplitude(dBFS)  | ✔️            |   ✔️             |  ✔️     |    ✔️     |  ✔️   |
+| amplitude(dBFS)  | ✔️            |   ✔️             |  ✔️     |    ✔️     |  ✔️   |  ✔️
 | permission check | ✔️            |   ✔️             |  ✔️    |            |  ✔️   |
 | num of channels  | ✔️            |   ✔️             |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | device selection | ✔️ 1 / 2      | (auto BT/mic)    |  ✔️    |    ✔️      |  ✔️   |  ✔️

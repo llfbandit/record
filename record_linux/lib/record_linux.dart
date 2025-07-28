@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'package:record_platform_interface/record_platform_interface.dart';
@@ -18,6 +19,9 @@ class RecordLinux extends RecordPlatform {
   StreamController<RecordState>? _stateStreamCtrl;
   Process? _parecordProcess;
   Process? _ffmpegProcess;
+  StreamController<List<int>>? _amplitudeStreamController;
+  double _currentAmplitude = -160.0;
+  double _maxAmplitude = -160.0;
 
   @override
   Future<void> create(String recorderId) async {}
@@ -32,7 +36,7 @@ class RecordLinux extends RecordPlatform {
 
   @override
   Future<Amplitude> getAmplitude(String recorderId) {
-    return Future.value(Amplitude(current: -160.0, max: -160.0));
+    return Future.value(Amplitude(current: _currentAmplitude, max: _maxAmplitude));
   }
 
   @override
@@ -94,19 +98,14 @@ class RecordLinux extends RecordPlatform {
 
     _deleteFile(path);
 
-    bool isParecordEncoder = _isParecordEncoder(config);
-
-    final args = _getParecordArgs(
-      config,
-      path: path,
-      canEncode: isParecordEncoder,
-    );
+    // Step 1: Use parecord to capture raw PCM audio from the microphone
+    // We always capture raw PCM (not encoded) so we can calculate amplitude
+    final args = _getParecordArgs(config, path: null, canEncode: false);
     _parecordProcess = await Process.start(_parecordBin, args);
 
-    // Only use ffmpeg when parecord can't encode.
-    if (!isParecordEncoder) {
-      _startFfmpeg(config, _parecordProcess!, path);
-    }
+    // Step 2: Pipe the raw PCM through amplitude monitoring to ffmpeg for encoding
+    // parecord (capture) -> amplitude calculation -> ffmpeg (encode to file)
+    _startFfmpegWithAmplitudeMonitoring(config, _parecordProcess!, path);
 
     _path = path;
     _updateState(RecordState.record);
@@ -125,7 +124,10 @@ class RecordLinux extends RecordPlatform {
     _updateState(RecordState.record);
 
     return _parecordProcess!.stdout.map((list) {
-      return (list is Uint8List) ? list : Uint8List.fromList(list);
+      final data = (list is Uint8List) ? list : Uint8List.fromList(list);
+      // Calculate amplitude from PCM data
+      _calculateAmplitude(data);
+      return data;
     });
   }
 
@@ -133,10 +135,27 @@ class RecordLinux extends RecordPlatform {
   Future<String?> stop(String recorderId) async {
     final path = _path;
 
+    // Close amplitude stream controller
+    await _amplitudeStreamController?.close();
+    _amplitudeStreamController = null;
+
+    // Kill parecord first
     _parecordProcess?.kill();
     _parecordProcess = null;
-    _ffmpegProcess = null;
+
+    // Close ffmpeg stdin and wait for it to finish
+    if (_ffmpegProcess != null) {
+      await _ffmpegProcess!.stdin.close();
+      // Wait for ffmpeg to finish writing
+      await _ffmpegProcess!.exitCode;
+      _ffmpegProcess = null;
+    }
+
     _path = null;
+
+    // Reset amplitude values
+    _currentAmplitude = -160.0;
+    _maxAmplitude = -160.0;
 
     _updateState(RecordState.stop);
 
@@ -197,13 +216,7 @@ class RecordLinux extends RecordPlatform {
     }
   }
 
-  bool _isParecordEncoder(RecordConfig config) {
-    bool parecordCanEncode = switch (config.encoder) {
-      AudioEncoder.flac || AudioEncoder.wav || AudioEncoder.pcm16bits => true,
-      _ => false
-    };
-    return parecordCanEncode;
-  }
+
 
   List<String> _getParecordArgs(
     RecordConfig config, {
@@ -235,46 +248,20 @@ class RecordLinux extends RecordPlatform {
     return config.numChannels.clamp(1, 2);
   }
 
-  Future<void> _startFfmpeg(
-    RecordConfig config,
-    Process parecordProc,
-    String path,
-  ) async {
-    /// Constructs the arguments for the FFmpeg command.
-    ///
-    /// The arguments include:
-    /// - `-f`: Specifies the format of the input data. In this case, 's16le' which stands for signed 16-bit little-endian.
-    /// - `-ar`: Sets the audio sampling rate. The value is obtained from `config.sampleRate`.
-    /// - `-ac`: Sets the number of audio channels. The value is provided by `numChannels`.
-    /// - `-i`: Specifies the input file. Here, '-' indicates that the input is from standard input (stdin) from the parecord Process.
-    /// - `_getFfmpegEncoderSettings`: A function that returns additional encoder settings based on the provided encoder type, output path, and bit rate.
-    final ffmpegArgs = [
-      '-f',
-      's16le',
-      '-ar',
-      config.sampleRate.toString(),
-      '-ac',
-      '${_getNumChannels(config)}',
-      '-i',
-      '-',
-      ..._getFfmpegEncoderSettings(config.encoder, path, config.bitRate)
-    ];
-
-    _ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
-    parecordProc.stdout.pipe(_ffmpegProcess!.stdin);
-  }
 
   List<String> _getFfmpegEncoderSettings(
       AudioEncoder encoder, String path, int bitRate) {
     switch (encoder) {
       case AudioEncoder.aacLc:
         return ['-c:a', 'aac', '-b:a', '${bitRate / 1000}k', path];
-      // case AudioEncoder.wav:
-      //   return ['-c:a', 'pcm_s16le', path];
+      case AudioEncoder.wav:
+        return ['-c:a', 'pcm_s16le', '-f', 'wav', path];
       case AudioEncoder.flac:
         return ['-c:a', 'flac', path];
       case AudioEncoder.opus:
         return ['-c:a', 'libopus', '-b:a', '${bitRate / 1000}k', path];
+      case AudioEncoder.pcm16bits:
+        return ['-c:a', 'copy', '-f', 's16le', path];
       default:
         return [];
     }
@@ -372,5 +359,88 @@ class RecordLinux extends RecordPlatform {
     if (_stateStreamCtrl case final controller? when controller.hasListener) {
       controller.add(state);
     }
+  }
+
+  void _calculateAmplitude(Uint8List data) {
+    if (data.isEmpty) return;
+
+    // Convert bytes to 16-bit signed integers (little-endian)
+    double maxSample = 0;
+    for (int i = 0; i < data.length - 1; i += 2) {
+      // Combine two bytes into a 16-bit signed integer (little-endian)
+      int sample = data[i] | (data[i + 1] << 8);
+      // Convert unsigned to signed
+      if (sample > 32767) sample -= 65536;
+      
+      double absSample = sample.abs().toDouble();
+      if (absSample > maxSample) {
+        maxSample = absSample;
+      }
+    }
+
+    // Calculate dBFS (same formula as other platforms)
+    if (maxSample > 0) {
+      _currentAmplitude = 20 * (log(maxSample / 32767.0) / ln10);
+    } else {
+      _currentAmplitude = -160.0;
+    }
+
+    // Update max amplitude
+    if (_currentAmplitude > _maxAmplitude) {
+      _maxAmplitude = _currentAmplitude;
+    }
+  }
+
+
+  /// Sets up ffmpeg to encode audio while monitoring amplitude.
+  /// 
+  /// Audio flow: parecord (capture) -> amplitude calculation -> ffmpeg (encode)
+  /// - parecord: Captures raw PCM audio from the microphone
+  /// - amplitude calculation: Analyzes PCM samples for VU meter (doesn't modify audio)
+  /// - ffmpeg: Encodes the PCM data to the desired format (AAC, WAV, FLAC, etc.)
+  Future<void> _startFfmpegWithAmplitudeMonitoring(
+    RecordConfig config,
+    Process parecordProc,
+    String path,
+  ) async {
+    final ffmpegArgs = [
+      '-f',
+      's16le',
+      '-ar',
+      config.sampleRate.toString(),
+      '-ac',
+      '${_getNumChannels(config)}',
+      '-i',
+      '-',
+      ..._getFfmpegEncoderSettings(config.encoder, path, config.bitRate)
+    ];
+
+    _ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
+    
+    // Log ffmpeg stderr for debugging (remove this after testing)
+    _ffmpegProcess!.stderr.transform(utf8.decoder).listen((data) {
+      if (data.isNotEmpty) {
+        print('FFmpeg: $data');
+      }
+    });
+    
+    // Create a passthrough stream controller to intercept audio data
+    _amplitudeStreamController = StreamController<List<int>>();
+    
+    // Listen to raw PCM data from parecord:
+    // 1. Calculate amplitude for VU meter
+    // 2. Forward the unchanged PCM data to our stream controller
+    parecordProc.stdout.listen((data) {
+      _calculateAmplitude(Uint8List.fromList(data));
+      if (!_amplitudeStreamController!.isClosed) {
+        _amplitudeStreamController!.add(data);
+      }
+    }, onDone: () {
+      _amplitudeStreamController?.close();
+    });
+    
+    // Pipe the PCM data from our controller to ffmpeg for encoding
+    // This uses pipe() for proper backpressure handling
+    _amplitudeStreamController!.stream.pipe(_ffmpegProcess!.stdin);
   }
 }

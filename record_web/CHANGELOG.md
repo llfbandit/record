@@ -1,3 +1,6 @@
+## 1.2.0
+* feat: Add stream buffer size option.
+
 ## 1.1.9
 * fix: (Regression on) Fallback to browser actual capabilities for sampleRate when using stream.
 

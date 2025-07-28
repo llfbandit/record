@@ -185,6 +185,11 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
     if let iosConfigMap = args["iosConfig"] as? [String : Any] {
       iosConfig = IosConfig(map: iosConfigMap)
     }
+    
+    var audioInterruption: AudioInterruptionMode = AudioInterruptionMode.pause
+    if let value = args["audioInterruption"] as? Int {
+      audioInterruption = AudioInterruptionMode(rawValue: value) ?? audioInterruption
+    }
 
     let config = RecordConfig(
       encoder: encoder,
@@ -195,7 +200,9 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
       autoGain: args["autoGain"] as? Bool ?? false,
       echoCancel: args["echoCancel"] as? Bool ?? false,
       noiseSuppress: args["noiseSuppress"] as? Bool ?? false,
-      iosConfig: iosConfig
+      iosConfig: iosConfig,
+      audioInterruption: audioInterruption,
+      streamBufferSize: args["streamBufferSize"] as? Int
     )
     
     return config

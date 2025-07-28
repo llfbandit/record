@@ -144,16 +144,15 @@ class RecordThread(
     }
 
     private fun selectFormat(): Format {
-        when (config.encoder) {
-            AudioEncoder.aacLc, AudioEncoder.aacEld, AudioEncoder.aacHe -> return AacFormat()
-            AudioEncoder.amrNb -> return AmrNbFormat()
-            AudioEncoder.amrWb -> return AmrWbFormat()
-            AudioEncoder.flac -> return FlacFormat()
-            AudioEncoder.pcm16bits -> return PcmFormat()
-            AudioEncoder.opus -> return OpusFormat()
-            AudioEncoder.wav -> return WaveFormat()
+        return when (config.encoder) {
+            AudioEncoder.AacLc, AudioEncoder.AacEld, AudioEncoder.AacHe -> AacFormat()
+            AudioEncoder.AmrNb -> AmrNbFormat()
+            AudioEncoder.AmrWb -> AmrWbFormat()
+            AudioEncoder.Flac -> FlacFormat()
+            AudioEncoder.Pcm16bits -> PcmFormat()
+            AudioEncoder.Opus -> OpusFormat()
+            AudioEncoder.Wav -> WaveFormat()
         }
-        throw Exception("Unknown format: " + config.encoder)
     }
 
     private fun pauseState() {

@@ -6,6 +6,7 @@ import android.media.MediaRecorder
 import android.os.Build
 import com.llfbandit.record.Utils
 import com.llfbandit.record.permission.PermissionManager
+import com.llfbandit.record.record.AudioInterruption
 import com.llfbandit.record.record.RecordConfig
 import com.llfbandit.record.record.device.DeviceUtils
 import com.llfbandit.record.record.format.AudioFormats
@@ -184,7 +185,9 @@ class MethodCallHandlerImpl(
             Utils.firstNonNull(androidConfig?.get("manageBluetooth") as Boolean?, true),
             audioSource,
             Utils.firstNonNull(androidConfig?.get("speakerphone") as Boolean?, false),
-            audioManagerMode
+            audioManagerMode,
+            Utils.firstNonNull(call.argument("audioInterruption"), AudioInterruption.PAUSE.ordinal),
+            call.argument("streamBufferSize")
         )
     }
 }

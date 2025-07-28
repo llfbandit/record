@@ -165,6 +165,7 @@ class MicRecorderDelegate extends RecorderDelegate {
         parameterData: {
           'numChannels'.toJS: config.numChannels.toJS,
           'sampleRate'.toJS: config.sampleRate.toJS,
+          'streamBufferSize'.toJS: (config.streamBufferSize ?? 2048).toJS,
         }.jsify()! as JSObject,
       ),
     );

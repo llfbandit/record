@@ -201,11 +201,11 @@ class MediaRecorder(
         }
     }
 
-    private fun getOutputFormat(encoder: String): Int {
+    private fun getOutputFormat(encoder: AudioEncoder): Int {
         return when (encoder) {
-            AudioEncoder.aacLc, AudioEncoder.aacEld, AudioEncoder.aacHe -> MediaRecorder.OutputFormat.MPEG_4
-            AudioEncoder.amrNb, AudioEncoder.amrWb -> MediaRecorder.OutputFormat.THREE_GPP
-            AudioEncoder.opus -> {
+            AudioEncoder.AacLc, AudioEncoder.AacEld, AudioEncoder.AacHe -> MediaRecorder.OutputFormat.MPEG_4
+            AudioEncoder.AmrNb, AudioEncoder.AmrWb -> MediaRecorder.OutputFormat.THREE_GPP
+            AudioEncoder.Opus -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     MediaRecorder.OutputFormat.OGG
                 } else {
@@ -218,14 +218,14 @@ class MediaRecorder(
     }
 
     // https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder
-    private fun getEncoder(encoder: String): Int {
+    private fun getEncoder(encoder: AudioEncoder): Int {
         return when (encoder) {
-            AudioEncoder.aacLc -> MediaRecorder.AudioEncoder.AAC
-            AudioEncoder.aacEld -> MediaRecorder.AudioEncoder.AAC_ELD
-            AudioEncoder.aacHe -> MediaRecorder.AudioEncoder.HE_AAC
-            AudioEncoder.amrNb -> MediaRecorder.AudioEncoder.AMR_NB
-            AudioEncoder.amrWb -> MediaRecorder.AudioEncoder.AMR_WB
-            AudioEncoder.opus -> {
+            AudioEncoder.AacLc -> MediaRecorder.AudioEncoder.AAC
+            AudioEncoder.AacEld -> MediaRecorder.AudioEncoder.AAC_ELD
+            AudioEncoder.AacHe -> MediaRecorder.AudioEncoder.HE_AAC
+            AudioEncoder.AmrNb -> MediaRecorder.AudioEncoder.AMR_NB
+            AudioEncoder.AmrWb -> MediaRecorder.AudioEncoder.AMR_WB
+            AudioEncoder.Opus -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     MediaRecorder.AudioEncoder.OPUS
                 } else {

@@ -64,8 +64,18 @@ extension AudioRecordingDelegate {
       return
     }
     
+    guard let config = self.config else {
+      return
+    }
+    
     if type == AVAudioSession.InterruptionType.began {
-      pause()
+      if config.audioInterruption != AudioInterruptionMode.none {
+        pause()
+      }
+    } else if type == AVAudioSession.InterruptionType.ended {
+      if config.audioInterruption == AudioInterruptionMode.pauseResume {
+        do {try resume()} catch {}
+      }
     }
   }
 
