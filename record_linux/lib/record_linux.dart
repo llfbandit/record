@@ -36,7 +36,9 @@ class RecordLinux extends RecordPlatform {
 
   @override
   Future<Amplitude> getAmplitude(String recorderId) {
-    return Future.value(Amplitude(current: _currentAmplitude, max: _maxAmplitude));
+    return Future.value(
+      Amplitude(current: _currentAmplitude, max: _maxAmplitude),
+    );
   }
 
   @override
@@ -216,8 +218,6 @@ class RecordLinux extends RecordPlatform {
     }
   }
 
-
-
   List<String> _getParecordArgs(
     RecordConfig config, {
     String? path,
@@ -247,7 +247,6 @@ class RecordLinux extends RecordPlatform {
   int _getNumChannels(RecordConfig config) {
     return config.numChannels.clamp(1, 2);
   }
-
 
   List<String> _getFfmpegEncoderSettings(
       AudioEncoder encoder, String path, int bitRate) {
@@ -371,7 +370,7 @@ class RecordLinux extends RecordPlatform {
       int sample = data[i] | (data[i + 1] << 8);
       // Convert unsigned to signed
       if (sample > 32767) sample -= 65536;
-      
+
       double absSample = sample.abs().toDouble();
       if (absSample > maxSample) {
         maxSample = absSample;
@@ -391,9 +390,8 @@ class RecordLinux extends RecordPlatform {
     }
   }
 
-
   /// Sets up ffmpeg to encode audio while monitoring amplitude.
-  /// 
+  ///
   /// Audio flow: parecord (capture) -> amplitude calculation -> ffmpeg (encode)
   /// - parecord: Captures raw PCM audio from the microphone
   /// - amplitude calculation: Analyzes PCM samples for VU meter (doesn't modify audio)
@@ -416,17 +414,17 @@ class RecordLinux extends RecordPlatform {
     ];
 
     _ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
-    
+
     // Log ffmpeg stderr for debugging (remove this after testing)
     _ffmpegProcess!.stderr.transform(utf8.decoder).listen((data) {
       if (data.isNotEmpty) {
-        print('FFmpeg: $data');
+        debugPrint('FFmpeg: $data');
       }
     });
-    
+
     // Create a passthrough stream controller to intercept audio data
     _amplitudeStreamController = StreamController<List<int>>();
-    
+
     // Listen to raw PCM data from parecord:
     // 1. Calculate amplitude for VU meter
     // 2. Forward the unchanged PCM data to our stream controller
@@ -438,7 +436,7 @@ class RecordLinux extends RecordPlatform {
     }, onDone: () {
       _amplitudeStreamController?.close();
     });
-    
+
     // Pipe the PCM data from our controller to ffmpeg for encoding
     // This uses pipe() for proper backpressure handling
     _amplitudeStreamController!.stream.pipe(_ffmpegProcess!.stdin);
