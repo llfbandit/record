@@ -4,8 +4,10 @@ version: 1.1.0
 homepage: https://github.com/llfbandit/record/tree/master/record_macos
 
 environment:
-  sdk: ^3.4.0
-  flutter: ">=3.22.0"
+  sdk: ^3.5.0
+  flutter: ">=3.24.0"
+
+resolution: workspace
 
 dependencies:
   flutter:

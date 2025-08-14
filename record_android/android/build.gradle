@@ -2,7 +2,7 @@ group 'com.llfbandit.record'
 version '1.0'
 
 buildscript {
-    ext.kotlin_version = '1.8.21'
+    ext.kotlin_version = '2.2.0'
     repositories {
         google()
         mavenCentral()
@@ -10,7 +10,7 @@ buildscript {
 
     dependencies {
         // https://developer.android.com/studio/releases/gradle-plugin
-        classpath 'com.android.tools.build:gradle:8.5.2'
+        classpath 'com.android.tools.build:gradle:8.6.1'
         // https://plugins.gradle.org/plugin/org.jetbrains.kotlin.android
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
@@ -29,7 +29,7 @@ apply plugin: 'kotlin-android'
 android {
     namespace 'com.llfbandit.record'
     
-    compileSdk = 34
+    compileSdk = flutter.compileSdkVersion
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

@@ -4,8 +4,10 @@ version: 1.2.0
 homepage: https://github.com/llfbandit/record/tree/master/record_linux
 
 environment:
-  sdk: ^3.4.0
-  flutter: ">=3.22.0"
+  sdk: ^3.5.0
+  flutter: ">=3.24.0"
+
+resolution: workspace
 
 dependencies:
   flutter:
@@ -17,7 +19,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^6.0.0
+  flutter_lints: ^5.0.0
 
 # The following section is specific to Flutter.
 flutter:

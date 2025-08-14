@@ -1,8 +1,8 @@
 ## 6.1.0
 * feat: Add AudioInterruptionMode to `RecordConfig`.
 * feat: Add stream buffer size option.
-* fix: See dedicated packages for more info.
 * chore: Updated transitive dependencies.
+* chore: Update minimum supported SDK version to Flutter 3.24.0/Dart 3.5.0.
 
 ## 6.0.0
 * feat: Make all streams as broadcast streams.

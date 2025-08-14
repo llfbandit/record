@@ -7,8 +7,10 @@ version: 1.0.0
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
-  sdk: ^3.4.0
-  flutter: ">=3.22.0"
+  sdk: ^3.5.0
+  flutter: ">=3.24.0"
+
+resolution: workspace
 
 dependencies:
   path: ^1.8.0
@@ -19,10 +21,10 @@ dependencies:
   flutter:
     sdk: flutter
 
-  record: ^5.2.0
+  record: ^6.1.0
 
 dev_dependencies:
-  flutter_lints: ^6.0.0
+  flutter_lints: ^5.0.0
 
 # The following section is specific to Flutter.
 flutter:
