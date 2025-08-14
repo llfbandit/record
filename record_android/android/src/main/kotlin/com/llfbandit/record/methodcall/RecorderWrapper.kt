@@ -1,7 +1,11 @@
 package com.llfbandit.record.methodcall
 
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.media.AudioDeviceInfo
+import android.os.IBinder
 import com.llfbandit.record.record.RecordConfig
 import com.llfbandit.record.record.bluetooth.BluetoothReceiver
 import com.llfbandit.record.record.bluetooth.BluetoothScoListener
@@ -10,14 +14,16 @@ import com.llfbandit.record.record.recorder.IRecorder
 import com.llfbandit.record.record.recorder.MediaRecorder
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
 import com.llfbandit.record.record.stream.RecorderStateStreamHandler
+import com.llfbandit.record.service.AudioRecordingService
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
-internal class RecorderWrapper(
+
+class RecorderWrapper(
     private val context: Context,
     recorderId: String,
-    messenger: BinaryMessenger
+    messenger: BinaryMessenger,
 ) : BluetoothScoListener {
     companion object {
         const val EVENTS_STATE_CHANNEL = "com.llfbandit.record/events/"
@@ -52,9 +58,10 @@ internal class RecorderWrapper(
     fun dispose() {
         try {
             recorder?.dispose()
-        } catch (ignored: Exception) {
+        } catch (_: Exception) {
         } finally {
             maybeStopBluetooth()
+            stopService()
             recorder = null
         }
 
@@ -112,6 +119,8 @@ internal class RecorderWrapper(
             }
         } catch (e: Exception) {
             result.error("record", e.message, e.cause)
+        } finally {
+            stopService()
         }
     }
 
@@ -136,6 +145,8 @@ internal class RecorderWrapper(
             } else {
                 start(config, result)
             }
+
+            startService(config)
         } catch (e: Exception) {
             result.error("record", e.message, e.cause)
         }
@@ -160,6 +171,44 @@ internal class RecorderWrapper(
     private fun start(config: RecordConfig, result: MethodChannel.Result) {
         recorder!!.start(config)
         result.success(null)
+    }
+
+    ///////////////////////////////////////////////////////////
+    // Service
+    ///////////////////////////////////////////////////////////
+//    private var mService: AudioRecordingService? = null
+    private var mServiceBound = false
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+//            val binder = service as AudioRecordingService.LocalBinder
+//            mService = binder.getService()
+        }
+
+        override fun onServiceDisconnected(className: ComponentName) {
+//            mService = null
+        }
+    }
+
+    private fun startService(config: RecordConfig) {
+        if (config.service != null) {
+            val intent = Intent(context, AudioRecordingService::class.java)
+            intent.putExtra("title", config.service.title)
+            intent.putExtra("content", config.service.content)
+            context.startService(intent)
+
+            Intent(context, AudioRecordingService::class.java).also { intent ->
+                mServiceBound = context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+            }
+        }
+    }
+
+    private fun stopService() {
+        if (mServiceBound) {
+            context.unbindService(serviceConnection)
+            context.stopService(Intent(context, AudioRecordingService::class.java))
+            mServiceBound = false
+        }
     }
 
     ///////////////////////////////////////////////////////////

@@ -182,7 +182,7 @@ class AudioRecorder(
             audioManager.mode = conf.audioManagerMode
         }
         if (conf.speakerphone) {
-            audioManager.setSpeakerphoneOn(true)
+          audioManager.isSpeakerphoneOn = true
         }
     }
 
@@ -202,7 +202,7 @@ class AudioRecorder(
             audioManager.mode = amPrevAudioMode
         }
         if (conf.speakerphone) {
-            audioManager.setSpeakerphoneOn(amPrevSpeakerphone)
+          audioManager.isSpeakerphoneOn = amPrevSpeakerphone
         }
     }
 

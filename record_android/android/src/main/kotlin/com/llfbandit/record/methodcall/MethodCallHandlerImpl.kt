@@ -1,12 +1,7 @@
 package com.llfbandit.record.methodcall
 
 import android.content.Context
-import android.media.AudioManager
-import android.media.MediaRecorder
-import android.os.Build
-import com.llfbandit.record.Utils
 import com.llfbandit.record.permission.PermissionManager
-import com.llfbandit.record.record.AudioInterruption
 import com.llfbandit.record.record.RecordConfig
 import com.llfbandit.record.record.device.DeviceUtils
 import com.llfbandit.record.record.format.AudioFormats
@@ -24,7 +19,6 @@ class MethodCallHandlerImpl(
     private val appContext: Context
 ) : MethodCallHandler {
     private val recorders = ConcurrentHashMap<String, RecorderWrapper>()
-
 
     fun dispose() {
         for (entry in recorders.entries) {
@@ -64,7 +58,7 @@ class MethodCallHandlerImpl(
         when (call.method) {
             "start" -> {
                 try {
-                    val config = getRecordConfig(call)
+                    val config = RecordConfig.fromMap(call, appContext)
                     recorder.startRecordingToFile(config, result)
                 } catch (e: IOException) {
                     result.error("record", "Cannot create recording configuration.", e.message)
@@ -73,7 +67,7 @@ class MethodCallHandlerImpl(
 
             "startStream" -> {
                 try {
-                    val config = getRecordConfig(call)
+                    val config = RecordConfig.fromMap(call, appContext)
                     recorder.startRecordingToStream(config, result)
                 } catch (e: IOException) {
                     result.error("record", "Cannot create recording configuration.", e.message)
@@ -115,79 +109,5 @@ class MethodCallHandlerImpl(
     private fun disposeRecorder(recorder: RecorderWrapper, recorderId: String) {
         recorder.dispose()
         recorders.remove(recorderId)
-    }
-
-    private fun getRecordConfig(call: MethodCall): RecordConfig {
-        val androidConfig = call.argument("androidConfig") as Map<*, *>?
-
-        val audioSource: Int = when (androidConfig?.get("audioSource")) {
-            "defaultSource" -> MediaRecorder.AudioSource.DEFAULT
-            "mic" -> MediaRecorder.AudioSource.MIC
-            "voiceUplink" -> MediaRecorder.AudioSource.VOICE_UPLINK
-            "voiceDownlink" -> MediaRecorder.AudioSource.VOICE_DOWNLINK
-            "voiceCall" -> MediaRecorder.AudioSource.VOICE_CALL
-            "camcorder" -> MediaRecorder.AudioSource.CAMCORDER
-            "voiceRecognition" -> MediaRecorder.AudioSource.VOICE_RECOGNITION
-            "voiceCommunication" -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
-            "remoteSubMix" -> MediaRecorder.AudioSource.REMOTE_SUBMIX
-            "unprocessed" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                MediaRecorder.AudioSource.UNPROCESSED
-            } else {
-                MediaRecorder.AudioSource.DEFAULT
-            }
-            "voicePerformance" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                MediaRecorder.AudioSource.VOICE_PERFORMANCE
-            } else {
-                MediaRecorder.AudioSource.DEFAULT
-            }
-
-            else -> MediaRecorder.AudioSource.DEFAULT
-        }
-
-        val audioManagerMode: Int = when (androidConfig?.get("audioManagerMode")) {
-            "modeNormal" -> AudioManager.MODE_NORMAL
-            "modeRingtone" -> AudioManager.MODE_RINGTONE
-            "modeInCall" -> AudioManager.MODE_IN_CALL
-            "modeInCommunication" -> AudioManager.MODE_IN_COMMUNICATION
-            "modeCallScreening" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                AudioManager.MODE_CALL_SCREENING
-            } else {
-                AudioManager.MODE_NORMAL
-            }
-
-            "modeCallRedirect" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                AudioManager.MODE_CALL_REDIRECT
-            } else {
-                AudioManager.MODE_NORMAL
-            }
-
-            "modeCommunicationRedirect" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                AudioManager.MODE_COMMUNICATION_REDIRECT
-            } else {
-                AudioManager.MODE_NORMAL
-            }
-
-            else -> AudioManager.MODE_NORMAL
-        }
-
-        return RecordConfig(
-            call.argument("path"),
-            Utils.firstNonNull(call.argument("encoder"), "aacLc"),
-            Utils.firstNonNull(call.argument("bitRate"), 128000),
-            Utils.firstNonNull(call.argument("sampleRate"), 44100),
-            Utils.firstNonNull(call.argument("numChannels"), 2),
-            DeviceUtils.deviceInfoFromMap(appContext, call.argument("device")),
-            Utils.firstNonNull(call.argument("autoGain"), false),
-            Utils.firstNonNull(call.argument("echoCancel"), false),
-            Utils.firstNonNull(call.argument("noiseSuppress"), false),
-            Utils.firstNonNull(androidConfig?.get("useLegacy") as Boolean?, false),
-            Utils.firstNonNull(androidConfig?.get("muteAudio") as Boolean?, false),
-            Utils.firstNonNull(androidConfig?.get("manageBluetooth") as Boolean?, true),
-            audioSource,
-            Utils.firstNonNull(androidConfig?.get("speakerphone") as Boolean?, false),
-            audioManagerMode,
-            Utils.firstNonNull(call.argument("audioInterruption"), AudioInterruption.PAUSE.ordinal),
-            call.argument("streamBufferSize")
-        )
     }
 }

@@ -39,7 +39,7 @@ class RecordPlugin : FlutterPlugin, ActivityAware {
 
         val pm = permissionManager
         if (pm != null) {
-            permissionManager?.setActivity(binding.activity)
+            pm.setActivity(binding.activity)
             activityBinding?.addRequestPermissionsResultListener(pm)
         }
     }

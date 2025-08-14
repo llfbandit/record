@@ -1,6 +1,7 @@
 ## 1.4.0
 * feat: Add AudioInterruptionMode to `RecordConfig`.
 * feat: Add stream buffer size option.
+* feat: Allow background recording.
 * fix: malformed AAC on Android.
 
 ## 1.3.3

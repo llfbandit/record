@@ -9,6 +9,11 @@ class AndroidRecordConfig {
   /// is stability oriented.
   final bool useLegacy;
 
+  /// Uses Android service to enable background recording.
+  ///
+  /// You must add mandatory project settings before using this. See docs.
+  final AndroidService? service;
+
   /// If [true], this will mute all audio streams like alarms, music, ring, ...
   ///
   /// This is useful when you want to record audio without any background noise.
@@ -50,6 +55,7 @@ class AndroidRecordConfig {
 
   const AndroidRecordConfig({
     this.useLegacy = false,
+    this.service,
     this.muteAudio = false,
     this.manageBluetooth = true,
     this.audioSource = AndroidAudioSource.defaultSource,
@@ -61,11 +67,31 @@ class AndroidRecordConfig {
   Map<String, dynamic> toMap() {
     return {
       'useLegacy': useLegacy,
+      'service': service?.toMap(),
       'muteAudio': muteAudio,
       'manageBluetooth': manageBluetooth,
       'audioSource': audioSource.name,
       'speakerphone': speakerphone,
       'audioManagerMode': audioManagerMode.name,
+    };
+  }
+}
+
+/// Background service parameters
+class AndroidService {
+  const AndroidService({required this.title, this.content});
+
+  /// Main text
+  final String title;
+
+  /// Description text
+  final String? content;
+
+  /// Transforms model to JSON map.
+  Map<String, dynamic> toMap() {
+    return {
+      'title': title,
+      'content': content,
     };
   }
 }

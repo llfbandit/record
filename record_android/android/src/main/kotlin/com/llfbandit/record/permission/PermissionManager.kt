@@ -9,6 +9,7 @@ import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener
 class PermissionManager : RequestPermissionsResultListener {
     private var resultCallback: PermissionResultCallback? = null
     private var activity: Activity? = null
+
     fun setActivity(activity: Activity?) {
         this.activity = activity
     }
