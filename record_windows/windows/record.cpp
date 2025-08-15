@@ -369,36 +369,77 @@ namespace record_windows
 		
 		if (SUCCEEDED(hr))
 		{
-			// Set up wave format for capture
+			// Set up wave format for capture - try float format first (typical for WASAPI)
 			WAVEFORMATEX* pClosestMatch = nullptr;
-			WAVEFORMATEX waveFormat = {};
-			waveFormat.wFormatTag = WAVE_FORMAT_PCM;
-			waveFormat.nChannels = m_channels;
-			waveFormat.nSamplesPerSec = m_sampleRate;
-			waveFormat.wBitsPerSample = 16;
-			waveFormat.nBlockAlign = m_channels * waveFormat.wBitsPerSample / 8;
-			waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
+			WAVEFORMATEXTENSIBLE waveFormatEx = {};
+			waveFormatEx.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+			waveFormatEx.Format.nChannels = m_channels;
+			waveFormatEx.Format.nSamplesPerSec = m_sampleRate;
+			waveFormatEx.Format.wBitsPerSample = 32; // 32-bit float
+			waveFormatEx.Format.nBlockAlign = m_channels * waveFormatEx.Format.wBitsPerSample / 8;
+			waveFormatEx.Format.nAvgBytesPerSec = waveFormatEx.Format.nSamplesPerSec * waveFormatEx.Format.nBlockAlign;
+			waveFormatEx.Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+			waveFormatEx.Samples.wValidBitsPerSample = 32;
+			waveFormatEx.dwChannelMask = (m_channels == 1) ? KSAUDIO_SPEAKER_MONO : KSAUDIO_SPEAKER_STEREO;
+			waveFormatEx.SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
 			
-			hr = m_pAudioClient->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, &waveFormat, &pClosestMatch);
+			hr = m_pAudioClient->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, 
+												   reinterpret_cast<WAVEFORMATEX*>(&waveFormatEx), 
+												   &pClosestMatch);
 			
-			if (hr == S_FALSE && pClosestMatch)
+			if (hr == S_OK)
+			{
+				// Float format is supported
+				m_pWaveFormat = reinterpret_cast<WAVEFORMATEX*>(CoTaskMemAlloc(sizeof(WAVEFORMATEXTENSIBLE)));
+				if (m_pWaveFormat)
+				{
+					memcpy(m_pWaveFormat, &waveFormatEx, sizeof(WAVEFORMATEXTENSIBLE));
+				}
+				else
+				{
+					hr = E_OUTOFMEMORY;
+				}
+			}
+			else if (hr == S_FALSE && pClosestMatch)
 			{
 				// Use the closest supported format
 				m_pWaveFormat = pClosestMatch;
 				m_sampleRate = m_pWaveFormat->nSamplesPerSec;
 				m_channels = m_pWaveFormat->nChannels;
 			}
-			else if (SUCCEEDED(hr))
+			else
 			{
-				// Requested format is supported
-				m_pWaveFormat = reinterpret_cast<WAVEFORMATEX*>(CoTaskMemAlloc(sizeof(WAVEFORMATEX)));
-				if (m_pWaveFormat)
+				// Fall back to 16-bit PCM
+				WAVEFORMATEX waveFormat = {};
+				waveFormat.wFormatTag = WAVE_FORMAT_PCM;
+				waveFormat.nChannels = m_channels;
+				waveFormat.nSamplesPerSec = m_sampleRate;
+				waveFormat.wBitsPerSample = 16;
+				waveFormat.nBlockAlign = m_channels * waveFormat.wBitsPerSample / 8;
+				waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
+				
+				hr = m_pAudioClient->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, &waveFormat, &pClosestMatch);
+				
+				if (SUCCEEDED(hr))
 				{
-					*m_pWaveFormat = waveFormat;
-				}
-				else
-				{
-					hr = E_OUTOFMEMORY;
+					if (pClosestMatch)
+					{
+						m_pWaveFormat = pClosestMatch;
+						m_sampleRate = m_pWaveFormat->nSamplesPerSec;
+						m_channels = m_pWaveFormat->nChannels;
+					}
+					else
+					{
+						m_pWaveFormat = reinterpret_cast<WAVEFORMATEX*>(CoTaskMemAlloc(sizeof(WAVEFORMATEX)));
+						if (m_pWaveFormat)
+						{
+							*m_pWaveFormat = waveFormat;
+						}
+						else
+						{
+							hr = E_OUTOFMEMORY;
+						}
+					}
 				}
 			}
 		}
@@ -485,14 +526,62 @@ namespace record_windows
 				
 				if (SUCCEEDED(hr) && framesAvailable > 0)
 				{
-					// Convert 16-bit PCM to float
-					const int16_t* pcmData = reinterpret_cast<const int16_t*>(pData);
 					size_t sampleCount = framesAvailable * m_channels;
-					
 					floatBuffer.resize(sampleCount);
-					for (size_t i = 0; i < sampleCount; ++i)
+					
+					// Check if we should handle silence flag
+					if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
 					{
-						floatBuffer[i] = static_cast<float>(pcmData[i]) / 32768.0f;
+						// Fill with silence
+						std::fill(floatBuffer.begin(), floatBuffer.end(), 0.0f);
+					}
+					else
+					{
+						// Convert based on the actual audio format
+						if (IsFloatFormat())
+						{
+							// Data is already 32-bit float
+							const float* floatData = reinterpret_cast<const float*>(pData);
+							std::copy(floatData, floatData + sampleCount, floatBuffer.begin());
+						}
+						else if (m_pWaveFormat->wBitsPerSample == 16)
+						{
+							// Convert 16-bit PCM to float
+							const int16_t* pcmData = reinterpret_cast<const int16_t*>(pData);
+							for (size_t i = 0; i < sampleCount; ++i)
+							{
+								floatBuffer[i] = static_cast<float>(pcmData[i]) / 32768.0f;
+							}
+						}
+						else if (m_pWaveFormat->wBitsPerSample == 24)
+						{
+							// Convert 24-bit PCM to float (packed in 32-bit containers)
+							const uint8_t* pcm24Data = reinterpret_cast<const uint8_t*>(pData);
+							for (size_t i = 0; i < sampleCount; ++i)
+							{
+								// Read 24-bit sample (little endian)
+								int32_t sample = (pcm24Data[i * 3 + 0]) |
+												(pcm24Data[i * 3 + 1] << 8) |
+												(pcm24Data[i * 3 + 2] << 16);
+								// Sign extend if negative
+								if (sample & 0x800000) sample |= 0xFF000000;
+								floatBuffer[i] = static_cast<float>(sample) / 8388608.0f; // 2^23
+							}
+						}
+						else if (m_pWaveFormat->wBitsPerSample == 32)
+						{
+							// Convert 32-bit PCM to float
+							const int32_t* pcm32Data = reinterpret_cast<const int32_t*>(pData);
+							for (size_t i = 0; i < sampleCount; ++i)
+							{
+								floatBuffer[i] = static_cast<float>(pcm32Data[i]) / 2147483648.0f; // 2^31
+							}
+						}
+						else
+						{
+							// Unsupported format, fill with silence
+							std::fill(floatBuffer.begin(), floatBuffer.end(), 0.0f);
+						}
 					}
 					
 					// Call callback with audio data
@@ -505,6 +594,23 @@ namespace record_windows
 				}
 			}
 		}
+	}
+	
+	bool WASAPICapture::IsFloatFormat()
+	{
+		if (!m_pWaveFormat) return false;
+		
+		if (m_pWaveFormat->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+		{
+			WAVEFORMATEXTENSIBLE* pFormatEx = reinterpret_cast<WAVEFORMATEXTENSIBLE*>(m_pWaveFormat);
+			return IsEqualGUID(pFormatEx->SubFormat, KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
+		}
+		else if (m_pWaveFormat->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
+		{
+			return true;
+		}
+		
+		return false;
 	}
 
 	// ===========================================

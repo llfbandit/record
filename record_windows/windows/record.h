@@ -5,6 +5,9 @@
 #include <audioclient.h>
 #include <audiopolicy.h>
 #include <functiondiscoverykeys_devpkey.h>
+#include <mmreg.h>
+#include <ks.h>
+#include <ksmedia.h>
 
 #include <atomic>
 #include <thread>
@@ -109,6 +112,7 @@ namespace record_windows
 		
 		void CaptureThreadProc();
 		HRESULT InitializeAudioClient();
+		bool IsFloatFormat();
 
 	public:
 		WASAPICapture();
