@@ -4,6 +4,7 @@
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 #include <audiopolicy.h>
+#include <audioengineextensionapo.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include <mmreg.h>
 #include <ks.h>
@@ -98,6 +99,7 @@ namespace record_windows
 		IMMDevice* m_pDevice;
 		IAudioClient* m_pAudioClient;
 		IAudioCaptureClient* m_pCaptureClient;
+		IAudioEffectsManager* m_pEffectsManager;
 		
 		HANDLE m_hCaptureEvent;
 		std::thread m_captureThread;
@@ -107,18 +109,25 @@ namespace record_windows
 		DWORD m_sampleRate;
 		WORD m_channels;
 		
+		// Audio processing configuration
+		bool m_enableNoiseSuppress{false};
+		bool m_enableEchoCancel{false};
+		bool m_enableAutoGain{false};
+		
 		// Callbacks
 		std::function<void(const float* samples, size_t count)> m_onAudioData;
 		
 		void CaptureThreadProc();
 		HRESULT InitializeAudioClient();
+		HRESULT InitializeAudioEffects();
 		bool IsFloatFormat();
 
 	public:
 		WASAPICapture();
 		~WASAPICapture();
 		
-		HRESULT Initialize(const std::string& deviceId, DWORD sampleRate, WORD channels);
+		HRESULT Initialize(const std::string& deviceId, DWORD sampleRate, WORD channels, 
+						  bool noiseSuppress = false, bool echoCancel = false, bool autoGain = false);
 		HRESULT Start();
 		HRESULT Stop();
 		HRESULT Pause();
@@ -129,6 +138,14 @@ namespace record_windows
 		DWORD GetSampleRate() const { return m_sampleRate; }
 		WORD GetChannels() const { return m_channels; }
 		bool IsCapturing() const { return m_isCapturing.load(); }
+		
+		// Get actual device format for debugging
+		std::string GetActualFormat() const {
+			if (!m_pWaveFormat) return "No format";
+			return "Channels: " + std::to_string(m_pWaveFormat->nChannels) + 
+				   ", SampleRate: " + std::to_string(m_pWaveFormat->nSamplesPerSec) +
+				   ", BitsPerSample: " + std::to_string(m_pWaveFormat->wBitsPerSample);
+		}
 	};
 
 	// Main recorder class - orchestrates all components
