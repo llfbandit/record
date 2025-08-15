@@ -38,13 +38,13 @@ namespace record_windows
 					m_sampleSkipCount = 0; // Reset skip counter
 				}
 
-				// Strategy: Buffer first few samples and adjust their timestamps
-				if (m_sampleSkipCount < 10) // Buffer more samples for better coverage
+				// Strategy: Minimal skipping to preserve more audio data
+				if (m_sampleSkipCount < 2) // Only skip the first 2 samples for pipeline stabilization
 				{
 					m_sampleSkipCount++;
 					
-					// Clone and buffer the sample for later processing
-					if (m_sampleBuffer.size() < 10) // Limit buffer size
+					// Buffer the sample but also write it to maintain continuity
+					if (m_sampleBuffer.size() < 3) // Small buffer for processing
 					{
 						IMFSample* pClonedSample = NULL;
 						HRESULT cloneHr = MFCreateSample(&pClonedSample);
@@ -89,7 +89,20 @@ namespace record_windows
 						}
 					}
 					
-					// Still process for amplitude but don't write
+					// After buffering, also process and write this sample immediately
+					// to minimize audio loss during the initial phase
+					LONGLONG adjustedTimestamp = llTimestamp - m_llBaseTime;
+					if (adjustedTimestamp <= 0) adjustedTimestamp = 1;
+					
+					hr = pSample->SetSampleTime(adjustedTimestamp);
+					
+					// Write to file if there's a writer
+					if (SUCCEEDED(hr) && m_pWriter)
+					{
+						hr = m_pWriter->WriteSample(dwStreamIndex, pSample);
+					}
+					
+					// Process for amplitude and streaming
 					IMFMediaBuffer* pBuffer = NULL;
 					hr = pSample->ConvertToContiguousBuffer(&pBuffer);
 					if (SUCCEEDED(hr))
@@ -99,6 +112,18 @@ namespace record_windows
 						hr = pBuffer->Lock(&pChunk, NULL, &size);
 						if (SUCCEEDED(hr))
 						{
+							// Update total data written
+							m_dataWritten += size;
+
+							// Send data to stream when there's no writer
+							if (m_recordEventHandler && !m_pWriter) {
+								std::vector<uint8_t> bytes(pChunk, pChunk + size);
+
+								RecordWindowsPlugin::RunOnMainThread([this, bytes]() -> void {
+									m_recordEventHandler->Success(std::make_unique<flutter::EncodableValue>(bytes));
+								});
+							}
+
 							GetAmplitude(pChunk, size, 2);
 							pBuffer->Unlock();
 						}
@@ -107,29 +132,7 @@ namespace record_windows
 				}
 				else
 				{
-					// Process buffered samples first (only once)
-					if (!m_sampleBuffer.empty())
-					{
-						while (!m_sampleBuffer.empty())
-						{
-							IMFSample* pBufferedSample = m_sampleBuffer.front();
-							m_sampleBuffer.pop();
-							
-							if (pBufferedSample && m_pWriter)
-							{
-								LONGLONG bufferedTimestamp;
-								pBufferedSample->GetSampleTime(&bufferedTimestamp);
-								bufferedTimestamp -= m_llBaseTime;
-								if (bufferedTimestamp <= 0) bufferedTimestamp = 1;
-								pBufferedSample->SetSampleTime(bufferedTimestamp);
-								
-								m_pWriter->WriteSample(dwStreamIndex, pBufferedSample);
-							}
-							SafeRelease(pBufferedSample);
-						}
-					}
-
-					// Now process current sample normally
+					// Process samples normally after initial stabilization period
 					// Save current timestamp in case of Pause
 					m_llLastTime = llTimestamp;
 

@@ -58,22 +58,7 @@ namespace record_windows
 		}
 		if (SUCCEEDED(hr))
 		{
-			// Pre-warm the audio pipeline by starting the media source
-			PROPVARIANT var;
-			PropVariantInit(&var);
-			hr = m_pSource->Start(m_pPresentationDescriptor, NULL, &var);
-			PropVariantClear(&var);
-			
-			// Small delay to allow pipeline to stabilize (non-blocking)
-			Sleep(50);
-		}
-		if (SUCCEEDED(hr))
-		{
-			// Request the first sample
-			hr = m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
-				0,
-				NULL, NULL, NULL, NULL
-			);
+			hr = WarmupAudioPipeline();
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -84,6 +69,36 @@ namespace record_windows
 			EndRecording();
 		}
 
+		return hr;
+	}
+
+	HRESULT Recorder::WarmupAudioPipeline()
+	{
+		HRESULT hr = S_OK;
+		
+		// Start the audio source
+		PROPVARIANT var;
+		PropVariantInit(&var);
+		hr = m_pSource->Start(m_pPresentationDescriptor, NULL, &var);
+		PropVariantClear(&var);
+		
+		if (SUCCEEDED(hr))
+		{
+			// Allow sufficient time for the audio pipeline to fully initialize
+			// This is crucial for Windows Media Foundation audio capture
+			Sleep(200);
+			
+			// Prime the pipeline by requesting multiple samples
+			// This ensures the audio capture buffer is filled and ready
+			for (int i = 0; i < 5; i++)
+			{
+				m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
+					0,
+					NULL, NULL, NULL, NULL
+				);
+			}
+		}
+		
 		return hr;
 	}
 
@@ -98,20 +113,7 @@ namespace record_windows
 
 		if (SUCCEEDED(hr))
 		{
-			// Start the media source explicitly before requesting samples
-			PROPVARIANT var;
-			PropVariantInit(&var);
-			hr = m_pSource->Start(m_pPresentationDescriptor, NULL, &var);
-			PropVariantClear(&var);
-		}
-
-		if (SUCCEEDED(hr))
-		{
-			// Request the first sample
-			hr = m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
-				0,
-				NULL, NULL, NULL, NULL
-			);
+			hr = WarmupAudioPipeline();
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -367,12 +369,18 @@ namespace record_windows
 			);
 		}
 
-		// Add additional attributes for faster startup (if available in SDK)
+		// Add low-latency attributes for faster startup (if available in SDK)
 		if (SUCCEEDED(hr))
 		{
 #ifdef MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_USE_HARDWARE_TIMESTAMP
 			hr = pAttributes->SetUINT32(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_USE_HARDWARE_TIMESTAMP, TRUE);
 #endif
+		}
+		
+		// Enable additional optimizations for audio capture
+		if (SUCCEEDED(hr))
+		{
+			hr = pAttributes->SetUINT32(MF_LOW_LATENCY, TRUE);
 		}
 
 		// Create the source
@@ -396,20 +404,30 @@ namespace record_windows
 		IMFAttributes* pAttributes = NULL;
 		IMFMediaType* pMediaTypeIn = NULL;
 
-		hr = MFCreateAttributes(&pAttributes, 3);
+		hr = MFCreateAttributes(&pAttributes, 5);
 		if (SUCCEEDED(hr))
 		{
 			hr = pAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this);
 		}
 		if (SUCCEEDED(hr))
 		{
-			// Add low latency for source reader as well
+			// Enable low latency mode for faster startup
 			hr = pAttributes->SetUINT32(MF_LOW_LATENCY, TRUE);
 		}
 		if (SUCCEEDED(hr))
 		{
-			// Disable additional processing that can add latency
+			// Disable DXVA to reduce processing delays
 			hr = pAttributes->SetUINT32(MF_SOURCE_READER_DISABLE_DXVA, TRUE);
+		}
+		if (SUCCEEDED(hr))
+		{
+			// Enable hardware-based processing if available
+			hr = pAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, FALSE);
+		}
+		if (SUCCEEDED(hr))
+		{
+			// Minimize buffering for lower latency
+			hr = pAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_ADVANCED_VIDEO_PROCESSING, FALSE);
 		}
 		if (SUCCEEDED(hr))
 		{

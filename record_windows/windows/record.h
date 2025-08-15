@@ -60,6 +60,7 @@ namespace record_windows
 		HRESULT CreateAudioCaptureDevice(LPCWSTR pszEndPointID);
 		HRESULT CreateSourceReaderAsync();
 		HRESULT CreateSinkWriter(std::wstring path);
+		HRESULT WarmupAudioPipeline(); // New method for pipeline warmup
 		HRESULT CreateAudioProfileIn( IMFMediaType** ppMediaType);
 		HRESULT CreateAudioProfileOut( IMFMediaType** ppMediaType);
 
