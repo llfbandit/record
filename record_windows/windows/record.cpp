@@ -711,11 +711,12 @@ namespace record_windows
 	
 	HRESULT WASAPICapture::InitializeAudioEffects()
 	{
+		// TODO: Re-enable audio effects once GUID compilation issues are resolved
+		// Audio effects functionality temporarily disabled to resolve compilation errors
+		/*
 		HRESULT hr = S_OK;
 		
 		// Try to get the effects manager for audio processing
-		// TODO: Re-enable audio effects once GUID compilation issues are resolved
-		/*
 		if (m_pDevice)
 		{
 			hr = m_pDevice->Activate(__uuidof(IAudioEffectsManager), CLSCTX_ALL, 
