@@ -367,10 +367,12 @@ namespace record_windows
 			);
 		}
 
-		// Add additional attributes for faster startup
+		// Add additional attributes for faster startup (if available in SDK)
 		if (SUCCEEDED(hr))
 		{
+#ifdef MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_USE_HARDWARE_TIMESTAMP
 			hr = pAttributes->SetUINT32(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_USE_HARDWARE_TIMESTAMP, TRUE);
+#endif
 		}
 
 		// Create the source
