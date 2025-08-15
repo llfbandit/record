@@ -1248,4 +1248,644 @@ namespace record_windows
 		// Use provided channel count or default to stereo
 		return static_cast<WORD>(config.numChannels > 0 ? config.numChannels : 2);
 	}
+
+	// ===========================================
+	// WASAPICapture Implementation
+	// ===========================================
+	
+	WASAPICapture::WASAPICapture()
+		: m_pDeviceEnumerator(nullptr)
+		, m_pDevice(nullptr)
+		, m_pAudioClient(nullptr)
+		, m_pCaptureClient(nullptr)
+		, m_hCaptureEvent(nullptr)
+		, m_pWaveFormat(nullptr)
+		, m_sampleRate(48000)
+		, m_channels(2)
+		, m_enableNoiseSuppress(false)
+		, m_enableEchoCancel(false)
+		, m_enableAutoGain(false)
+	{
+		EnsureCOMInitialized();
+	}
+
+	WASAPICapture::~WASAPICapture()
+	{
+		Stop();
+		
+		if (m_pWaveFormat)
+		{
+			CoTaskMemFree(m_pWaveFormat);
+			m_pWaveFormat = nullptr;
+		}
+		
+		if (m_hCaptureEvent)
+		{
+			CloseHandle(m_hCaptureEvent);
+			m_hCaptureEvent = nullptr;
+		}
+		
+		if (m_pCaptureClient)
+		{
+			m_pCaptureClient->Release();
+			m_pCaptureClient = nullptr;
+		}
+		
+		if (m_pAudioClient)
+		{
+			m_pAudioClient->Release();
+			m_pAudioClient = nullptr;
+		}
+		
+		if (m_pDevice)
+		{
+			m_pDevice->Release();
+			m_pDevice = nullptr;
+		}
+		
+		if (m_pDeviceEnumerator)
+		{
+			m_pDeviceEnumerator->Release();
+			m_pDeviceEnumerator = nullptr;
+		}
+	}
+
+	HRESULT WASAPICapture::Initialize(const std::string& deviceId, DWORD sampleRate, WORD channels,
+									  bool noiseSuppress, bool echoCancel, bool autoGain)
+	{
+		HRESULT hr;
+		
+		m_sampleRate = sampleRate;
+		m_channels = channels;
+		m_enableNoiseSuppress = noiseSuppress;
+		m_enableEchoCancel = echoCancel;
+		m_enableAutoGain = autoGain;
+
+		// Create device enumerator
+		hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+							  __uuidof(IMMDeviceEnumerator), (void**)&m_pDeviceEnumerator);
+		if (FAILED(hr)) return hr;
+
+		// Get default capture device if no device ID specified
+		if (deviceId.empty())
+		{
+			hr = m_pDeviceEnumerator->GetDefaultAudioEndpoint(eCapture, eConsole, &m_pDevice);
+		}
+		else
+		{
+			std::wstring wDeviceId(deviceId.begin(), deviceId.end());
+			hr = m_pDeviceEnumerator->GetDevice(wDeviceId.c_str(), &m_pDevice);
+		}
+		if (FAILED(hr)) return hr;
+
+		// Activate audio client
+		hr = m_pDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, (void**)&m_pAudioClient);
+		if (FAILED(hr)) return hr;
+
+		// Initialize audio client
+		hr = InitializeAudioClient();
+		if (FAILED(hr)) return hr;
+
+		// Create capture event
+		m_hCaptureEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		if (!m_hCaptureEvent) return E_FAIL;
+
+		// Set event handle
+		hr = m_pAudioClient->SetEventHandle(m_hCaptureEvent);
+		if (FAILED(hr)) return hr;
+
+		// Get capture client
+		hr = m_pAudioClient->GetService(__uuidof(IAudioCaptureClient), (void**)&m_pCaptureClient);
+		if (FAILED(hr)) return hr;
+
+		return S_OK;
+	}
+
+	HRESULT WASAPICapture::InitializeAudioClient()
+	{
+		HRESULT hr;
+		
+		// Get mix format
+		hr = m_pAudioClient->GetMixFormat(&m_pWaveFormat);
+		if (FAILED(hr)) return hr;
+
+		// Configure for 32-bit float at desired sample rate and channels
+		if (m_pWaveFormat->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+		{
+			WAVEFORMATEXTENSIBLE* pWfx = (WAVEFORMATEXTENSIBLE*)m_pWaveFormat;
+			pWfx->Format.nSamplesPerSec = m_sampleRate;
+			pWfx->Format.nChannels = m_channels;
+			pWfx->Format.wBitsPerSample = 32;
+			pWfx->Format.nBlockAlign = (pWfx->Format.nChannels * pWfx->Format.wBitsPerSample) / 8;
+			pWfx->Format.nAvgBytesPerSec = pWfx->Format.nSamplesPerSec * pWfx->Format.nBlockAlign;
+			pWfx->Samples.wValidBitsPerSample = 32;
+			pWfx->SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+			
+			// Set appropriate channel mask
+			if (m_channels == 1) pWfx->dwChannelMask = KSAUDIO_SPEAKER_MONO;
+			else if (m_channels == 2) pWfx->dwChannelMask = KSAUDIO_SPEAKER_STEREO;
+			else if (m_channels == 4) pWfx->dwChannelMask = KSAUDIO_SPEAKER_QUAD;
+			else if (m_channels == 6) pWfx->dwChannelMask = KSAUDIO_SPEAKER_5POINT1;
+			else if (m_channels == 8) pWfx->dwChannelMask = KSAUDIO_SPEAKER_7POINT1;
+			else pWfx->dwChannelMask = KSAUDIO_SPEAKER_DIRECTOUT;
+		}
+		else
+		{
+			m_pWaveFormat->nSamplesPerSec = m_sampleRate;
+			m_pWaveFormat->nChannels = m_channels;
+			m_pWaveFormat->wBitsPerSample = 32;
+			m_pWaveFormat->nBlockAlign = (m_pWaveFormat->nChannels * m_pWaveFormat->wBitsPerSample) / 8;
+			m_pWaveFormat->nAvgBytesPerSec = m_pWaveFormat->nSamplesPerSec * m_pWaveFormat->nBlockAlign;
+		}
+
+		// Use 10ms buffer duration for low latency
+		REFERENCE_TIME bufferDuration = 100000; // 10ms in 100-nanosecond units
+
+		// Initialize with event-driven mode and low-latency for real-time audio
+		hr = m_pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED,
+										AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST,
+										bufferDuration, 0, m_pWaveFormat, nullptr);
+		
+		return hr;
+	}
+
+	HRESULT WASAPICapture::Start()
+	{
+		if (m_isCapturing.load()) return S_OK;
+
+		HRESULT hr = m_pAudioClient->Start();
+		if (FAILED(hr)) return hr;
+
+		m_isCapturing.store(true);
+		
+		// Start capture thread
+		m_captureThread = std::thread(&WASAPICapture::CaptureThreadProc, this);
+
+		return S_OK;
+	}
+
+	HRESULT WASAPICapture::Stop()
+	{
+		if (!m_isCapturing.load()) return S_OK;
+
+		m_isCapturing.store(false);
+		
+		if (m_captureThread.joinable())
+		{
+			SetEvent(m_hCaptureEvent); // Wake up the thread
+			m_captureThread.join();
+		}
+
+		if (m_pAudioClient)
+		{
+			m_pAudioClient->Stop();
+			m_pAudioClient->Reset();
+		}
+
+		return S_OK;
+	}
+
+	HRESULT WASAPICapture::Pause()
+	{
+		if (m_pAudioClient)
+		{
+			return m_pAudioClient->Stop();
+		}
+		return E_FAIL;
+	}
+
+	HRESULT WASAPICapture::Resume()
+	{
+		if (m_pAudioClient)
+		{
+			return m_pAudioClient->Start();
+		}
+		return E_FAIL;
+	}
+
+	void WASAPICapture::SetAudioDataCallback(std::function<void(const float* samples, size_t count)> callback)
+	{
+		m_onAudioData = callback;
+	}
+
+	void WASAPICapture::CaptureThreadProc()
+	{
+		HRESULT hr;
+		HANDLE waitArray[1] = { m_hCaptureEvent };
+		
+		while (m_isCapturing.load())
+		{
+			DWORD waitResult = WaitForMultipleObjects(1, waitArray, FALSE, 100);
+			
+			if (waitResult != WAIT_OBJECT_0 || !m_isCapturing.load())
+				continue;
+
+			UINT32 packetLength = 0;
+			hr = m_pCaptureClient->GetNextPacketSize(&packetLength);
+			if (FAILED(hr)) continue;
+
+			while (packetLength != 0)
+			{
+				BYTE* pData;
+				UINT32 numFramesAvailable;
+				DWORD flags;
+
+				hr = m_pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, nullptr, nullptr);
+				if (FAILED(hr)) break;
+
+				if (numFramesAvailable > 0 && m_onAudioData)
+				{
+					if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
+					{
+						// Handle silence
+						std::vector<float> silentBuffer(numFramesAvailable * m_channels, 0.0f);
+						m_onAudioData(silentBuffer.data(), numFramesAvailable * m_channels);
+					}
+					else
+					{
+						// Process actual audio data (32-bit float)
+						float* pFloatData = reinterpret_cast<float*>(pData);
+						m_onAudioData(pFloatData, numFramesAvailable * m_channels);
+					}
+				}
+
+				hr = m_pCaptureClient->ReleaseBuffer(numFramesAvailable);
+				if (FAILED(hr)) break;
+
+				hr = m_pCaptureClient->GetNextPacketSize(&packetLength);
+				if (FAILED(hr)) break;
+			}
+		}
+	}
+
+	bool WASAPICapture::IsFloatFormat()
+	{
+		if (!m_pWaveFormat) return false;
+		
+		if (m_pWaveFormat->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) return true;
+		
+		if (m_pWaveFormat->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+		{
+			WAVEFORMATEXTENSIBLE* pWfx = (WAVEFORMATEXTENSIBLE*)m_pWaveFormat;
+			return IsEqualGUID(pWfx->SubFormat, KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
+		}
+		
+		return false;
+	}
+
+	// ===========================================
+	// AsyncAudioWriter Implementation
+	// ===========================================
+	
+	AsyncAudioWriter::AsyncAudioWriter()
+		: m_audioBuffer(std::make_unique<LockFreeRingBuffer<float>>(48000 * 2 * 2)) // 2 seconds at 48kHz stereo
+		, m_sampleRate(48000)
+		, m_channels(2)
+		, m_pSinkWriter(nullptr)
+		, m_streamIndex(0)
+		, m_useMediaFoundation(false)
+	{
+		EnsureCOMInitialized();
+	}
+
+	AsyncAudioWriter::~AsyncAudioWriter()
+	{
+		Stop();
+		CleanupMediaFoundation();
+	}
+
+	HRESULT AsyncAudioWriter::Initialize(const std::wstring& filePath, const std::string& encoder,
+										 DWORD sampleRate, WORD channels)
+	{
+		m_filePath = filePath;
+		m_encoderName = encoder;
+		m_sampleRate = sampleRate;
+		m_channels = channels;
+		
+		// Determine if we need Media Foundation for advanced codecs
+		m_useMediaFoundation = (encoder == "aac" || encoder == "aac-lc" || encoder == "m4a");
+		
+		if (m_useMediaFoundation)
+		{
+			// Use .m4a extension for AAC files
+			std::wstring adjustedPath = m_filePath;
+			if (adjustedPath.length() > 4)
+			{
+				std::wstring ext = adjustedPath.substr(adjustedPath.length() - 4);
+				std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+				if (ext == L".aac")
+				{
+					adjustedPath = adjustedPath.substr(0, adjustedPath.length() - 4) + L".m4a";
+					m_filePath = adjustedPath;
+				}
+			}
+			
+			return InitializeMediaFoundationEncoder();
+		}
+		else
+		{
+			// Direct WAV file writing
+			m_fileStream.open(m_filePath, std::ios::binary | std::ios::trunc);
+			if (!m_fileStream.is_open()) return E_FAIL;
+			
+			return WriteWavHeader();
+		}
+	}
+
+	HRESULT AsyncAudioWriter::Start()
+	{
+		if (m_isRunning.load()) return S_OK;
+		
+		m_isRunning.store(true);
+		m_writerThread = std::thread(&AsyncAudioWriter::WriterThreadProc, this);
+		
+		return S_OK;
+	}
+
+	HRESULT AsyncAudioWriter::Stop()
+	{
+		if (!m_isRunning.load()) return S_OK;
+		
+		m_isRunning.store(false);
+		
+		if (m_writerThread.joinable())
+		{
+			m_writerThread.join();
+		}
+		
+		if (m_useMediaFoundation)
+		{
+			CleanupMediaFoundation();
+		}
+		else
+		{
+			if (m_fileStream.is_open())
+			{
+				UpdateWavHeader();
+				m_fileStream.close();
+			}
+		}
+		
+		return S_OK;
+	}
+
+	void AsyncAudioWriter::QueueAudio(const float* samples, size_t count)
+	{
+		if (m_audioBuffer && m_isRunning.load())
+		{
+			m_audioBuffer->Write(samples, count);
+		}
+	}
+
+	void AsyncAudioWriter::WriterThreadProc()
+	{
+		std::vector<float> buffer(2048); // Reduced from 4096 for lower latency
+		
+		while (m_isRunning.load() || m_audioBuffer->Available() > 0)
+		{
+			size_t samplesRead = m_audioBuffer->Read(buffer.data(), buffer.size());
+			
+			if (samplesRead > 0)
+			{
+				if (m_useMediaFoundation)
+				{
+					WriteMediaFoundationSample(buffer.data(), samplesRead);
+				}
+				else
+				{
+					// Convert float to 16-bit PCM and write
+					std::vector<int16_t> pcmBuffer(samplesRead);
+					for (size_t i = 0; i < samplesRead; ++i)
+					{
+						float sample = std::clamp(buffer[i], -1.0f, 1.0f);
+						pcmBuffer[i] = static_cast<int16_t>(sample * 32767.0f);
+					}
+					
+					m_fileStream.write(reinterpret_cast<const char*>(pcmBuffer.data()), 
+									   samplesRead * sizeof(int16_t));
+					m_bytesWritten += samplesRead * sizeof(int16_t);
+				}
+			}
+			else
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+		}
+	}
+
+	HRESULT AsyncAudioWriter::WriteWavHeader()
+	{
+		// WAV header structure
+		struct WavHeader
+		{
+			char chunkID[4] = {'R', 'I', 'F', 'F'};
+			uint32_t chunkSize = 36; // Will be updated later
+			char format[4] = {'W', 'A', 'V', 'E'};
+			char subchunk1ID[4] = {'f', 'm', 't', ' '};
+			uint32_t subchunk1Size = 16;
+			uint16_t audioFormat = 1; // PCM
+			uint16_t numChannels;
+			uint32_t sampleRate;
+			uint32_t byteRate;
+			uint16_t blockAlign;
+			uint16_t bitsPerSample = 16;
+			char subchunk2ID[4] = {'d', 'a', 't', 'a'};
+			uint32_t subchunk2Size = 0; // Will be updated later
+		};
+		
+		WavHeader header;
+		header.numChannels = m_channels;
+		header.sampleRate = m_sampleRate;
+		header.byteRate = m_sampleRate * m_channels * (header.bitsPerSample / 8);
+		header.blockAlign = m_channels * (header.bitsPerSample / 8);
+		
+		m_fileStream.write(reinterpret_cast<const char*>(&header), sizeof(header));
+		
+		return S_OK;
+	}
+
+	HRESULT AsyncAudioWriter::UpdateWavHeader()
+	{
+		if (!m_fileStream.is_open()) return E_FAIL;
+		
+		// Update file size fields
+		uint32_t dataSize = static_cast<uint32_t>(m_bytesWritten);
+		uint32_t fileSize = dataSize + 36;
+		
+		// Seek to chunk size field
+		m_fileStream.seekp(4, std::ios::beg);
+		m_fileStream.write(reinterpret_cast<const char*>(&fileSize), 4);
+		
+		// Seek to data size field
+		m_fileStream.seekp(40, std::ios::beg);
+		m_fileStream.write(reinterpret_cast<const char*>(&dataSize), 4);
+		
+		return S_OK;
+	}
+
+	HRESULT AsyncAudioWriter::InitializeMediaFoundationEncoder()
+	{
+		HRESULT hr;
+		
+		// Initialize Media Foundation
+		hr = MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET);
+		if (FAILED(hr)) return hr;
+
+		// Create sink writer
+		hr = MFCreateSinkWriterFromURL(m_filePath.c_str(), nullptr, nullptr, &m_pSinkWriter);
+		if (FAILED(hr)) return hr;
+
+		// Create input media type (32-bit float PCM)
+		IMFMediaType* pInputType = nullptr;
+		hr = MFCreateMediaType(&pInputType);
+		if (FAILED(hr)) return hr;
+
+		hr = pInputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+		if (SUCCEEDED(hr)) hr = pInputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_Float);
+		if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
+		if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
+		if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 32);
+		if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, m_channels * 4);
+		if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, m_sampleRate * m_channels * 4);
+
+		// Create output media type (AAC-LC)
+		IMFMediaType* pOutputType = nullptr;
+		if (SUCCEEDED(hr)) hr = MFCreateMediaType(&pOutputType);
+		if (SUCCEEDED(hr)) hr = pOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+		if (SUCCEEDED(hr)) hr = pOutputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC);
+		if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
+		if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
+		if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 16000); // 128 kbps for stereo
+		if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29); // AAC-LC
+
+		// Add stream to sink writer
+		if (SUCCEEDED(hr)) hr = m_pSinkWriter->AddStream(pOutputType, &m_streamIndex);
+		if (SUCCEEDED(hr)) hr = m_pSinkWriter->SetInputMediaType(m_streamIndex, pInputType, nullptr);
+
+		// Enable hardware transforms
+		if (SUCCEEDED(hr))
+		{
+			IMFAttributes* pAttributes = nullptr;
+			hr = m_pSinkWriter->GetServiceForStream(m_streamIndex, GUID_NULL, IID_PPV_ARGS(&pAttributes));
+			if (SUCCEEDED(hr))
+			{
+				pAttributes->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE);
+				pAttributes->Release();
+			}
+			hr = S_OK; // Don't fail if hardware acceleration isn't available
+		}
+
+		// Begin writing
+		if (SUCCEEDED(hr)) hr = m_pSinkWriter->BeginWriting();
+
+		// Cleanup
+		if (pInputType) pInputType->Release();
+		if (pOutputType) pOutputType->Release();
+
+		return hr;
+	}
+
+	HRESULT AsyncAudioWriter::WriteMediaFoundationSample(const float* samples, size_t count)
+	{
+		if (!m_pSinkWriter || count == 0) return E_FAIL;
+
+		HRESULT hr;
+		
+		// Create media buffer
+		IMFMediaBuffer* pBuffer = nullptr;
+		DWORD bufferSize = static_cast<DWORD>(count * sizeof(float));
+		hr = MFCreateMemoryBuffer(bufferSize, &pBuffer);
+		if (FAILED(hr)) return hr;
+
+		// Copy audio data
+		BYTE* pData = nullptr;
+		hr = pBuffer->Lock(&pData, nullptr, nullptr);
+		if (SUCCEEDED(hr))
+		{
+			memcpy(pData, samples, bufferSize);
+			pBuffer->Unlock();
+			pBuffer->SetCurrentLength(bufferSize);
+		}
+
+		// Create sample
+		IMFSample* pSample = nullptr;
+		if (SUCCEEDED(hr)) hr = MFCreateSample(&pSample);
+		if (SUCCEEDED(hr)) hr = pSample->AddBuffer(pBuffer);
+
+		// Set timestamp
+		if (SUCCEEDED(hr))
+		{
+			LONGLONG timestamp = (LONGLONG)(m_bytesWritten * 10000000LL / (m_sampleRate * m_channels * sizeof(float)));
+			pSample->SetSampleTime(timestamp);
+		}
+
+		// Write sample
+		if (SUCCEEDED(hr)) hr = m_pSinkWriter->WriteSample(m_streamIndex, pSample);
+
+		// Update bytes written
+		if (SUCCEEDED(hr)) m_bytesWritten += count * sizeof(float);
+
+		// Cleanup
+		if (pBuffer) pBuffer->Release();
+		if (pSample) pSample->Release();
+
+		return hr;
+	}
+
+	void AsyncAudioWriter::CleanupMediaFoundation()
+	{
+		if (m_pSinkWriter)
+		{
+			m_pSinkWriter->Finalize();
+			m_pSinkWriter->Release();
+			m_pSinkWriter = nullptr;
+		}
+		
+		MFShutdown();
+	}
+
+	// ===========================================
+	// AmplitudeAnalyzer Implementation
+	// ===========================================
+	
+	void AmplitudeAnalyzer::ProcessSamples(const float* samples, size_t count)
+	{
+		if (!samples || count == 0) return;
+		
+		float rms = 0.0f;
+		float peak = 0.0f;
+		
+		// Calculate RMS and peak values
+		for (size_t i = 0; i < count; ++i)
+		{
+			float sample = std::abs(samples[i]);
+			rms += sample * sample;
+			peak = std::max(peak, sample);
+		}
+		
+		rms = std::sqrt(rms / count);
+		
+		// Convert to dB
+		float currentDB = (rms > 0.0f) ? (20.0f * std::log10(rms)) : -160.0f;
+		float maxDB = (peak > 0.0f) ? (20.0f * std::log10(peak)) : -160.0f;
+		
+		// Clamp to reasonable range
+		currentDB = std::clamp(currentDB, -160.0f, 0.0f);
+		maxDB = std::clamp(maxDB, -160.0f, 0.0f);
+		
+		// Update atomic values
+		m_currentAmplitude.store(currentDB, std::memory_order_release);
+		
+		float currentMax = m_maxAmplitude.load(std::memory_order_acquire);
+		if (maxDB > currentMax)
+		{
+			m_maxAmplitude.store(maxDB, std::memory_order_release);
+		}
+	}
+
+	void AmplitudeAnalyzer::Reset()
+	{
+		m_currentAmplitude.store(-160.0f, std::memory_order_release);
+		m_maxAmplitude.store(-160.0f, std::memory_order_release);
+	}
 }
