@@ -92,8 +92,6 @@ namespace record_windows
 		HRESULT InitializeMediaFoundationEncoder();
 		HRESULT WriteMediaFoundationSample(const float* samples, size_t count);
 		void CleanupMediaFoundation();
-		HRESULT WriteWavHeader();
-		HRESULT UpdateWavHeader();
 
 	public:
 		AsyncAudioWriter();

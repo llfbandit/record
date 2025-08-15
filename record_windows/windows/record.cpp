@@ -4,17 +4,21 @@
 #include <cmath>
 #include <algorithm>
 #include <chrono>
+#include <cctype>
+#include <initguid.h>
+
+// Define missing Media Foundation constants if not available
+#ifndef MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION
+#define MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION MF_MT_USER_DATA
+#endif
 
 // Audio effect type GUIDs for Windows Audio Engine
-static const GUID AUDIO_EFFECT_TYPE_NOISE_SUPPRESSION = { 
-	0xe07f903f, 0x62fd, 0x4e60, { 0x8c, 0xdd, 0xde, 0xa7, 0x23, 0x66, 0x65, 0xb5 } 
-};
-static const GUID AUDIO_EFFECT_TYPE_ECHO_CANCELLATION = { 
-	0x6f64adbe, 0x1dd2, 0x4c24, { 0x8e, 0xc3, 0x7c, 0xaa, 0xdf, 0x6e, 0x8a, 0x9c } 
-};
-static const GUID AUDIO_EFFECT_TYPE_AUTOMATIC_GAIN_CONTROL = { 
-	0x6e7132c3, 0x75cf, 0x4f36, { 0xa6, 0x16, 0xec, 0x11, 0x22, 0x00, 0xaa, 0x20 } 
-};
+DEFINE_GUID(AUDIO_EFFECT_TYPE_NOISE_SUPPRESSION, 
+	0xe07f903f, 0x62fd, 0x4e60, 0x8c, 0xdd, 0xde, 0xa7, 0x23, 0x66, 0x65, 0xb5);
+DEFINE_GUID(AUDIO_EFFECT_TYPE_ECHO_CANCELLATION, 
+	0x6f64adbe, 0x1dd2, 0x4c24, 0x8e, 0xc3, 0x7c, 0xaa, 0xdf, 0x6e, 0x8a, 0x9c);
+DEFINE_GUID(AUDIO_EFFECT_TYPE_AUTOMATIC_GAIN_CONTROL, 
+	0x6e7132c3, 0x75cf, 0x4f36, 0xa6, 0x16, 0xec, 0x11, 0x22, 0x00, 0xaa, 0x20);
 
 namespace record_windows
 {
@@ -160,14 +164,36 @@ namespace record_windows
 	HRESULT AsyncAudioWriter::Initialize(const std::wstring& filePath, const std::string& encoder, 
 										 DWORD sampleRate, WORD channels)
 	{
-		m_filePath = filePath;
 		m_encoderName = encoder;
 		m_sampleRate = sampleRate;
 		m_channels = channels;
 		m_bytesWritten = 0;
 		
 		// Determine if we need Media Foundation for advanced codecs
-		m_useMediaFoundation = (encoder == "aac" || encoder == "aaclc" || encoder == "flac");
+		m_useMediaFoundation = (encoder == "aac" || encoder == "aaclc");
+		
+		// Adjust file extension based on encoder
+		std::wstring adjustedPath = filePath;
+		if (encoder == "aac" || encoder == "aaclc")
+		{
+			// Replace .wav extension with .aac if needed
+			size_t dotPos = adjustedPath.find_last_of(L'.');
+			if (dotPos != std::wstring::npos)
+			{
+				std::wstring extension = adjustedPath.substr(dotPos + 1);
+				std::transform(extension.begin(), extension.end(), extension.begin(), ::towlower);
+				if (extension == L"wav")
+				{
+					adjustedPath.replace(dotPos, std::wstring::npos, L".aac");
+				}
+			}
+			else
+			{
+				adjustedPath += L".aac";
+			}
+		}
+		
+		m_filePath = adjustedPath;
 		
 		return S_OK;
 	}
@@ -244,18 +270,18 @@ namespace record_windows
 	void AsyncAudioWriter::WriterThreadProc()
 	{
 		const size_t bufferSize = 4096;
-		float buffer[bufferSize];
+		std::vector<float> buffer(bufferSize);
 		
 		while (m_isRunning.load() || m_audioBuffer->Available() > 0)
 		{
-			size_t samplesRead = m_audioBuffer->Read(buffer, bufferSize);
+			size_t samplesRead = m_audioBuffer->Read(buffer.data(), bufferSize);
 			
 			if (samplesRead > 0)
 			{
 				if (m_useMediaFoundation)
 				{
 					// Use Media Foundation for AAC/FLAC encoding
-					WriteMediaFoundationSample(buffer, samplesRead);
+					WriteMediaFoundationSample(buffer.data(), samplesRead);
 				}
 				else
 				{
@@ -362,16 +388,7 @@ namespace record_windows
 					pOutputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 128000 / 8); // 128 kbps
 					pOutputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 1);
 					pOutputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
-					pOutputType->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29); // AAC-LC
-				}
-				else if (m_encoderName == "flac")
-				{
-					// FLAC configuration (if available)
-					pOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-					pOutputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_FLAC);
-					pOutputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
-					pOutputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
-					pOutputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+					// Note: AAC profile settings may vary by Windows version
 				}
 				
 				hr = m_pSinkWriter->AddStream(pOutputType, &m_streamIndex);
@@ -381,19 +398,19 @@ namespace record_windows
 		
 		if (SUCCEEDED(hr))
 		{
-			// Configure input media type (PCM float)
+			// Configure input media type (16-bit PCM - more compatible)
 			IMFMediaType* pInputType = nullptr;
 			hr = MFCreateMediaType(&pInputType);
 			
 			if (SUCCEEDED(hr))
 			{
 				pInputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-				pInputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_Float);
+				pInputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
 				pInputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
 				pInputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
-				pInputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, m_channels * sizeof(float));
-				pInputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, m_sampleRate * m_channels * sizeof(float));
-				pInputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 32);
+				pInputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, m_channels * sizeof(int16_t));
+				pInputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, m_sampleRate * m_channels * sizeof(int16_t));
+				pInputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
 				pInputType->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE);
 				
 				hr = m_pSinkWriter->SetInputMediaType(m_streamIndex, pInputType, nullptr);
@@ -419,12 +436,20 @@ namespace record_windows
 		IMFSample* pSample = nullptr;
 		IMFMediaBuffer* pBuffer = nullptr;
 		
+		// Convert float to 16-bit PCM for Media Foundation
+		std::vector<int16_t> pcmData(count);
+		for (size_t i = 0; i < count; ++i)
+		{
+			float sample = (std::clamp)(samples[i], -1.0f, 1.0f);
+			pcmData[i] = static_cast<int16_t>(sample * 32767.0f);
+		}
+		
 		// Create sample
 		hr = MFCreateSample(&pSample);
 		
 		if (SUCCEEDED(hr))
 		{
-			DWORD bufferSize = static_cast<DWORD>(count * sizeof(float));
+			DWORD bufferSize = static_cast<DWORD>(count * sizeof(int16_t));
 			hr = MFCreateMemoryBuffer(bufferSize, &pBuffer);
 		}
 		
@@ -435,7 +460,7 @@ namespace record_windows
 			
 			if (SUCCEEDED(hr))
 			{
-				memcpy(pData, samples, count * sizeof(float));
+				memcpy(pData, pcmData.data(), count * sizeof(int16_t));
 				pBuffer->Unlock();
 				pBuffer->SetCurrentLength(bufferSize);
 			}
@@ -1108,7 +1133,7 @@ namespace record_windows
 		// Support multiple audio formats with minimal binary impact
 		*supported = (encoderName == "pcm16bits" || 
 					  encoderName == "wav" ||
-					  encoderName == "flac" ||     // FLAC lossless (using system codecs)
+					  // encoderName == "flac" ||     // FLAC disabled - needs separate library
 					  encoderName == "aac" ||      // AAC-LC (using Windows Media Foundation)
 					  encoderName == "aaclc");     // AAC-LC alias
 		return S_OK;
