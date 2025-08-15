@@ -139,7 +139,7 @@ namespace record_windows
 	// ===========================================
 	
 	AsyncAudioWriter::AsyncAudioWriter()
-		: m_audioBuffer(std::make_unique<LockFreeRingBuffer<float>>(48000 * 4)) // 4 seconds buffer
+		: m_audioBuffer(std::make_unique<LockFreeRingBuffer<float>>(48000 * 2)) // 2 seconds buffer for lower delay
 	{
 		// Initialize Media Foundation for advanced codecs
 		MFStartup(MF_VERSION, MFSTARTUP_LITE);
@@ -178,20 +178,20 @@ namespace record_windows
 		if (encoder == "aac" || encoder == "aaclc" || encoder == "aac_lc" || 
 			encoder == "m4a" || encoder == "mp4")
 		{
-			// Replace .wav extension with .aac if needed
+			// Replace .wav extension with .m4a for AAC files
 			size_t dotPos = adjustedPath.find_last_of(L'.');
 			if (dotPos != std::wstring::npos)
 			{
 				std::wstring extension = adjustedPath.substr(dotPos + 1);
 				std::transform(extension.begin(), extension.end(), extension.begin(), ::towlower);
-				if (extension == L"wav")
+				if (extension == L"wav" || extension == L"aac")
 				{
-					adjustedPath.replace(dotPos, std::wstring::npos, L".aac");
+					adjustedPath.replace(dotPos, std::wstring::npos, L".m4a");
 				}
 			}
 			else
 			{
-				adjustedPath += L".aac";
+				adjustedPath += L".m4a";
 			}
 		}
 		
@@ -271,7 +271,7 @@ namespace record_windows
 	
 	void AsyncAudioWriter::WriterThreadProc()
 	{
-		const size_t bufferSize = 4096;
+		const size_t bufferSize = 2048; // Smaller buffer for lower latency
 		std::vector<float> buffer(bufferSize);
 		
 		while (m_isRunning.load() || m_audioBuffer->Available() > 0)
@@ -365,7 +365,13 @@ namespace record_windows
 		
 		// Create sink writer for the output file
 		IMFAttributes* pAttributes = nullptr;
-		hr = MFCreateAttributes(&pAttributes, 0);
+		hr = MFCreateAttributes(&pAttributes, 1);
+		
+		if (SUCCEEDED(hr))
+		{
+			// Enable hardware transforms for better performance
+			hr = pAttributes->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE);
+		}
 		
 		if (SUCCEEDED(hr))
 		{
@@ -380,17 +386,26 @@ namespace record_windows
 			
 			if (SUCCEEDED(hr))
 			{
-				if (m_encoderName == "aac" || m_encoderName == "aaclc")
+				if (m_encoderName == "aac" || m_encoderName == "aaclc" || 
+					m_encoderName == "aac_lc" || m_encoderName == "m4a" || m_encoderName == "mp4")
 				{
-					// AAC-LC configuration
-					pOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-					pOutputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC);
-					pOutputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
-					pOutputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
-					pOutputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 128000 / 8); // 128 kbps
-					pOutputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 1);
-					pOutputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
-					// Note: AAC profile settings may vary by Windows version
+					// AAC-LC configuration with proper Media Foundation settings
+					hr = pOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+					if (SUCCEEDED(hr)) hr = pOutputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC);
+					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
+					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
+					
+					// Calculate proper bitrate based on channels and sample rate
+					UINT32 bitrate = 128000; // Default 128kbps
+					if (m_channels == 1) bitrate = 96000;       // 96kbps for mono
+					else if (m_channels > 2) bitrate = 192000;  // 192kbps for multichannel
+					
+					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, bitrate / 8);
+					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+					
+					// AAC-specific properties
+					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29); // AAC-LC Profile
+					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 1);
 				}
 				
 				hr = m_pSinkWriter->AddStream(pOutputType, &m_streamIndex);
@@ -406,17 +421,21 @@ namespace record_windows
 			
 			if (SUCCEEDED(hr))
 			{
-				pInputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-				pInputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-				pInputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
-				pInputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
-				pInputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, m_channels * sizeof(int16_t));
-				pInputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, m_sampleRate * m_channels * sizeof(int16_t));
-				pInputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
-				pInputType->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE);
+				hr = pInputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+				if (SUCCEEDED(hr)) hr = pInputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
+				if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
+				if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
+				if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+				if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, m_channels * sizeof(int16_t));
+				if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, m_sampleRate * m_channels * sizeof(int16_t));
+				if (SUCCEEDED(hr)) hr = pInputType->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE);
 				
-				hr = m_pSinkWriter->SetInputMediaType(m_streamIndex, pInputType, nullptr);
-				pInputType->Release();
+				if (SUCCEEDED(hr))
+				{
+					hr = m_pSinkWriter->SetInputMediaType(m_streamIndex, pInputType, nullptr);
+				}
+				
+				if (pInputType) pInputType->Release();
 			}
 		}
 		
@@ -702,10 +721,10 @@ namespace record_windows
 		
 		if (SUCCEEDED(hr))
 		{
-			// Initialize audio client with low latency
+			// Initialize audio client with minimal latency for better audio quality
 			hr = m_pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED,
 											AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST,
-											200000, // 20ms buffer
+											100000, // 10ms buffer for lower latency
 											0,
 											m_pWaveFormat,
 											nullptr);
