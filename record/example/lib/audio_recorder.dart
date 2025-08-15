@@ -67,7 +67,24 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
       }
     } catch (e) {
       if (kDebugMode) {
-        print(e);
+        print('Recording error: $e');
+      }
+      
+      // Show error dialog for better debugging
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Recording Error'),
+            content: Text('Error starting recording: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
       }
     }
   }

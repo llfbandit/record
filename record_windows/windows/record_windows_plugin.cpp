@@ -12,8 +12,47 @@ namespace record_windows {
 	{
 		_com_error err(hr);
 		std::string errorText = Utf8FromUtf16(err.ErrorMessage());
+		
+		// Add more specific error messages for common WASAPI errors
+		std::string specificError = "Unknown error";
+		switch (hr)
+		{
+		case AUDCLNT_E_DEVICE_INVALIDATED:
+			specificError = "Audio device was removed or became unavailable";
+			break;
+		case AUDCLNT_E_NOT_INITIALIZED:
+			specificError = "Audio client not initialized";
+			break;
+		case AUDCLNT_E_ALREADY_INITIALIZED:
+			specificError = "Audio client already initialized";
+			break;
+		case AUDCLNT_E_DEVICE_IN_USE:
+			specificError = "Audio device is in use by another application";
+			break;
+		case E_ACCESSDENIED:
+			specificError = "Access denied - check microphone permissions in Windows Settings";
+			break;
+		case AUDCLNT_E_UNSUPPORTED_FORMAT:
+			specificError = "Requested audio format is not supported";
+			break;
+		case AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED:
+			specificError = "Exclusive audio mode not allowed";
+			break;
+		case 0x88890008: // AUDCLNT_E_ENDPOINT_CREATE_FAILED
+			specificError = "Audio endpoint creation failed - no microphone available";
+			break;
+		case E_INVALIDARG:
+			specificError = "Invalid argument provided";
+			break;
+		case E_OUTOFMEMORY:
+			specificError = "Out of memory";
+			break;
+		default:
+			specificError = "Error code 0x" + std::to_string(hr);
+			break;
+		}
 
-		result.Error("Record", "", EncodableValue(errorText));
+		result.Error("Record", specificError, EncodableValue(errorText));
 	}
 
 	static HWND GetRootWindow(flutter::FlutterView* view) {

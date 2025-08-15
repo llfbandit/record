@@ -570,18 +570,27 @@ namespace record_windows
 							  __uuidof(IMMDeviceEnumerator), 
 							  reinterpret_cast<void**>(&m_pDeviceEnumerator));
 		
-		if (SUCCEEDED(hr))
+		if (FAILED(hr))
 		{
-			// Get audio device
-			if (deviceId.empty())
-			{
-				hr = m_pDeviceEnumerator->GetDefaultAudioEndpoint(eCapture, eMultimedia, &m_pDevice);
-			}
-			else
-			{
-				std::wstring wideDeviceId(deviceId.begin(), deviceId.end());
-				hr = m_pDeviceEnumerator->GetDevice(wideDeviceId.c_str(), &m_pDevice);
-			}
+			// Common cause: COM not initialized or audio service not running
+			return hr;
+		}
+		
+		// Get audio device
+		if (deviceId.empty())
+		{
+			hr = m_pDeviceEnumerator->GetDefaultAudioEndpoint(eCapture, eMultimedia, &m_pDevice);
+		}
+		else
+		{
+			std::wstring wideDeviceId(deviceId.begin(), deviceId.end());
+			hr = m_pDeviceEnumerator->GetDevice(wideDeviceId.c_str(), &m_pDevice);
+		}
+		
+		if (FAILED(hr))
+		{
+			// Common cause: No microphone available or no default capture device
+			return hr;
 		}
 		
 		if (SUCCEEDED(hr))
@@ -589,16 +598,25 @@ namespace record_windows
 			hr = InitializeAudioClient();
 		}
 		
-		if (SUCCEEDED(hr))
+		if (FAILED(hr))
 		{
-			hr = InitializeAudioEffects();
+			// Common cause: Audio client initialization failed - could be permissions or device busy
+			return hr;
 		}
 		
-		if (SUCCEEDED(hr))
+		hr = InitializeAudioEffects();
+		if (FAILED(hr))
 		{
-			// Create event for audio capture
-			m_hCaptureEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-			if (!m_hCaptureEvent) hr = E_FAIL;
+			// Audio effects initialization failed - continue without effects
+			// This is not critical, so we don't return failure
+			hr = S_OK;
+		}
+		
+		// Create event for audio capture
+		m_hCaptureEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		if (!m_hCaptureEvent) 
+		{
+			return E_FAIL;
 		}
 		
 		if (SUCCEEDED(hr))
@@ -1006,7 +1024,11 @@ namespace record_windows
 		// Initialize WASAPI capture with audio processing
 		hr = m_capture->Initialize(m_config->deviceId, sampleRate, channels, 
 								   m_config->noiseSuppress, m_config->echoCancel, m_config->autoGain);
-		if (FAILED(hr)) return hr;
+		if (FAILED(hr)) 
+		{
+			// Return specific error code for better debugging
+			return hr; 
+		}
 		
 		// Set up audio data callback
 		m_capture->SetAudioDataCallback([this](const float* samples, size_t count) {
@@ -1015,10 +1037,18 @@ namespace record_windows
 		
 		// Initialize file writer
 		hr = m_fileWriter->Initialize(path, m_config->encoderName, sampleRate, channels);
-		if (FAILED(hr)) return hr;
+		if (FAILED(hr)) 
+		{
+			// Return specific error code for file writer issues
+			return hr;
+		}
 		
 		hr = m_fileWriter->Start();
-		if (FAILED(hr)) return hr;
+		if (FAILED(hr)) 
+		{
+			// Return specific error code for file writer start issues
+			return hr;
+		}
 		
 		// Start capture - this is immediate with WASAPI!
 		hr = m_capture->Start();
@@ -1027,6 +1057,11 @@ namespace record_windows
 			m_isInitialized.store(true);
 			m_isRecordingToFile.store(true);
 			UpdateState(RecordState::record);
+		}
+		else
+		{
+			// Clean up if capture start failed
+			m_fileWriter->Stop();
 		}
 		
 		return hr;
