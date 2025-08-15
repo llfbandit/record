@@ -32,7 +32,7 @@ add_library(${PLUGIN_NAME} SHARED
 )
 
 # Updated to use WASAPI instead of Windows Media Foundation
-set(wasapi_libs ole32.lib oleaut32.lib)
+set(wasapi_libs ole32.lib oleaut32.lib propsys.lib)
 
 # Apply a standard set of build settings that are configured in the
 # application-level CMakeLists.txt. This can be removed for plugins that want
