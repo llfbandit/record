@@ -4,6 +4,7 @@
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include <propvarutil.h>
+#include <sstream>
 
 using namespace flutter;
 
@@ -38,9 +39,6 @@ namespace record_windows {
 		case AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED:
 			specificError = "Exclusive audio mode not allowed";
 			break;
-		case 0x88890008: // AUDCLNT_E_ENDPOINT_CREATE_FAILED
-			specificError = "Audio endpoint creation failed - no microphone available";
-			break;
 		case E_INVALIDARG:
 			specificError = "Invalid argument provided";
 			break;
@@ -48,7 +46,12 @@ namespace record_windows {
 			specificError = "Out of memory";
 			break;
 		default:
-			specificError = "Error code 0x" + std::to_string(hr);
+			// For other errors, provide hex error code for better debugging
+			{
+				std::stringstream ss;
+				ss << "Error code 0x" << std::hex << static_cast<unsigned int>(hr);
+				specificError = ss.str();
+			}
 			break;
 		}
 
