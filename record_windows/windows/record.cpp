@@ -62,6 +62,8 @@ namespace record_windows
 		}
 		if (SUCCEEDED(hr))
 		{
+			// Mark recording as active - samples will now be processed immediately
+			m_bRecordingActive = true;
 			UpdateState(RecordState::record);
 		}
 		else
@@ -76,7 +78,7 @@ namespace record_windows
 	{
 		HRESULT hr = S_OK;
 		
-		// Start the audio source
+		// Start the audio source immediately
 		PROPVARIANT var;
 		PropVariantInit(&var);
 		hr = m_pSource->Start(m_pPresentationDescriptor, NULL, &var);
@@ -84,19 +86,17 @@ namespace record_windows
 		
 		if (SUCCEEDED(hr))
 		{
-			// Allow sufficient time for the audio pipeline to fully initialize
-			// This is crucial for Windows Media Foundation audio capture
-			Sleep(200);
-			
-			// Prime the pipeline by requesting multiple samples
-			// This ensures the audio capture buffer is filled and ready
-			for (int i = 0; i < 5; i++)
+			// Request samples immediately to start the pipeline
+			for (int i = 0; i < 10; i++)
 			{
 				m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
 					0,
 					NULL, NULL, NULL, NULL
 				);
 			}
+			
+			// Reduced warmup time since we're processing all samples now
+			Sleep(150);
 		}
 		
 		return hr;
@@ -117,6 +117,8 @@ namespace record_windows
 		}
 		if (SUCCEEDED(hr))
 		{
+			// Mark recording as active for streaming
+			m_bRecordingActive = true;
 			UpdateState(RecordState::record);
 		}
 		else
@@ -289,18 +291,10 @@ namespace record_windows
 		}
 
 		m_bFirstSample = true;
+		m_bRecordingActive = false;
 		m_llBaseTime = 0;
 		m_llLastTime = 0;
 		m_llRecordStartTime = 0;
-		m_sampleSkipCount = 0;
-		
-		// Clear any buffered samples
-		while (!m_sampleBuffer.empty())
-		{
-			IMFSample* pSample = m_sampleBuffer.front();
-			m_sampleBuffer.pop();
-			SafeRelease(pSample);
-		}
 
 		m_amplitude = -160;
 		m_maxAmplitude = -160;
@@ -349,7 +343,7 @@ namespace record_windows
 	{
 		IMFAttributes* pAttributes = NULL;
 
-		HRESULT hr = MFCreateAttributes(&pAttributes, 2);
+		HRESULT hr = MFCreateAttributes(&pAttributes, 4);
 
 		// Set the device type to audio.
 		if (SUCCEEDED(hr))

@@ -29,123 +29,48 @@ namespace record_windows
 		{
 			if (pSample)
 			{
-				if (m_bFirstSample)
+				// Always process amplitude for all samples, even during warmup
+				IMFMediaBuffer* pBuffer = NULL;
+				HRESULT bufferHr = pSample->ConvertToContiguousBuffer(&pBuffer);
+				if (SUCCEEDED(bufferHr))
 				{
-					m_llBaseTime = llTimestamp;
-					m_llRecordStartTime = llTimestamp;
-					m_bFirstSample = false;
-					m_dataWritten = 0;
-					m_sampleSkipCount = 0; // Reset skip counter
+					BYTE* pChunk = NULL;
+					DWORD size = 0;
+					bufferHr = pBuffer->Lock(&pChunk, NULL, &size);
+					if (SUCCEEDED(bufferHr))
+					{
+						// Calculate amplitude for ALL samples including warmup
+						GetAmplitude(pChunk, size, 2);
+						pBuffer->Unlock();
+					}
+					SafeRelease(pBuffer);
 				}
 
-				// Strategy: Minimal skipping to preserve more audio data
-				if (m_sampleSkipCount < 2) // Only skip the first 2 samples for pipeline stabilization
+				// Only process for recording if we're active
+				if (m_bRecordingActive)
 				{
-					m_sampleSkipCount++;
-					
-					// Buffer the sample but also write it to maintain continuity
-					if (m_sampleBuffer.size() < 3) // Small buffer for processing
+					if (m_bFirstSample)
 					{
-						IMFSample* pClonedSample = NULL;
-						HRESULT cloneHr = MFCreateSample(&pClonedSample);
-						if (SUCCEEDED(cloneHr))
-						{
-							IMFMediaBuffer* pSourceBuffer = NULL;
-							cloneHr = pSample->ConvertToContiguousBuffer(&pSourceBuffer);
-							if (SUCCEEDED(cloneHr))
-							{
-								DWORD sourceSize = 0;
-								cloneHr = pSourceBuffer->GetCurrentLength(&sourceSize);
-								if (SUCCEEDED(cloneHr))
-								{
-									IMFMediaBuffer* pClonedBuffer = NULL;
-									cloneHr = MFCreateMemoryBuffer(sourceSize, &pClonedBuffer);
-									if (SUCCEEDED(cloneHr))
-									{
-										BYTE* pSourceData = NULL, *pClonedData = NULL;
-										cloneHr = pSourceBuffer->Lock(&pSourceData, NULL, NULL);
-										if (SUCCEEDED(cloneHr))
-										{
-											cloneHr = pClonedBuffer->Lock(&pClonedData, NULL, NULL);
-											if (SUCCEEDED(cloneHr))
-											{
-												memcpy(pClonedData, pSourceData, sourceSize);
-												pClonedBuffer->SetCurrentLength(sourceSize);
-												pClonedBuffer->Unlock();
-											}
-											pSourceBuffer->Unlock();
-										}
-										if (SUCCEEDED(cloneHr))
-										{
-											pClonedSample->AddBuffer(pClonedBuffer);
-											pClonedSample->SetSampleTime(llTimestamp);
-											m_sampleBuffer.push(pClonedSample);
-										}
-										SafeRelease(pClonedBuffer);
-									}
-								}
-								SafeRelease(pSourceBuffer);
-							}
-						}
+						m_llBaseTime = llTimestamp;
+						m_llRecordStartTime = llTimestamp;
+						m_bFirstSample = false;
+						m_dataWritten = 0;
 					}
-					
-					// After buffering, also process and write this sample immediately
-					// to minimize audio loss during the initial phase
-					LONGLONG adjustedTimestamp = llTimestamp - m_llBaseTime;
-					if (adjustedTimestamp <= 0) adjustedTimestamp = 1;
-					
-					hr = pSample->SetSampleTime(adjustedTimestamp);
-					
-					// Write to file if there's a writer
-					if (SUCCEEDED(hr) && m_pWriter)
-					{
-						hr = m_pWriter->WriteSample(dwStreamIndex, pSample);
-					}
-					
-					// Process for amplitude and streaming
-					IMFMediaBuffer* pBuffer = NULL;
-					hr = pSample->ConvertToContiguousBuffer(&pBuffer);
-					if (SUCCEEDED(hr))
-					{
-						BYTE* pChunk = NULL;
-						DWORD size = 0;
-						hr = pBuffer->Lock(&pChunk, NULL, &size);
-						if (SUCCEEDED(hr))
-						{
-							// Update total data written
-							m_dataWritten += size;
 
-							// Send data to stream when there's no writer
-							if (m_recordEventHandler && !m_pWriter) {
-								std::vector<uint8_t> bytes(pChunk, pChunk + size);
-
-								RecordWindowsPlugin::RunOnMainThread([this, bytes]() -> void {
-									m_recordEventHandler->Success(std::make_unique<flutter::EncodableValue>(bytes));
-								});
-							}
-
-							GetAmplitude(pChunk, size, 2);
-							pBuffer->Unlock();
-						}
-						SafeRelease(pBuffer);
-					}
-				}
-				else
-				{
-					// Process samples normally after initial stabilization period
+					// Process ALL samples immediately - no skipping
 					// Save current timestamp in case of Pause
 					m_llLastTime = llTimestamp;
 
 					// rebase the time stamp
-					llTimestamp -= m_llBaseTime;
+					LONGLONG adjustedTimestamp = llTimestamp - m_llBaseTime;
 					
 					// Ensure sample doesn't get zero timestamp
-					if (llTimestamp <= 0)
+					if (adjustedTimestamp <= 0)
 					{
-						llTimestamp = 1;
+						adjustedTimestamp = 1;
 					}
 
-					hr = pSample->SetSampleTime(llTimestamp);
+					hr = pSample->SetSampleTime(adjustedTimestamp);
 
 					// Write to file if there's a writer
 					if (SUCCEEDED(hr) && m_pWriter)
@@ -155,35 +80,33 @@ namespace record_windows
 
 					if (SUCCEEDED(hr))
 					{
-						IMFMediaBuffer* pBuffer = NULL;
-						hr = pSample->ConvertToContiguousBuffer(&pBuffer);
+						IMFMediaBuffer* pRecordBuffer = NULL;
+						hr = pSample->ConvertToContiguousBuffer(&pRecordBuffer);
 
 						if (SUCCEEDED(hr))
 						{
-							BYTE* pChunk = NULL;
-							DWORD size = 0;
-							hr = pBuffer->Lock(&pChunk, NULL, &size);
+							BYTE* pRecordChunk = NULL;
+							DWORD recordSize = 0;
+							hr = pRecordBuffer->Lock(&pRecordChunk, NULL, &recordSize);
 
 							if (SUCCEEDED(hr))
 							{
 								// Update total data written
-								m_dataWritten += size;
+								m_dataWritten += recordSize;
 
 								// Send data to stream when there's no writer
 								if (m_recordEventHandler && !m_pWriter) {
-									std::vector<uint8_t> bytes(pChunk, pChunk + size);
+									std::vector<uint8_t> bytes(pRecordChunk, pRecordChunk + recordSize);
 
 									RecordWindowsPlugin::RunOnMainThread([this, bytes]() -> void {
 										m_recordEventHandler->Success(std::make_unique<flutter::EncodableValue>(bytes));
 									});
 								}
 
-								GetAmplitude(pChunk, size, 2);
-
-								pBuffer->Unlock();
+								pRecordBuffer->Unlock();
 							}
 
-							SafeRelease(pBuffer);
+							SafeRelease(pRecordBuffer);
 						}
 					}
 				}

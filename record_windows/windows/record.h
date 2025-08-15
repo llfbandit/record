@@ -8,7 +8,6 @@
 #include <Mfreadwrite.h>
 
 #include <assert.h>
-#include <queue>
 
 // utility functions
 #include "utils.h"
@@ -88,11 +87,10 @@ namespace record_windows
 		IMFMediaType* m_pMediaType;
 
 		bool m_bFirstSample = true;
+		bool m_bRecordingActive = false; // Flag to track when recording should start
 		LONGLONG m_llBaseTime = 0;
 		LONGLONG m_llLastTime = 0;
 		LONGLONG m_llRecordStartTime = 0; // Actual recording start time
-		DWORD m_sampleSkipCount = 0;
-		std::queue<IMFSample*> m_sampleBuffer; // Buffer for early samples
 
 		double m_amplitude = -160;
 		double m_maxAmplitude = -160;
