@@ -386,9 +386,23 @@ namespace record_windows
 		IMFSinkWriter* pSinkWriter = NULL;
 		IMFMediaType* pMediaTypeOut = NULL;
 		IMFMediaType* pMediaTypeIn = NULL;
+		IMFAttributes* pAttributes = NULL;
 		DWORD          streamIndex = 0;
 
-		HRESULT hr = MFCreateSinkWriterFromURL(path.c_str(), NULL, NULL, &pSinkWriter);
+		// Create attributes to configure the sink writer
+		HRESULT hr = MFCreateAttributes(&pAttributes, 1);
+		
+		if (SUCCEEDED(hr))
+		{
+			// Set low latency to reduce buffering delays
+			hr = pAttributes->SetUINT32(MF_LOW_LATENCY, TRUE);
+		}
+
+		// Create a new sink writer with low latency attributes
+		if (SUCCEEDED(hr))
+		{
+			hr = MFCreateSinkWriterFromURL(path.c_str(), NULL, pAttributes, &pSinkWriter);
+		}
 
 		// Set the output media type.
 		if (SUCCEEDED(hr))
@@ -403,7 +417,7 @@ namespace record_windows
 		// Set the input media type.
 		if (SUCCEEDED(hr))
 		{
-			hr = m_pReader->GetCurrentMediaType(streamIndex, &pMediaTypeIn);
+			hr = m_pReader->GetCurrentMediaType(0, &pMediaTypeIn); // Always 0 for audio source reader
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -424,6 +438,7 @@ namespace record_windows
 			m_pMediaType->AddRef();
 		}
 
+		SafeRelease(&pAttributes);
 		SafeRelease(&pSinkWriter);
 		SafeRelease(&pMediaTypeOut);
 		SafeRelease(&pMediaTypeIn);
