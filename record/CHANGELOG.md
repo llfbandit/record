@@ -3,10 +3,11 @@
 * feat: Add iOS specific methods for `AVAudioSession`.
 * feat: Add AudioInterruptionMode to `RecordConfig`.
 * feat: Add stream buffer size option.
-* feat(Linux): Implement amplitude (dBFS)
+* feat(Linux): Implement amplitude (dBFS).
 * fix(Android): malformed AAC.
 * chore: Updated transitive dependencies.
 * chore: Update minimum supported SDK version to Flutter 3.24.0/Dart 3.5.0.
+* chore(Android): Update kotlin to 2.2.0 and AGP to 8.6.1, so Gradle 8.7+ is required.
 
 ## 6.0.0
 * feat: Make all streams as broadcast streams.
