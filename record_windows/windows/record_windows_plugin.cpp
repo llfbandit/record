@@ -1,26 +1,10 @@
 #include "record_windows_plugin.h"
-#include <mfreadwrite.h>
-#include <Mferror.h>
 #include "record_config.h"
 #include <flutter/event_stream_handler_functions.h>
 
 using namespace flutter;
 
 namespace record_windows {
-	HRESULT AttributeGetString(IMFAttributes* pAttributes, const GUID& guid, LPWSTR value)
-	{
-		HRESULT hr = S_OK;
-		UINT32 cchLength = 0;
-
-		hr = pAttributes->GetStringLength(guid, &cchLength);
-		if (SUCCEEDED(hr))
-		{
-			hr = pAttributes->GetString(guid, value, cchLength + 1, &cchLength);
-		}
-
-		return hr;
-	}
-
 	static void ErrorFromHR(HRESULT hr, MethodResult<EncodableValue>& result)
 	{
 		_com_error err(hr);
