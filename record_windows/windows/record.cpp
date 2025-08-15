@@ -11,14 +11,6 @@
 #define MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION MF_MT_USER_DATA
 #endif
 
-// Audio effect type GUIDs for Windows Audio Engine (using static const approach)
-static const GUID AUDIO_EFFECT_TYPE_NOISE_SUPPRESSION = 
-	{0xe07f903f, 0x62fd, 0x4e60, {0x8c, 0xdd, 0xde, 0xa7, 0x23, 0x66, 0x65, 0xb5}};
-static const GUID AUDIO_EFFECT_TYPE_ECHO_CANCELLATION = 
-	{0x6f64adbe, 0x1dd2, 0x4c24, {0x8e, 0xc3, 0x7c, 0xaa, 0xdf, 0x6e, 0x8a, 0x9c}};
-static const GUID AUDIO_EFFECT_TYPE_AUTOMATIC_GAIN_CONTROL = 
-	{0x6e7132c3, 0x75cf, 0x4f36, {0xa6, 0x16, 0xec, 0x11, 0x22, 0x00, 0xaa, 0x20}};
-
 namespace record_windows
 {
 	// Initialize COM for the module
@@ -507,7 +499,7 @@ namespace record_windows
 		, m_pDevice(nullptr)
 		, m_pAudioClient(nullptr)
 		, m_pCaptureClient(nullptr)
-		, m_pEffectsManager(nullptr)
+		//, m_pEffectsManager(nullptr) // Temporarily disabled
 		, m_hCaptureEvent(nullptr)
 		, m_pWaveFormat(nullptr)
 		, m_sampleRate(48000)
@@ -526,7 +518,7 @@ namespace record_windows
 		if (m_pWaveFormat) CoTaskMemFree(m_pWaveFormat);
 		if (m_hCaptureEvent) CloseHandle(m_hCaptureEvent);
 		if (m_pCaptureClient) m_pCaptureClient->Release();
-		if (m_pEffectsManager) m_pEffectsManager->Release();
+		//if (m_pEffectsManager) m_pEffectsManager->Release(); // Temporarily disabled
 		if (m_pAudioClient) m_pAudioClient->Release();
 		if (m_pDevice) m_pDevice->Release();
 		if (m_pDeviceEnumerator) m_pDeviceEnumerator->Release();
@@ -722,6 +714,8 @@ namespace record_windows
 		HRESULT hr = S_OK;
 		
 		// Try to get the effects manager for audio processing
+		// TODO: Re-enable audio effects once GUID compilation issues are resolved
+		/*
 		if (m_pDevice)
 		{
 			hr = m_pDevice->Activate(__uuidof(IAudioEffectsManager), CLSCTX_ALL, 
@@ -765,6 +759,7 @@ namespace record_windows
 				}
 			}
 		}
+		*/
 		
 		// Don't fail initialization if effects aren't supported
 		// Effects are optional enhancements, core recording should still work
