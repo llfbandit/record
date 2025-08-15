@@ -32,17 +32,64 @@ namespace record_windows
 				if (m_bFirstSample)
 				{
 					m_llBaseTime = llTimestamp;
+					m_llRecordStartTime = llTimestamp;
 					m_bFirstSample = false;
 					m_dataWritten = 0;
 					m_sampleSkipCount = 0; // Reset skip counter
 				}
 
-				// Skip first few samples to allow pipeline to stabilize
-				// This helps prevent the first second from being lost
-				if (m_sampleSkipCount < 5)
+				// Strategy: Buffer first few samples and adjust their timestamps
+				if (m_sampleSkipCount < 10) // Buffer more samples for better coverage
 				{
 					m_sampleSkipCount++;
-					// Still process the sample for amplitude but don't write it
+					
+					// Clone and buffer the sample for later processing
+					if (m_sampleBuffer.size() < 10) // Limit buffer size
+					{
+						IMFSample* pClonedSample = NULL;
+						HRESULT cloneHr = MFCreateSample(&pClonedSample);
+						if (SUCCEEDED(cloneHr))
+						{
+							IMFMediaBuffer* pSourceBuffer = NULL;
+							cloneHr = pSample->ConvertToContiguousBuffer(&pSourceBuffer);
+							if (SUCCEEDED(cloneHr))
+							{
+								DWORD sourceSize = 0;
+								cloneHr = pSourceBuffer->GetCurrentLength(&sourceSize);
+								if (SUCCEEDED(cloneHr))
+								{
+									IMFMediaBuffer* pClonedBuffer = NULL;
+									cloneHr = MFCreateMemoryBuffer(sourceSize, &pClonedBuffer);
+									if (SUCCEEDED(cloneHr))
+									{
+										BYTE* pSourceData = NULL, *pClonedData = NULL;
+										cloneHr = pSourceBuffer->Lock(&pSourceData, NULL, NULL);
+										if (SUCCEEDED(cloneHr))
+										{
+											cloneHr = pClonedBuffer->Lock(&pClonedData, NULL, NULL);
+											if (SUCCEEDED(cloneHr))
+											{
+												memcpy(pClonedData, pSourceData, sourceSize);
+												pClonedBuffer->SetCurrentLength(sourceSize);
+												pClonedBuffer->Unlock();
+											}
+											pSourceBuffer->Unlock();
+										}
+										if (SUCCEEDED(cloneHr))
+										{
+											pClonedSample->AddBuffer(pClonedBuffer);
+											pClonedSample->SetSampleTime(llTimestamp);
+											m_sampleBuffer.push(pClonedSample);
+										}
+										SafeRelease(pClonedBuffer);
+									}
+								}
+								SafeRelease(pSourceBuffer);
+							}
+						}
+					}
+					
+					// Still process for amplitude but don't write
 					IMFMediaBuffer* pBuffer = NULL;
 					hr = pSample->ConvertToContiguousBuffer(&pBuffer);
 					if (SUCCEEDED(hr))
@@ -60,14 +107,37 @@ namespace record_windows
 				}
 				else
 				{
+					// Process buffered samples first (only once)
+					if (!m_sampleBuffer.empty())
+					{
+						while (!m_sampleBuffer.empty())
+						{
+							IMFSample* pBufferedSample = m_sampleBuffer.front();
+							m_sampleBuffer.pop();
+							
+							if (pBufferedSample && m_pWriter)
+							{
+								LONGLONG bufferedTimestamp;
+								pBufferedSample->GetSampleTime(&bufferedTimestamp);
+								bufferedTimestamp -= m_llBaseTime;
+								if (bufferedTimestamp <= 0) bufferedTimestamp = 1;
+								pBufferedSample->SetSampleTime(bufferedTimestamp);
+								
+								m_pWriter->WriteSample(dwStreamIndex, pBufferedSample);
+							}
+							SafeRelease(pBufferedSample);
+						}
+					}
+
+					// Now process current sample normally
 					// Save current timestamp in case of Pause
 					m_llLastTime = llTimestamp;
 
 					// rebase the time stamp
 					llTimestamp -= m_llBaseTime;
 					
-					// Ensure first sample doesn't get zero timestamp which can cause issues
-					if (llTimestamp == 0)
+					// Ensure sample doesn't get zero timestamp
+					if (llTimestamp <= 0)
 					{
 						llTimestamp = 1;
 					}

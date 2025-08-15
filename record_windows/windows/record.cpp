@@ -58,6 +58,17 @@ namespace record_windows
 		}
 		if (SUCCEEDED(hr))
 		{
+			// Pre-warm the audio pipeline by starting the media source
+			PROPVARIANT var;
+			PropVariantInit(&var);
+			hr = m_pSource->Start(m_pPresentationDescriptor, NULL, &var);
+			PropVariantClear(&var);
+			
+			// Small delay to allow pipeline to stabilize (non-blocking)
+			Sleep(50);
+		}
+		if (SUCCEEDED(hr))
+		{
 			// Request the first sample
 			hr = m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
 				0,
@@ -278,7 +289,16 @@ namespace record_windows
 		m_bFirstSample = true;
 		m_llBaseTime = 0;
 		m_llLastTime = 0;
+		m_llRecordStartTime = 0;
 		m_sampleSkipCount = 0;
+		
+		// Clear any buffered samples
+		while (!m_sampleBuffer.empty())
+		{
+			IMFSample* pSample = m_sampleBuffer.front();
+			m_sampleBuffer.pop();
+			SafeRelease(pSample);
+		}
 
 		m_amplitude = -160;
 		m_maxAmplitude = -160;
@@ -347,6 +367,12 @@ namespace record_windows
 			);
 		}
 
+		// Add additional attributes for faster startup
+		if (SUCCEEDED(hr))
+		{
+			hr = pAttributes->SetUINT32(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_USE_HARDWARE_TIMESTAMP, TRUE);
+		}
+
 		// Create the source
 		if (SUCCEEDED(hr))
 		{
@@ -368,7 +394,7 @@ namespace record_windows
 		IMFAttributes* pAttributes = NULL;
 		IMFMediaType* pMediaTypeIn = NULL;
 
-		hr = MFCreateAttributes(&pAttributes, 2);
+		hr = MFCreateAttributes(&pAttributes, 3);
 		if (SUCCEEDED(hr))
 		{
 			hr = pAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this);
@@ -377,6 +403,11 @@ namespace record_windows
 		{
 			// Add low latency for source reader as well
 			hr = pAttributes->SetUINT32(MF_LOW_LATENCY, TRUE);
+		}
+		if (SUCCEEDED(hr))
+		{
+			// Disable additional processing that can add latency
+			hr = pAttributes->SetUINT32(MF_SOURCE_READER_DISABLE_DXVA, TRUE);
 		}
 		if (SUCCEEDED(hr))
 		{
