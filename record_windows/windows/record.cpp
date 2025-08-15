@@ -5,20 +5,19 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
-#include <initguid.h>
 
 // Define missing Media Foundation constants if not available
 #ifndef MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION
 #define MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION MF_MT_USER_DATA
 #endif
 
-// Audio effect type GUIDs for Windows Audio Engine
-DEFINE_GUID(AUDIO_EFFECT_TYPE_NOISE_SUPPRESSION, 
-	0xe07f903f, 0x62fd, 0x4e60, 0x8c, 0xdd, 0xde, 0xa7, 0x23, 0x66, 0x65, 0xb5);
-DEFINE_GUID(AUDIO_EFFECT_TYPE_ECHO_CANCELLATION, 
-	0x6f64adbe, 0x1dd2, 0x4c24, 0x8e, 0xc3, 0x7c, 0xaa, 0xdf, 0x6e, 0x8a, 0x9c);
-DEFINE_GUID(AUDIO_EFFECT_TYPE_AUTOMATIC_GAIN_CONTROL, 
-	0x6e7132c3, 0x75cf, 0x4f36, 0xa6, 0x16, 0xec, 0x11, 0x22, 0x00, 0xaa, 0x20);
+// Audio effect type GUIDs for Windows Audio Engine (using static const approach)
+static const GUID AUDIO_EFFECT_TYPE_NOISE_SUPPRESSION = 
+	{0xe07f903f, 0x62fd, 0x4e60, {0x8c, 0xdd, 0xde, 0xa7, 0x23, 0x66, 0x65, 0xb5}};
+static const GUID AUDIO_EFFECT_TYPE_ECHO_CANCELLATION = 
+	{0x6f64adbe, 0x1dd2, 0x4c24, {0x8e, 0xc3, 0x7c, 0xaa, 0xdf, 0x6e, 0x8a, 0x9c}};
+static const GUID AUDIO_EFFECT_TYPE_AUTOMATIC_GAIN_CONTROL = 
+	{0x6e7132c3, 0x75cf, 0x4f36, {0xa6, 0x16, 0xec, 0x11, 0x22, 0x00, 0xaa, 0x20}};
 
 namespace record_windows
 {
@@ -444,12 +443,14 @@ namespace record_windows
 			pcmData[i] = static_cast<int16_t>(sample * 32767.0f);
 		}
 		
+		// Calculate buffer size once
+		DWORD bufferSize = static_cast<DWORD>(count * sizeof(int16_t));
+		
 		// Create sample
 		hr = MFCreateSample(&pSample);
 		
 		if (SUCCEEDED(hr))
 		{
-			DWORD bufferSize = static_cast<DWORD>(count * sizeof(int16_t));
 			hr = MFCreateMemoryBuffer(bufferSize, &pBuffer);
 		}
 		
