@@ -18,6 +18,7 @@ class IosRecordConfig {
       IosAudioCategoryOption.allowBluetooth,
       IosAudioCategoryOption.allowBluetoothA2DP,
     ],
+    @Deprecated('Use AudioRecorder.ios.manageAudioSession instead.')
     this.manageAudioSession = true,
   });
   Map<String, dynamic> toMap() {

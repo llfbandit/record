@@ -10,6 +10,8 @@ class Recorder {
   
   private var delegate: AudioRecordingDelegate?
   
+  private var manageAudioSession = true
+  
   init(stateEventHandler: StateStreamHandler, recordEventHandler: RecordStreamHandler) {
     m_stateEventHandler = stateEventHandler
     m_recordEventHandler = recordEventHandler
@@ -17,6 +19,8 @@ class Recorder {
 
   func dispose() {
     stop(completionHandler: {(path) -> () in })
+    
+    manageAudioSession = true
   }
   
   func start(config: RecordConfig, path: String) throws {
@@ -30,6 +34,7 @@ class Recorder {
     }
     
     let delegate = RecorderFileDelegate(
+      manageAudioSession: manageAudioSession,
       onPause: {() -> () in self.updateState(RecordState.pause)},
       onStop: {() -> () in self.updateState(RecordState.stop)}
     )
@@ -52,6 +57,7 @@ class Recorder {
     }
     
     let delegate = RecorderStreamDelegate(
+      manageAudioSession: manageAudioSession,
       onPause: {() -> () in self.updateState(RecordState.pause)},
       onStop: {() -> () in self.updateState(RecordState.stop)}
     )
@@ -118,6 +124,20 @@ class Recorder {
     if isRecording() {
       try delegate?.cancel()
     }
+  }
+  
+  func manageAudioSession(_ manage: Bool) {
+    manageAudioSession = manage
+  }
+  
+  func setAudioSessionActive(_ active: Bool) throws {
+    let audioSession = AVAudioSession.sharedInstance()
+    try audioSession.setActive(active)
+  }
+  
+  func setAudioSessionCategory(_ category: AVAudioSession.Category, options: AVAudioSession.CategoryOptions) throws {
+    let audioSession = AVAudioSession.sharedInstance()
+    try audioSession.setCategory(category, options: options)
   }
 
   private func updateState(_ state: RecordState) {

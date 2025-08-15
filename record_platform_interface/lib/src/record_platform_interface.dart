@@ -2,40 +2,31 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
-import 'package:record_platform_interface/src/record_method_channel.dart';
 
-import '../record_platform_interface.dart';
+import 'record_platform.dart';
+import 'types/types.dart';
 
-/// The interface that implementations of Record must implement.
-///
-/// Platform implementations should extend this class rather than implement it
-/// as record does not consider newly added methods to be breaking changes.
-/// Extending this class ensures that the subclass will get the default
-/// implementation, while platform implementations that merely implement the
-/// interface will be broken by newly added [RecordPlatform] functions.
-abstract class RecordPlatform extends PlatformInterface {
-  /// A token used for verification of subclasses to ensure they extend this
-  /// class instead of implementing it.
-  static final _token = Object();
-
-  /// Constructs a [RecordPlatform].
+/// Record platform interface
+abstract class RecordPlatform extends PlatformInterface
+    implements
+        RecordMethodChannelPlatformInterface,
+        RecordEventChannelPlatformInterface {
+  /// Constructs a RecordPlatformInterface.
   RecordPlatform() : super(token: _token);
 
-  static RecordPlatform _instance = RecordMethodChannel();
+  static final Object _token = Object();
 
   /// The default instance of [RecordPlatform] to use.
   ///
-  /// Defaults to [MethodChannelRecord].
-  static RecordPlatform get instance => _instance;
+  /// Defaults to [RecordPlatformImpl].
+  static RecordPlatform instance = RecordPlatformImpl();
 
-  /// Platform-specific plugins should set this to an instance of their own
-  /// platform-specific class that extends [RecordPlatform] when they register
-  /// themselves.
-  static set instance(RecordPlatform instance) {
-    PlatformInterface.verifyToken(instance, _token);
-    _instance = instance;
-  }
+  @override
+  RecordIos? getIos(String recorderId) => null;
+}
 
+/// Record method channel platform interface
+abstract class RecordMethodChannelPlatformInterface {
   /// Create a recorder
   Future<void> create(String recorderId);
 
@@ -52,8 +43,7 @@ abstract class RecordPlatform extends PlatformInterface {
   ///
   /// When stopping the record, you must rely on stream close event to get
   /// full recorded data.
-  Future<Stream<Uint8List>> startStream(
-          String recorderId, RecordConfig config);
+  Future<Stream<Uint8List>> startStream(String recorderId, RecordConfig config);
 
   /// Stops recording session and release internal recorder resource.
   ///
@@ -98,13 +88,47 @@ abstract class RecordPlatform extends PlatformInterface {
   /// accessing this method otherwise the list may return an empty list.
   Future<List<InputDevice>> listInputDevices(String recorderId);
 
+  /// Stops the recording if needed and remove current file.
+  Future<void> cancel(String recorderId);
+
+  /// iOS platform specific methods.
+  ///
+  /// Returns [null] when not on iOS platform.
+  RecordIos? getIos(String recorderId);
+}
+
+/// Record event channel platform interface
+abstract class RecordEventChannelPlatformInterface {
   /// Listen to recorder states [RecordState].
   ///
   /// Provides pause, resume and stop states.
-  Stream<RecordState> onStateChanged(String recorderId) =>
-      throw UnimplementedError(
-          'onStateChanged not implemented on the current platform.');
+  Stream<RecordState> onStateChanged(String recorderId);
+}
 
-  /// Stops the recording if needed and remove current file.
-  Future<void> cancel(String recorderId);
+/// iOS platform specific methods.
+abstract class RecordIos {
+  /// Activates or deactivates the management of iOS audio session.
+  ///
+  /// If `true`, the plugin will activate session and setup categories for you.
+  /// This may conflicts with current settings in your app if you already have external audio session management.
+  ///
+  /// If `false`, the audio session won't be activated and categories will stay the same.
+  /// Other parameters may be touched for recording requirements (interruption, sample rate, channels, ...).
+  ///
+  /// In both cases, usage of [setAudioSessionActive] and [setAudioSessionCategory] is allowed.
+  Future<void> manageAudioSession(bool manage);
+
+  /// Activates or deactivates your app’s audio session.
+  Future<void> setAudioSessionActive(bool active);
+
+  /// Sets the audio session’s category with the specified options.
+  Future<void> setAudioSessionCategory({
+    IosAudioCategory category = IosAudioCategory.playAndRecord,
+    List<IosAudioCategoryOptions> options = const [
+      IosAudioCategoryOptions.duckOthers,
+      IosAudioCategoryOptions.defaultToSpeaker,
+      IosAudioCategoryOptions.allowBluetooth,
+      IosAudioCategoryOptions.allowBluetoothA2DP,
+    ],
+  });
 }

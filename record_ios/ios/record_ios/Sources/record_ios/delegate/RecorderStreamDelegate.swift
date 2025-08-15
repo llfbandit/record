@@ -10,8 +10,10 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   private let bus = 0
   private var onPause: () -> ()
   private var onStop: () -> ()
+  private let manageAudioSession: Bool
   
-  init(onPause: @escaping () -> (), onStop: @escaping () -> ()) {
+  init(manageAudioSession: Bool, onPause: @escaping () -> (), onStop: @escaping () -> ()) {
+    self.manageAudioSession = manageAudioSession
     self.onPause = onPause
     self.onStop = onStop
   }
@@ -19,7 +21,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   func start(config: RecordConfig, recordEventHandler: RecordStreamHandler) throws {
     let audioEngine = AVAudioEngine()
 
-    try initAVAudioSession(config: config)
+    try initAVAudioSession(config: config, manageAudioSession: manageAudioSession)
     try setVoiceProcessing(echoCancel: config.echoCancel, autoGain: config.autoGain, audioEngine: audioEngine)
     
     let srcFormat = audioEngine.inputNode.inputFormat(forBus: 0)

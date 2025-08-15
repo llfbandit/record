@@ -1,7 +1,10 @@
 ## 6.1.0
+* feat: Allow background recording on Android & iOS.
+* feat: Add iOS specific methods for `AVAudioSession`.
 * feat: Add AudioInterruptionMode to `RecordConfig`.
 * feat: Add stream buffer size option.
-* feat: Allow background recording on Android & iOS.
+* feat(Linux): Implement amplitude (dBFS)
+* fix(Android): malformed AAC.
 * chore: Updated transitive dependencies.
 * chore: Update minimum supported SDK version to Flutter 3.24.0/Dart 3.5.0.
 

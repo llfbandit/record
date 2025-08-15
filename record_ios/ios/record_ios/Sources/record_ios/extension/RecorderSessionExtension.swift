@@ -1,18 +1,10 @@
 import AVFoundation
 
 extension AudioRecordingDelegate {
-  func initAVAudioSession(config: RecordConfig) throws {
-    if !(config.iosConfig?.manageAudioSession ?? false) {
-      return
-    }
+  func initAVAudioSession(config: RecordConfig, manageAudioSession: Bool) throws {
+    let manage = manageAudioSession && config.iosConfig.manageAudioSession
 
     let audioSession = AVAudioSession.sharedInstance()
-
-    do {
-        try audioSession.setCategory(.playAndRecord, options: AVAudioSession.CategoryOptions(config.iosConfig?.categoryOptions ?? []))
-    } catch {
-      throw RecorderError.error(message: "Failed to start recording", details: "setCategory: \(error.localizedDescription)")
-    }
     
     do {
       try audioSession.setPreferredSampleRate((config.sampleRate <= 48000) ? Double(config.sampleRate) : 48000.0)
@@ -28,10 +20,18 @@ extension AudioRecordingDelegate {
       }
     }
     
-    do {
-      try audioSession.setActive(true, options: .notifyOthersOnDeactivation) // Must be done before setting channels and others
-    } catch {
-      throw RecorderError.error(message: "Failed to start recording", details: "setActive: \(error.localizedDescription)")
+    if manage {
+      do {
+          try audioSession.setCategory(.playAndRecord, options: AVAudioSession.CategoryOptions(config.iosConfig.categoryOptions))
+      } catch {
+        throw RecorderError.error(message: "Failed to start recording", details: "setCategory: \(error.localizedDescription)")
+      }
+
+      do {
+        try audioSession.setActive(true, options: .notifyOthersOnDeactivation) // Must be done before setting channels and others
+      } catch {
+        throw RecorderError.error(message: "Failed to start recording", details: "setActive: \(error.localizedDescription)")
+      }
     }
     
     do {

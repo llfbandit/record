@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
     s.name             = 'record_macos'
-    s.version          = '1.0.0'
+    s.version          = '1.1.0'
     s.summary          = 'record package for macOS implementation'
     s.description      = <<-DESC
   A Flutter plugin for voice recording.

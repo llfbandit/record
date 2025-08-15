@@ -1,8 +1,9 @@
-export 'package:record_platform_interface/src/types/amplitude.dart';
-export 'package:record_platform_interface/src/types/android_record_config.dart';
-export 'package:record_platform_interface/src/types/audio_encoder.dart';
-export 'package:record_platform_interface/src/types/audio_interruption_mode.dart';
-export 'package:record_platform_interface/src/types/input_device.dart';
-export 'package:record_platform_interface/src/types/ios_record_config.dart';
-export 'package:record_platform_interface/src/types/record_config.dart';
-export 'package:record_platform_interface/src/types/record_state.dart';
+export 'amplitude.dart';
+export 'android_record_config.dart';
+export 'audio_encoder.dart';
+export 'audio_interruption_mode.dart';
+export 'input_device.dart';
+export 'ios_audio_session.dart';
+export 'ios_record_config.dart';
+export 'record_config.dart';
+export 'record_state.dart';

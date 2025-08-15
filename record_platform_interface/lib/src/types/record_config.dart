@@ -1,4 +1,4 @@
-import 'package:record_platform_interface/src/types/types.dart';
+import 'types.dart';
 
 /// Recording configuration
 ///

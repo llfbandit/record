@@ -8,8 +8,10 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
   private var path: String?
   private var onPause: () -> ()
   private var onStop: () -> ()
+  private let manageAudioSession: Bool
   
-  init(onPause: @escaping () -> (), onStop: @escaping () -> ()) {
+  init(manageAudioSession: Bool, onPause: @escaping () -> (), onStop: @escaping () -> ()) {
+    self.manageAudioSession = manageAudioSession
     self.onPause = onPause
     self.onStop = onStop
   }
@@ -17,7 +19,7 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
   func start(config: RecordConfig, path: String) throws {
     try deleteFile(path: path)
 
-    try initAVAudioSession(config: config)
+    try initAVAudioSession(config: config, manageAudioSession: manageAudioSession)
 
     let url = URL(fileURLWithPath: path)
 

@@ -6,7 +6,7 @@ environment:
 publish_to: none
 
 dev_dependencies:
-  melos: ^7.0.0-dev.9
+  melos: ^7.0.0
 
 workspace:
   - record

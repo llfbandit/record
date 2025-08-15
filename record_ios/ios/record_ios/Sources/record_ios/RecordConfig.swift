@@ -27,7 +27,7 @@ public class RecordConfig {
   let autoGain: Bool
   let echoCancel: Bool
   let noiseSuppress: Bool
-  let iosConfig: IosConfig?
+  let iosConfig: IosConfig
   let audioInterruption: AudioInterruptionMode
   let streamBufferSize: Int?
 
@@ -39,7 +39,7 @@ public class RecordConfig {
        autoGain: Bool = false,
        echoCancel: Bool = false,
        noiseSuppress: Bool = false,
-       iosConfig: IosConfig? = nil,
+       iosConfig: IosConfig,
        audioInterruption: AudioInterruptionMode = AudioInterruptionMode.pause,
        streamBufferSize: Int?
   ) {

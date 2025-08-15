@@ -129,7 +129,6 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
       let amp = recorder.getAmplitude()
       result(amp)
     case "isEncoderSupported":
-      let args = call.arguments as! [String : Any]
       guard let encoder = args["encoder"] as? String else  {
         result(FlutterError(code: "record", message: "Call missing mandatory parameter encoder.", details: nil))
         return
@@ -147,6 +146,43 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
       m_recorders.removeValue(forKey: recorderId)
       recorder.dispose()
       result(nil)
+    case "ios.manageAudioSession":
+      guard let manage = args["manageAudioSession"] as? Bool else {
+        result(FlutterError(code: "record", message: "Failed to parse manageAudioSession from Flutter.", details: nil))
+        return
+      }
+      recorder.manageAudioSession(manage)
+      result(nil)
+    
+    case "ios.setAudioSessionActive":
+      guard let active = args["sessionActive"] as? Bool else {
+        result(FlutterError(code: "record", message: "Failed to parse sessionActive from Flutter.", details: nil))
+        return
+      }
+      
+      do {
+        try recorder.setAudioSessionActive(active)
+        result(nil)
+      } catch {
+        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+      }
+      
+    case "ios.setAudioSessionCategory":
+      guard let category = args["category"] as? String else {
+        result(FlutterError(code: "stt", message: "Call missing mandatory parameter category.", details: nil))
+        return
+      }
+      guard let options = args["options"] as? [String] else  {
+        result(FlutterError(code: "stt", message: "Call missing mandatory parameter options.", details: nil))
+        return
+      }
+      
+      do {
+        try recorder.setAudioSessionCategory(toAVCategory(category), options: toAVCategoryOptions(options))
+        result(nil)
+      } catch {
+        result(FlutterError(code: "stt", message: error.localizedDescription, details: nil))
+      }
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -181,9 +217,11 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
       device = Device(map: deviceMap)
     }
 
-    var iosConfig: IosConfig? = nil
+    var iosConfig: IosConfig
     if let iosConfigMap = args["iosConfig"] as? [String : Any] {
       iosConfig = IosConfig(map: iosConfigMap)
+    } else {
+      iosConfig = IosConfig(map: [:])
     }
     
     var audioInterruption: AudioInterruptionMode = AudioInterruptionMode.pause
@@ -228,6 +266,36 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
   private func getRecorder(recorderId: String) -> Recorder? {
     return m_recorders[recorderId]
   }
+  
+  private func toAVCategory(_ category: String) -> AVAudioSession.Category {
+      switch category {
+      case "ambient": return .ambient
+      case "playAndRecord": return .playAndRecord
+      case "playback": return .playback
+      case "record": return .record
+      case "soloAmbient": return .soloAmbient
+      default: return .playAndRecord
+      }
+    }
+
+    private func toAVCategoryOptions(_ options: [String]) -> AVAudioSession.CategoryOptions {
+      var result: AVAudioSession.CategoryOptions = []
+      
+      for option in options {
+        switch option {
+        case "mixWithOthers": result.insert(.mixWithOthers)
+        case "duckOthers": result.insert(.duckOthers)
+        case "interruptSpokenAudioAndMixWithOthers": result.insert(.interruptSpokenAudioAndMixWithOthers)
+        case "allowBluetooth": result.insert(.allowBluetooth)
+        case "allowBluetoothA2DP": result.insert(.allowBluetoothA2DP)
+        case "allowAirPlay": result.insert(.allowAirPlay)
+        case "defaultToSpeaker": result.insert(.defaultToSpeaker)
+        default: break
+        }
+      }
+
+      return result
+    }
 }
 
 public class StateStreamHandler: NSObject, FlutterStreamHandler {

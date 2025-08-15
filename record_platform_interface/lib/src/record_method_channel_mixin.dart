@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import '../record_platform_interface.dart';
+import 'record_platform_interface.dart';
+import 'types/types.dart';
 
-class RecordMethodChannel extends RecordPlatform {
+mixin RecordMethodChannel implements RecordMethodChannelPlatformInterface {
   // Channel handlers
   final _methodChannel = const MethodChannel('com.llfbandit.record/messages');
 
@@ -155,6 +157,15 @@ class RecordMethodChannel extends RecordPlatform {
   }
 
   @override
+  RecordIos? getIos(String recorderId) {
+    if (kIsWeb || TargetPlatform.iOS != defaultTargetPlatform) return null;
+
+    return _RecordIosImpl(_methodChannel, recorderId);
+  }
+}
+
+mixin RecordEventChannel implements RecordEventChannelPlatformInterface {
+  @override
   Stream<RecordState> onStateChanged(String recorderId) {
     final eventChannel = EventChannel(
       'com.llfbandit.record/events/$recorderId',
@@ -163,5 +174,45 @@ class RecordMethodChannel extends RecordPlatform {
     return eventChannel.receiveBroadcastStream().map<RecordState>(
           (state) => RecordState.values.firstWhere((e) => e.index == state),
         );
+  }
+}
+
+class _RecordIosImpl implements RecordIos {
+  _RecordIosImpl(this._methodChannel, this.recorderId);
+
+  final MethodChannel _methodChannel;
+  final String recorderId;
+
+  @override
+  Future<void> manageAudioSession(bool manage) {
+    return _methodChannel.invokeMethod<void>(
+      'ios.manageAudioSession',
+      {'recorderId': recorderId, 'manageAudioSession': manage},
+    );
+  }
+
+  @override
+  Future<void> setAudioSessionActive(bool active) {
+    return _methodChannel.invokeMethod<void>(
+      'ios.setAudioSessionActive',
+      {'recorderId': recorderId, 'sessionActive': active},
+    );
+  }
+
+  @override
+  Future<void> setAudioSessionCategory({
+    IosAudioCategory category = IosAudioCategory.playAndRecord,
+    List<IosAudioCategoryOptions> options = const [
+      IosAudioCategoryOptions.duckOthers,
+      IosAudioCategoryOptions.defaultToSpeaker,
+      IosAudioCategoryOptions.allowBluetooth,
+      IosAudioCategoryOptions.allowBluetoothA2DP,
+    ],
+  }) {
+    return _methodChannel.invokeMethod<void>('ios.setAudioSessionCategory', {
+      'recorderId': recorderId,
+      'category': category.name,
+      'options': options.map((it) => it.name).toList(),
+    });
   }
 }
