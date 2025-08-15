@@ -88,6 +88,7 @@ namespace record_windows
 		bool m_bFirstSample = true;
 		LONGLONG m_llBaseTime = 0;
 		LONGLONG m_llLastTime = 0;
+		DWORD m_sampleSkipCount = 0;
 
 		double m_amplitude = -160;
 		double m_maxAmplitude = -160;

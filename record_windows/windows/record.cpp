@@ -87,6 +87,15 @@ namespace record_windows
 
 		if (SUCCEEDED(hr))
 		{
+			// Start the media source explicitly before requesting samples
+			PROPVARIANT var;
+			PropVariantInit(&var);
+			hr = m_pSource->Start(m_pPresentationDescriptor, NULL, &var);
+			PropVariantClear(&var);
+		}
+
+		if (SUCCEEDED(hr))
+		{
 			// Request the first sample
 			hr = m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
 				0,
@@ -269,6 +278,7 @@ namespace record_windows
 		m_bFirstSample = true;
 		m_llBaseTime = 0;
 		m_llLastTime = 0;
+		m_sampleSkipCount = 0;
 
 		m_amplitude = -160;
 		m_maxAmplitude = -160;
@@ -358,10 +368,15 @@ namespace record_windows
 		IMFAttributes* pAttributes = NULL;
 		IMFMediaType* pMediaTypeIn = NULL;
 
-		hr = MFCreateAttributes(&pAttributes, 1);
+		hr = MFCreateAttributes(&pAttributes, 2);
 		if (SUCCEEDED(hr))
 		{
 			hr = pAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this);
+		}
+		if (SUCCEEDED(hr))
+		{
+			// Add low latency for source reader as well
+			hr = pAttributes->SetUINT32(MF_LOW_LATENCY, TRUE);
 		}
 		if (SUCCEEDED(hr))
 		{

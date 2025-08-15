@@ -34,53 +34,84 @@ namespace record_windows
 					m_llBaseTime = llTimestamp;
 					m_bFirstSample = false;
 					m_dataWritten = 0;
+					m_sampleSkipCount = 0; // Reset skip counter
 				}
 
-				// Save current timestamp in case of Pause
-				m_llLastTime = llTimestamp;
-
-				// rebase the time stamp
-				llTimestamp -= m_llBaseTime;
-
-				hr = pSample->SetSampleTime(llTimestamp);
-
-				// Write to file if there's a writer
-				if (SUCCEEDED(hr) && m_pWriter)
+				// Skip first few samples to allow pipeline to stabilize
+				// This helps prevent the first second from being lost
+				if (m_sampleSkipCount < 5)
 				{
-					hr = m_pWriter->WriteSample(dwStreamIndex, pSample);
-				}
-
-				if (SUCCEEDED(hr))
-				{
+					m_sampleSkipCount++;
+					// Still process the sample for amplitude but don't write it
 					IMFMediaBuffer* pBuffer = NULL;
 					hr = pSample->ConvertToContiguousBuffer(&pBuffer);
-
 					if (SUCCEEDED(hr))
 					{
 						BYTE* pChunk = NULL;
 						DWORD size = 0;
 						hr = pBuffer->Lock(&pChunk, NULL, &size);
+						if (SUCCEEDED(hr))
+						{
+							GetAmplitude(pChunk, size, 2);
+							pBuffer->Unlock();
+						}
+						SafeRelease(pBuffer);
+					}
+				}
+				else
+				{
+					// Save current timestamp in case of Pause
+					m_llLastTime = llTimestamp;
+
+					// rebase the time stamp
+					llTimestamp -= m_llBaseTime;
+					
+					// Ensure first sample doesn't get zero timestamp which can cause issues
+					if (llTimestamp == 0)
+					{
+						llTimestamp = 1;
+					}
+
+					hr = pSample->SetSampleTime(llTimestamp);
+
+					// Write to file if there's a writer
+					if (SUCCEEDED(hr) && m_pWriter)
+					{
+						hr = m_pWriter->WriteSample(dwStreamIndex, pSample);
+					}
+
+					if (SUCCEEDED(hr))
+					{
+						IMFMediaBuffer* pBuffer = NULL;
+						hr = pSample->ConvertToContiguousBuffer(&pBuffer);
 
 						if (SUCCEEDED(hr))
 						{
-							// Update total data written
-							m_dataWritten += size;
+							BYTE* pChunk = NULL;
+							DWORD size = 0;
+							hr = pBuffer->Lock(&pChunk, NULL, &size);
 
-							// Send data to stream when there's no writer
-							if (m_recordEventHandler && !m_pWriter) {
-								std::vector<uint8_t> bytes(pChunk, pChunk + size);
+							if (SUCCEEDED(hr))
+							{
+								// Update total data written
+								m_dataWritten += size;
 
-								RecordWindowsPlugin::RunOnMainThread([this, bytes]() -> void {
-									m_recordEventHandler->Success(std::make_unique<flutter::EncodableValue>(bytes));
-								});
+								// Send data to stream when there's no writer
+								if (m_recordEventHandler && !m_pWriter) {
+									std::vector<uint8_t> bytes(pChunk, pChunk + size);
+
+									RecordWindowsPlugin::RunOnMainThread([this, bytes]() -> void {
+										m_recordEventHandler->Success(std::make_unique<flutter::EncodableValue>(bytes));
+									});
+								}
+
+								GetAmplitude(pChunk, size, 2);
+
+								pBuffer->Unlock();
 							}
 
-							GetAmplitude(pChunk, size, 2);
-
-							pBuffer->Unlock();
+							SafeRelease(pBuffer);
 						}
-
-						SafeRelease(pBuffer);
 					}
 				}
 			}
