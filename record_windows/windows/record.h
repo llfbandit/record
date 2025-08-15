@@ -5,6 +5,9 @@
 #include <audioclient.h>
 #include <audiopolicy.h>
 #include <audioengineextensionapo.h>
+#include <mfapi.h>
+#include <mfidl.h>
+#include <mfreadwrite.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include <mmreg.h>
 #include <ks.h>
@@ -63,7 +66,7 @@ namespace record_windows
 		void Reset();
 	};
 
-	// Async audio file writer
+	// Async audio file writer with multiple codec support
 	class AsyncAudioWriter {
 	private:
 		std::unique_ptr<LockFreeRingBuffer<float>> m_audioBuffer;
@@ -75,8 +78,20 @@ namespace record_windows
 		WORD m_channels;
 		std::ofstream m_fileStream;
 		size_t m_bytesWritten{0};
+		
+		// Media Foundation for advanced codecs
+		IMFSinkWriter* m_pSinkWriter{nullptr};
+		DWORD m_streamIndex{0};
+		bool m_useMediaFoundation{false};
 
 		void WriterThreadProc();
+		HRESULT WriteWavHeader();
+		HRESULT UpdateWavHeader();
+		
+		// Media Foundation codec support
+		HRESULT InitializeMediaFoundationEncoder();
+		HRESULT WriteMediaFoundationSample(const float* samples, size_t count);
+		void CleanupMediaFoundation();
 		HRESULT WriteWavHeader();
 		HRESULT UpdateWavHeader();
 

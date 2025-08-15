@@ -146,11 +146,15 @@ namespace record_windows
 	AsyncAudioWriter::AsyncAudioWriter()
 		: m_audioBuffer(std::make_unique<LockFreeRingBuffer<float>>(48000 * 4)) // 4 seconds buffer
 	{
+		// Initialize Media Foundation for advanced codecs
+		MFStartup(MF_VERSION, MFSTARTUP_LITE);
 	}
 	
 	AsyncAudioWriter::~AsyncAudioWriter()
 	{
 		Stop();
+		CleanupMediaFoundation();
+		MFShutdown();
 	}
 	
 	HRESULT AsyncAudioWriter::Initialize(const std::wstring& filePath, const std::string& encoder, 
@@ -162,6 +166,9 @@ namespace record_windows
 		m_channels = channels;
 		m_bytesWritten = 0;
 		
+		// Determine if we need Media Foundation for advanced codecs
+		m_useMediaFoundation = (encoder == "aac" || encoder == "aaclc" || encoder == "flac");
+		
 		return S_OK;
 	}
 	
@@ -169,20 +176,33 @@ namespace record_windows
 	{
 		if (m_isRunning.load()) return S_OK;
 		
-		// Open file for writing
-		m_fileStream.open(m_filePath, std::ios::binary);
-		if (!m_fileStream.is_open()) return E_FAIL;
+		HRESULT hr = S_OK;
 		
-		// Write WAV header for supported formats
-		if (m_encoderName == "wav" || m_encoderName == "pcm16bits")
+		if (m_useMediaFoundation)
 		{
-			WriteWavHeader();
+			// Use Media Foundation for AAC/FLAC
+			hr = InitializeMediaFoundationEncoder();
+		}
+		else
+		{
+			// Use direct file writing for WAV/PCM
+			m_fileStream.open(m_filePath, std::ios::binary);
+			if (!m_fileStream.is_open()) return E_FAIL;
+			
+			// Write WAV header for supported formats
+			if (m_encoderName == "wav" || m_encoderName == "pcm16bits")
+			{
+				WriteWavHeader();
+			}
 		}
 		
-		m_isRunning.store(true);
-		m_writerThread = std::thread(&AsyncAudioWriter::WriterThreadProc, this);
+		if (SUCCEEDED(hr))
+		{
+			m_isRunning.store(true);
+			m_writerThread = std::thread(&AsyncAudioWriter::WriterThreadProc, this);
+		}
 		
-		return S_OK;
+		return hr;
 	}
 	
 	HRESULT AsyncAudioWriter::Stop()
@@ -196,7 +216,11 @@ namespace record_windows
 			m_writerThread.join();
 		}
 		
-		if (m_fileStream.is_open())
+		if (m_useMediaFoundation)
+		{
+			CleanupMediaFoundation();
+		}
+		else if (m_fileStream.is_open())
 		{
 			// Update WAV header with final size
 			if (m_encoderName == "wav" || m_encoderName == "pcm16bits")
@@ -228,17 +252,26 @@ namespace record_windows
 			
 			if (samplesRead > 0)
 			{
-				// Convert float samples to 16-bit PCM
-				std::vector<int16_t> pcmData(samplesRead);
-				for (size_t i = 0; i < samplesRead; ++i)
+				if (m_useMediaFoundation)
 				{
-					float sample = (std::clamp)(buffer[i], -1.0f, 1.0f);
-					pcmData[i] = static_cast<int16_t>(sample * 32767.0f);
+					// Use Media Foundation for AAC/FLAC encoding
+					WriteMediaFoundationSample(buffer, samplesRead);
 				}
-				
-				m_fileStream.write(reinterpret_cast<const char*>(pcmData.data()), 
-								  pcmData.size() * sizeof(int16_t));
-				m_bytesWritten += pcmData.size() * sizeof(int16_t);
+				else
+				{
+					// Use direct PCM writing for WAV
+					// Convert float samples to 16-bit PCM
+					std::vector<int16_t> pcmData(samplesRead);
+					for (size_t i = 0; i < samplesRead; ++i)
+					{
+						float sample = (std::clamp)(buffer[i], -1.0f, 1.0f);
+						pcmData[i] = static_cast<int16_t>(sample * 32767.0f);
+					}
+					
+					m_fileStream.write(reinterpret_cast<const char*>(pcmData.data()), 
+									  pcmData.size() * sizeof(int16_t));
+					m_bytesWritten += pcmData.size() * sizeof(int16_t);
+				}
 			}
 			else
 			{
@@ -296,6 +329,147 @@ namespace record_windows
 		m_fileStream.write(reinterpret_cast<const char*>(&dataSize), sizeof(dataSize));
 		
 		return S_OK;
+	}
+	
+	HRESULT AsyncAudioWriter::InitializeMediaFoundationEncoder()
+	{
+		HRESULT hr = S_OK;
+		
+		// Create sink writer for the output file
+		IMFAttributes* pAttributes = nullptr;
+		hr = MFCreateAttributes(&pAttributes, 0);
+		
+		if (SUCCEEDED(hr))
+		{
+			hr = MFCreateSinkWriterFromURL(m_filePath.c_str(), nullptr, pAttributes, &m_pSinkWriter);
+		}
+		
+		if (SUCCEEDED(hr))
+		{
+			// Configure output media type based on encoder
+			IMFMediaType* pOutputType = nullptr;
+			hr = MFCreateMediaType(&pOutputType);
+			
+			if (SUCCEEDED(hr))
+			{
+				if (m_encoderName == "aac" || m_encoderName == "aaclc")
+				{
+					// AAC-LC configuration
+					pOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+					pOutputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC);
+					pOutputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
+					pOutputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
+					pOutputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 128000 / 8); // 128 kbps
+					pOutputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 1);
+					pOutputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+					pOutputType->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29); // AAC-LC
+				}
+				else if (m_encoderName == "flac")
+				{
+					// FLAC configuration (if available)
+					pOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+					pOutputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_FLAC);
+					pOutputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
+					pOutputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
+					pOutputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+				}
+				
+				hr = m_pSinkWriter->AddStream(pOutputType, &m_streamIndex);
+				pOutputType->Release();
+			}
+		}
+		
+		if (SUCCEEDED(hr))
+		{
+			// Configure input media type (PCM float)
+			IMFMediaType* pInputType = nullptr;
+			hr = MFCreateMediaType(&pInputType);
+			
+			if (SUCCEEDED(hr))
+			{
+				pInputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+				pInputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_Float);
+				pInputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
+				pInputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
+				pInputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, m_channels * sizeof(float));
+				pInputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, m_sampleRate * m_channels * sizeof(float));
+				pInputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 32);
+				pInputType->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE);
+				
+				hr = m_pSinkWriter->SetInputMediaType(m_streamIndex, pInputType, nullptr);
+				pInputType->Release();
+			}
+		}
+		
+		if (SUCCEEDED(hr))
+		{
+			hr = m_pSinkWriter->BeginWriting();
+		}
+		
+		if (pAttributes) pAttributes->Release();
+		
+		return hr;
+	}
+	
+	HRESULT AsyncAudioWriter::WriteMediaFoundationSample(const float* samples, size_t count)
+	{
+		if (!m_pSinkWriter) return E_FAIL;
+		
+		HRESULT hr = S_OK;
+		IMFSample* pSample = nullptr;
+		IMFMediaBuffer* pBuffer = nullptr;
+		
+		// Create sample
+		hr = MFCreateSample(&pSample);
+		
+		if (SUCCEEDED(hr))
+		{
+			DWORD bufferSize = static_cast<DWORD>(count * sizeof(float));
+			hr = MFCreateMemoryBuffer(bufferSize, &pBuffer);
+		}
+		
+		if (SUCCEEDED(hr))
+		{
+			BYTE* pData = nullptr;
+			hr = pBuffer->Lock(&pData, nullptr, nullptr);
+			
+			if (SUCCEEDED(hr))
+			{
+				memcpy(pData, samples, count * sizeof(float));
+				pBuffer->Unlock();
+				pBuffer->SetCurrentLength(bufferSize);
+			}
+		}
+		
+		if (SUCCEEDED(hr))
+		{
+			pSample->AddBuffer(pBuffer);
+			
+			// Set sample timestamp (approximate)
+			static LONGLONG timestamp = 0;
+			pSample->SetSampleTime(timestamp);
+			
+			LONGLONG duration = (10000000LL * count) / (m_sampleRate * m_channels); // 100ns units
+			pSample->SetSampleDuration(duration);
+			timestamp += duration;
+			
+			hr = m_pSinkWriter->WriteSample(m_streamIndex, pSample);
+		}
+		
+		if (pBuffer) pBuffer->Release();
+		if (pSample) pSample->Release();
+		
+		return hr;
+	}
+	
+	void AsyncAudioWriter::CleanupMediaFoundation()
+	{
+		if (m_pSinkWriter)
+		{
+			m_pSinkWriter->Finalize();
+			m_pSinkWriter->Release();
+			m_pSinkWriter = nullptr;
+		}
 	}
 
 	// ===========================================
@@ -931,8 +1105,12 @@ namespace record_windows
 	
 	HRESULT Recorder::isEncoderSupported(std::string encoderName, bool* supported)
 	{
-		// For now, support PCM and WAV formats which we implement directly
-		*supported = (encoderName == "pcm16bits" || encoderName == "wav");
+		// Support multiple audio formats with minimal binary impact
+		*supported = (encoderName == "pcm16bits" || 
+					  encoderName == "wav" ||
+					  encoderName == "flac" ||     // FLAC lossless (using system codecs)
+					  encoderName == "aac" ||      // AAC-LC (using Windows Media Foundation)
+					  encoderName == "aaclc");     // AAC-LC alias
 		return S_OK;
 	}
 	
