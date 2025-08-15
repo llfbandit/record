@@ -3,6 +3,7 @@
 #include <comdef.h>
 #include <cmath>
 #include <algorithm>
+#include <chrono>
 
 namespace record_windows
 {
@@ -63,7 +64,7 @@ namespace record_windows
 		size_t writeIndex = m_writeIndex.load(std::memory_order_acquire);
 		
 		size_t available = (writeIndex - readIndex) & m_mask;
-		size_t toRead = std::min(maxCount, available);
+		size_t toRead = (std::min)(maxCount, available);
 		
 		for (size_t i = 0; i < toRead; ++i)
 		{
@@ -220,7 +221,7 @@ namespace record_windows
 				std::vector<int16_t> pcmData(samplesRead);
 				for (size_t i = 0; i < samplesRead; ++i)
 				{
-					float sample = std::clamp(buffer[i], -1.0f, 1.0f);
+					float sample = (std::clamp)(buffer[i], -1.0f, 1.0f);
 					pcmData[i] = static_cast<int16_t>(sample * 32767.0f);
 				}
 				
@@ -730,7 +731,7 @@ namespace record_windows
 			std::vector<int16_t> pcmData(count);
 			for (size_t i = 0; i < count; ++i)
 			{
-				float sample = std::clamp(samples[i], -1.0f, 1.0f);
+				float sample = (std::clamp)(samples[i], -1.0f, 1.0f);
 				pcmData[i] = static_cast<int16_t>(sample * 32767.0f);
 			}
 			
@@ -780,12 +781,12 @@ namespace record_windows
 	DWORD Recorder::GetSampleRateFromConfig(const RecordConfig& config)
 	{
 		// Use provided sample rate or default to 48kHz
-		return config.sampleRate > 0 ? config.sampleRate : 48000;
+		return static_cast<DWORD>(config.sampleRate > 0 ? config.sampleRate : 48000);
 	}
 	
 	WORD Recorder::GetChannelsFromConfig(const RecordConfig& config)
 	{
 		// Use provided channel count or default to stereo
-		return config.numChannels > 0 ? config.numChannels : 2;
+		return static_cast<WORD>(config.numChannels > 0 ? config.numChannels : 2);
 	}
 }
