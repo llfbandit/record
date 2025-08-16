@@ -1,32 +1,70 @@
 #include "record_windows_plugin.h"
-#include <mfreadwrite.h>
-#include <Mferror.h>
 #include "record_config.h"
 #include <flutter/event_stream_handler_functions.h>
+#include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
+#include <propvarutil.h>
+#include <sstream>
 
 using namespace flutter;
 
 namespace record_windows {
-	HRESULT AttributeGetString(IMFAttributes* pAttributes, const GUID& guid, LPWSTR value)
-	{
-		HRESULT hr = S_OK;
-		UINT32 cchLength = 0;
-
-		hr = pAttributes->GetStringLength(guid, &cchLength);
-		if (SUCCEEDED(hr))
-		{
-			hr = pAttributes->GetString(guid, value, cchLength + 1, &cchLength);
-		}
-
-		return hr;
-	}
-
 	static void ErrorFromHR(HRESULT hr, MethodResult<EncodableValue>& result)
 	{
 		_com_error err(hr);
 		std::string errorText = Utf8FromUtf16(err.ErrorMessage());
+		
+		// Add more specific error messages for common WASAPI errors
+		std::string specificError = "Unknown error";
+		switch (hr)
+		{
+		case AUDCLNT_E_DEVICE_INVALIDATED:
+			specificError = "Audio device was removed or became unavailable";
+			break;
+		case AUDCLNT_E_NOT_INITIALIZED:
+			specificError = "Audio client not initialized";
+			break;
+		case AUDCLNT_E_ALREADY_INITIALIZED:
+			specificError = "Audio client already initialized";
+			break;
+		case AUDCLNT_E_DEVICE_IN_USE:
+			specificError = "Audio device is in use by another application";
+			break;
+		case E_ACCESSDENIED:
+			specificError = "Access denied - check microphone permissions in Windows Settings";
+			break;
+		case AUDCLNT_E_UNSUPPORTED_FORMAT:
+			specificError = "Requested audio format is not supported";
+			break;
+		case AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED:
+			specificError = "Exclusive audio mode not allowed";
+			break;
+		case E_INVALIDARG:
+			specificError = "Invalid argument provided";
+			break;
+		case E_OUTOFMEMORY:
+			specificError = "Out of memory";
+			break;
+		default:
+			// For other errors, provide hex error code for better debugging
+			{
+				std::stringstream ss;
+				ss << "Error code 0x" << std::hex << static_cast<unsigned int>(hr);
+				specificError = ss.str();
+			}
+			break;
+		}
 
-		result.Error("Record", "", EncodableValue(errorText));
+		// Append structured HRESULT info for diagnostics
+		unsigned int facility = (hr >> 16) & 0x1FFF; // per HRESULT layout
+		unsigned int code = hr & 0xFFFF;
+		{
+			std::stringstream diag;
+			diag << errorText << " (hr=0x" << std::hex << static_cast<unsigned int>(hr)
+				 << ", facility=" << std::dec << facility << ", code=" << code << ")";
+			errorText = diag.str();
+		}
+		result.Error("Record", specificError, EncodableValue(errorText));
 	}
 
 	static HWND GetRootWindow(flutter::FlutterView* view) {
@@ -353,46 +391,72 @@ namespace record_windows {
 	HRESULT RecordWindowsPlugin::ListInputDevices(MethodResult<EncodableValue>& result)
 	{
 		EncodableList devices;
+		HRESULT hr = S_OK;
 
-		IMFAttributes* pDeviceAttributes = NULL;
-		IMFActivate** ppDevices = NULL;
-		UINT32 deviceCount = 0;
+		// Initialize COM if not already done
+		CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-		HRESULT hr = MFCreateAttributes(&pDeviceAttributes, 1);
+		IMMDeviceEnumerator* pEnumerator = nullptr;
+		IMMDeviceCollection* pCollection = nullptr;
+
+		// Create device enumerator
+		hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+							  __uuidof(IMMDeviceEnumerator), 
+							  reinterpret_cast<void**>(&pEnumerator));
+
 		if (SUCCEEDED(hr))
 		{
-			// Request audio capture devices
-			hr = pDeviceAttributes->SetGUID(
-				MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
-				MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_GUID);
+			// Get collection of audio capture devices
+			hr = pEnumerator->EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE, &pCollection);
 		}
 
+		UINT deviceCount = 0;
 		if (SUCCEEDED(hr))
 		{
-			hr = MFEnumDeviceSources(pDeviceAttributes, &ppDevices, &deviceCount);
+			hr = pCollection->GetCount(&deviceCount);
 		}
 
-		for (UINT32 i = 0; i < deviceCount; i++)
+		// Enumerate through each device
+		for (UINT i = 0; i < deviceCount && SUCCEEDED(hr); i++)
 		{
-			LPWSTR friendlyName = NULL;
-			UINT32 friendlyNameLength = 0;
-			LPWSTR id;
-			UINT32 idLength = 0;
+			IMMDevice* pDevice = nullptr;
+			hr = pCollection->Item(i, &pDevice);
 
-			hr = ppDevices[i]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_ENDPOINT_ID, &id, &idLength);
 			if (SUCCEEDED(hr))
 			{
-				hr = ppDevices[i]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &friendlyName, &friendlyNameLength);
-			}
-			if (SUCCEEDED(hr))
-			{
-				devices.push_back(EncodableMap({
-				{EncodableValue("id"), EncodableValue(toString(id))},
-				{EncodableValue("label"), EncodableValue(toString(friendlyName))}
-					}));
+				// Get device ID
+				LPWSTR deviceId = nullptr;
+				hr = pDevice->GetId(&deviceId);
 
-				CoTaskMemFree(id);
-				CoTaskMemFree(friendlyName);
+				if (SUCCEEDED(hr))
+				{
+					// Get device friendly name
+					IPropertyStore* pProps = nullptr;
+					hr = pDevice->OpenPropertyStore(STGM_READ, &pProps);
+
+					if (SUCCEEDED(hr))
+					{
+						PROPVARIANT friendlyName;
+						PropVariantInit(&friendlyName);
+
+						hr = pProps->GetValue(PKEY_Device_FriendlyName, &friendlyName);
+
+						if (SUCCEEDED(hr) && friendlyName.vt == VT_LPWSTR)
+						{
+							devices.push_back(EncodableMap({
+								{EncodableValue("id"), EncodableValue(toString(deviceId))},
+								{EncodableValue("label"), EncodableValue(toString(friendlyName.pwszVal))}
+							}));
+						}
+
+						PropVariantClear(&friendlyName);
+						pProps->Release();
+					}
+
+					CoTaskMemFree(deviceId);
+				}
+
+				pDevice->Release();
 			}
 		}
 
@@ -405,12 +469,8 @@ namespace record_windows {
 			ErrorFromHR(hr, result);
 		}
 
-		for (UINT32 i = 0; i < deviceCount; i++)
-		{
-			SafeRelease(ppDevices[i]);
-		}
-		SafeRelease(pDeviceAttributes);
-		CoTaskMemFree(ppDevices);
+		if (pCollection) pCollection->Release();
+		if (pEnumerator) pEnumerator->Release();
 
 		return hr;
 	}

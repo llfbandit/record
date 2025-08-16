@@ -12,9 +12,6 @@
 #include <memory>
 
 #include <windows.h>
-#include <mfidl.h>
-#include <mfapi.h>
-#include <mferror.h>
 
 #include "utils.h"
 #include "record.h"
