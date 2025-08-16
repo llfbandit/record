@@ -637,19 +637,24 @@ namespace record_windows
 		{
 			IAudioClient2* pAudioClient2 = nullptr;
 			HRESULT hrEffects = m_pAudioClient->QueryInterface(__uuidof(IAudioClient2), 
-												 reinterpret_cast<void**>(&pAudioClient2));
+											 reinterpret_cast<void**>(&pAudioClient2));
 			
 			if (SUCCEEDED(hrEffects) && pAudioClient2)
 			{
-				// Set audio client properties for voice processing
+				// Set audio client properties for voice processing.
+				// IMPORTANT: We intentionally do NOT request RAW here because RAW bypasses
+				// the audio processing (AGC / Echo Cancellation / Noise Suppression) we want
+				// when the user enabled those flags. So we keep the stream options at NONE.
 				AudioClientProperties clientProperties = {};
 				clientProperties.cbSize = sizeof(AudioClientProperties);
 				clientProperties.bIsOffload = FALSE;
 				clientProperties.eCategory = AudioCategory_Communications; // Enables voice processing
-#if defined(AUDCLNT_STREAMOPTIONS_RAW)
-				clientProperties.Options = AUDCLNT_STREAMOPTIONS_RAW; // Request raw stream (bypass effects)
+#if defined(AUDCLNT_STREAMOPTIONS_NONE)
+				clientProperties.Options = AUDCLNT_STREAMOPTIONS_NONE; // Allow processing
+#elif defined(AUDCLNT_STREAMOPTIONS_RAW)
+				clientProperties.Options = static_cast<AUDCLNT_STREAMOPTIONS>(0); // Avoid RAW to keep processing
 #else
-				clientProperties.Options = 0; // RAW option not available in this SDK
+				clientProperties.Options = static_cast<AUDCLNT_STREAMOPTIONS>(0); // Older SDK: safe default
 #endif
 				
 				hrEffects = pAudioClient2->SetClientProperties(&clientProperties);
