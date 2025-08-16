@@ -155,6 +155,8 @@ namespace record_windows
 	HRESULT AsyncAudioWriter::Initialize(const std::wstring& filePath, const std::string& encoder, 
 										 DWORD sampleRate, WORD channels)
 	{
+		// NOTE: sampleRate/channels should already reflect the negotiated device format
+		// (not merely the originally requested values) to avoid distortion.
 		m_encoderName = encoder;
 		m_sampleRate = sampleRate;
 		m_channels = channels;
@@ -1094,6 +1096,11 @@ namespace record_windows
 			// Return specific error code for better debugging
 			return hr; 
 		}
+		// IMPORTANT: The device may not support the requested sample rate / channels.
+		// After initialization, query the actual negotiated format to avoid distortion
+		// caused by feeding data captured at one rate into a writer tagged with another.
+		sampleRate = m_capture->GetSampleRate();
+		channels = m_capture->GetChannels();
 		
 		// Set up audio data callback
 		m_capture->SetAudioDataCallback([this](const float* samples, size_t count) {
@@ -1148,6 +1155,9 @@ namespace record_windows
 		hr = m_capture->Initialize(m_config->deviceId, sampleRate, channels, 
 								   m_config->noiseSuppress, m_config->echoCancel, m_config->autoGain);
 		if (FAILED(hr)) return hr;
+		// Adjust to actual negotiated format to prevent sample rate mismatch distortion
+		sampleRate = m_capture->GetSampleRate();
+		channels = m_capture->GetChannels();
 		
 		// Set up audio data callback
 		m_capture->SetAudioDataCallback([this](const float* samples, size_t count) {
