@@ -812,10 +812,11 @@ namespace record_windows
 			}
 		}
 		
+		// Prepare stream flags (event driven, no persistence)
+		DWORD streamFlags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST;
 		if (SUCCEEDED(hr))
 		{
 			// Initialize audio client with effects support
-			DWORD streamFlags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST;
 			// NOTE:
 			// There is no AUDCLNT_STREAMFLAGS_RAW flag in the Windows SDK. The RAW option is
 			// configured via AudioClientProperties.Options = AUDCLNT_STREAMOPTIONS_RAW, which actually
@@ -825,6 +826,25 @@ namespace record_windows
 			// to apply communications category processing we set earlier through AudioClientProperties.
 			// If a future "raw" mode is desired, gate AUDCLNT_STREAMOPTIONS_RAW assignment on a
 			// dedicated user flag instead of a (non‑existent) stream flag.
+		}
+
+		// Final fallback: if format negotiation failed, use the device's mix format
+		if (FAILED(hr))
+		{
+			WAVEFORMATEX* pMix = nullptr;
+			HRESULT hrMix = m_pAudioClient->GetMixFormat(&pMix);
+			if (SUCCEEDED(hrMix) && pMix)
+			{
+				if (m_pWaveFormat) { CoTaskMemFree(m_pWaveFormat); }
+				m_pWaveFormat = pMix; // take ownership
+				m_sampleRate = m_pWaveFormat->nSamplesPerSec;
+				m_channels = m_pWaveFormat->nChannels; // adapt to device
+				hr = S_OK;
+			}
+		}
+
+		if (SUCCEEDED(hr))
+		{
 			
 			hr = m_pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED,
 											streamFlags,
