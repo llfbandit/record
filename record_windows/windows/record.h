@@ -4,7 +4,6 @@
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 #include <audiopolicy.h>
-//#include <audioengineextensionapo.h> // Temporarily disabled due to GUID compilation issues
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
@@ -12,6 +11,7 @@
 #include <mmreg.h>
 #include <ks.h>
 #include <ksmedia.h>
+#include <propvarutil.h>
 
 #include <atomic>
 #include <thread>
@@ -112,7 +112,6 @@ namespace record_windows
 		IMMDevice* m_pDevice;
 		IAudioClient* m_pAudioClient;
 		IAudioCaptureClient* m_pCaptureClient;
-		// IAudioEffectsManager* m_pEffectsManager; // Temporarily disabled due to GUID compilation issues
 		
 		HANDLE m_hCaptureEvent;
 		std::thread m_captureThread;

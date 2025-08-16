@@ -69,7 +69,7 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
       if (kDebugMode) {
         print('Recording error: $e');
       }
-      
+
       // Show error dialog for better debugging
       if (mounted) {
         showDialog(

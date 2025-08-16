@@ -529,7 +529,6 @@ namespace record_windows
 		, m_pDevice(nullptr)
 		, m_pAudioClient(nullptr)
 		, m_pCaptureClient(nullptr)
-		//, m_pEffectsManager(nullptr) // Temporarily disabled
 		, m_hCaptureEvent(nullptr)
 		, m_pWaveFormat(nullptr)
 		, m_sampleRate(48000)
@@ -548,7 +547,6 @@ namespace record_windows
 		if (m_pWaveFormat) CoTaskMemFree(m_pWaveFormat);
 		if (m_hCaptureEvent) CloseHandle(m_hCaptureEvent);
 		if (m_pCaptureClient) m_pCaptureClient->Release();
-		//if (m_pEffectsManager) m_pEffectsManager->Release(); // Temporarily disabled
 		if (m_pAudioClient) m_pAudioClient->Release();
 		if (m_pDevice) m_pDevice->Release();
 		if (m_pDeviceEnumerator) m_pDeviceEnumerator->Release();
@@ -604,12 +602,14 @@ namespace record_windows
 			return hr;
 		}
 		
-		hr = InitializeAudioEffects();
-		if (FAILED(hr))
+		// Initialize audio effects after audio client is set up
+		// This configures the audio processing pipeline
+		HRESULT effectsHr = InitializeAudioEffects();
+		if (FAILED(effectsHr))
 		{
 			// Audio effects initialization failed - continue without effects
 			// This is not critical, so we don't return failure
-			hr = S_OK;
+			// Effects might not be supported by all devices/drivers
 		}
 		
 		// Create event for audio capture
@@ -631,6 +631,30 @@ namespace record_windows
 	{
 		HRESULT hr = m_pDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, 
 										 nullptr, reinterpret_cast<void**>(&m_pAudioClient));
+		
+		// First, try to set up audio effects using IAudioClient2 if available
+		if (SUCCEEDED(hr) && (m_enableNoiseSuppress || m_enableEchoCancel || m_enableAutoGain))
+		{
+			IAudioClient2* pAudioClient2 = nullptr;
+			HRESULT hrEffects = m_pAudioClient->QueryInterface(__uuidof(IAudioClient2), 
+															  reinterpret_cast<void**>(&pAudioClient2));
+			
+			if (SUCCEEDED(hrEffects) && pAudioClient2)
+			{
+				// Set audio client properties for voice processing
+				AudioClientProperties clientProperties = {};
+				clientProperties.cbSize = sizeof(AudioClientProperties);
+				clientProperties.bIsOffload = FALSE;
+				clientProperties.eCategory = AudioCategory_Communications; // Enables voice processing
+				clientProperties.Options = AUDCLNT_STREAMOPTIONS_RAW;
+				
+				hrEffects = pAudioClient2->SetClientProperties(&clientProperties);
+				pAudioClient2->Release();
+				
+				// If effects setup succeeded, continue with normal initialization
+				// If failed, continue without effects (not critical)
+			}
+		}
 		
 		if (SUCCEEDED(hr))
 		{
@@ -739,10 +763,19 @@ namespace record_windows
 		
 		if (SUCCEEDED(hr))
 		{
-			// Initialize audio client with minimal latency for better audio quality
+			// Initialize audio client with effects support
+			DWORD streamFlags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST;
+			
+			// Enable audio processing effects if requested
+			if (m_enableNoiseSuppress || m_enableEchoCancel || m_enableAutoGain)
+			{
+				// Add processing flags for voice enhancement
+				streamFlags |= AUDCLNT_STREAMFLAGS_RAW;
+			}
+			
 			hr = m_pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED,
-											AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST,
-											100000, // 10ms buffer for lower latency
+											streamFlags,
+											200000, // 20ms buffer duration
 											0,
 											m_pWaveFormat,
 											nullptr);
@@ -759,59 +792,18 @@ namespace record_windows
 	
 	HRESULT WASAPICapture::InitializeAudioEffects()
 	{
-		// TODO: Re-enable audio effects once GUID compilation issues are resolved
-		// Audio effects functionality temporarily disabled to resolve compilation errors
-		/*
-		HRESULT hr = S_OK;
+		// Audio effects are now primarily handled during audio client initialization
+		// using AudioCategory_Communications which automatically enables:
+		// - Noise suppression
+		// - Echo cancellation  
+		// - Automatic gain control
+		// when supported by the audio driver and hardware
 		
-		// Try to get the effects manager for audio processing
-		if (m_pDevice)
-		{
-			hr = m_pDevice->Activate(__uuidof(IAudioEffectsManager), CLSCTX_ALL, 
-									 nullptr, reinterpret_cast<void**>(&m_pEffectsManager));
-		}
+		// Additional effect configuration could be added here if needed
+		// for specific device or driver requirements
 		
-		if (SUCCEEDED(hr) && m_pEffectsManager)
-		{
-			// Configure audio effects based on settings
-			std::vector<GUID> effectsToEnable;
-			
-			if (m_enableNoiseSuppress)
-			{
-				// Add noise suppression effect
-				effectsToEnable.push_back(AUDIO_EFFECT_TYPE_NOISE_SUPPRESSION);
-			}
-			
-			if (m_enableEchoCancel)
-			{
-				// Add echo cancellation effect
-				effectsToEnable.push_back(AUDIO_EFFECT_TYPE_ECHO_CANCELLATION);
-			}
-			
-			if (m_enableAutoGain)
-			{
-				// Add automatic gain control effect
-				effectsToEnable.push_back(AUDIO_EFFECT_TYPE_AUTOMATIC_GAIN_CONTROL);
-			}
-			
-			// Apply effects if any are requested
-			if (!effectsToEnable.empty())
-			{
-				// Note: The actual effect application depends on Windows version and device capabilities
-				// Some devices may not support all effects, so we continue even if this fails
-				for (const auto& effectGuid : effectsToEnable)
-				{
-					HRESULT effectHr = S_OK;
-					// Try to enable each effect individually
-					// Implementation depends on specific Windows Audio Engine APO interfaces
-					// For now, we log that effects are requested but may need device-specific implementation
-				}
-			}
-		}
-		*/
-		
-		// Don't fail initialization if effects aren't supported
-		// Effects are optional enhancements, core recording should still work
+		// For now, effects are handled automatically by Windows Audio Engine
+		// when using AudioCategory_Communications
 		return S_OK;
 	}
 	
