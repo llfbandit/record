@@ -637,7 +637,7 @@ namespace record_windows
 		{
 			IAudioClient2* pAudioClient2 = nullptr;
 			HRESULT hrEffects = m_pAudioClient->QueryInterface(__uuidof(IAudioClient2), 
-															  reinterpret_cast<void**>(&pAudioClient2));
+												 reinterpret_cast<void**>(&pAudioClient2));
 			
 			if (SUCCEEDED(hrEffects) && pAudioClient2)
 			{
@@ -646,7 +646,11 @@ namespace record_windows
 				clientProperties.cbSize = sizeof(AudioClientProperties);
 				clientProperties.bIsOffload = FALSE;
 				clientProperties.eCategory = AudioCategory_Communications; // Enables voice processing
-				clientProperties.Options = AUDCLNT_STREAMOPTIONS_RAW;
+#if defined(AUDCLNT_STREAMOPTIONS_RAW)
+				clientProperties.Options = AUDCLNT_STREAMOPTIONS_RAW; // Request raw stream (bypass effects)
+#else
+				clientProperties.Options = 0; // RAW option not available in this SDK
+#endif
 				
 				hrEffects = pAudioClient2->SetClientProperties(&clientProperties);
 				pAudioClient2->Release();
@@ -765,13 +769,15 @@ namespace record_windows
 		{
 			// Initialize audio client with effects support
 			DWORD streamFlags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST;
-			
-			// Enable audio processing effects if requested
-			if (m_enableNoiseSuppress || m_enableEchoCancel || m_enableAutoGain)
-			{
-				// Add processing flags for voice enhancement
-				streamFlags |= AUDCLNT_STREAMFLAGS_RAW;
-			}
+			// NOTE:
+			// There is no AUDCLNT_STREAMFLAGS_RAW flag in the Windows SDK. The RAW option is
+			// configured via AudioClientProperties.Options = AUDCLNT_STREAMOPTIONS_RAW, which actually
+			// DISABLES all audio processing (gives you raw audio). Because we want optional voice
+			// processing (noise suppression / echo cancellation / AGC) when requested, we should NOT
+			// force RAW here. Keeping just EVENTCALLBACK + NOPERSIST allows the Windows audio engine
+			// to apply communications category processing we set earlier through AudioClientProperties.
+			// If a future "raw" mode is desired, gate AUDCLNT_STREAMOPTIONS_RAW assignment on a
+			// dedicated user flag instead of a (non‑existent) stream flag.
 			
 			hr = m_pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED,
 											streamFlags,
