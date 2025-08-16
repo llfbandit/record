@@ -718,9 +718,51 @@ namespace record_windows
 				}
 				else
 				{
-					// Device doesn't support our channel count, fall back to PCM
+					// Device doesn't support requested channel count in float format.
+					// Attempt an immediate fallback to 16-bit PCM with requested channel count.
 					if (pClosestMatch) CoTaskMemFree(pClosestMatch);
-					hr = E_FAIL; // Force PCM fallback
+					WAVEFORMATEX waveFormat = {};
+					waveFormat.wFormatTag = WAVE_FORMAT_PCM;
+					waveFormat.nChannels = m_channels;
+					waveFormat.nSamplesPerSec = m_sampleRate;
+					waveFormat.wBitsPerSample = 16;
+					waveFormat.nBlockAlign = m_channels * waveFormat.wBitsPerSample / 8;
+					waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
+					WAVEFORMATEX* pPcmClosest = nullptr;
+					HRESULT hrPcm = m_pAudioClient->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, &waveFormat, &pPcmClosest);
+					if (hrPcm == S_OK)
+					{
+						m_pWaveFormat = reinterpret_cast<WAVEFORMATEX*>(CoTaskMemAlloc(sizeof(WAVEFORMATEX)));
+						if (m_pWaveFormat)
+						{
+							*m_pWaveFormat = waveFormat;
+							hr = S_OK;
+						}
+						else
+						{
+							hr = E_OUTOFMEMORY;
+						}
+					}
+					else if (hrPcm == S_FALSE && pPcmClosest)
+					{
+						// Accept closest PCM match only if channel count matches
+						if (pPcmClosest->nChannels == m_channels)
+						{
+							m_pWaveFormat = pPcmClosest;
+							m_sampleRate = m_pWaveFormat->nSamplesPerSec;
+							hr = S_OK;
+						}
+						else
+						{
+							CoTaskMemFree(pPcmClosest);
+							hr = AUDCLNT_E_UNSUPPORTED_FORMAT; // propagate meaningful error
+						}
+					}
+					else
+					{
+						// PCM unsupported entirely
+						hr = AUDCLNT_E_UNSUPPORTED_FORMAT;
+					}
 				}
 			}
 			else

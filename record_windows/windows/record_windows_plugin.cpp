@@ -55,6 +55,15 @@ namespace record_windows {
 			break;
 		}
 
+		// Append structured HRESULT info for diagnostics
+		unsigned int facility = (hr >> 16) & 0x1FFF; // per HRESULT layout
+		unsigned int code = hr & 0xFFFF;
+		{
+			std::stringstream diag;
+			diag << errorText << " (hr=0x" << std::hex << static_cast<unsigned int>(hr)
+				 << ", facility=" << std::dec << facility << ", code=" << code << ")";
+			errorText = diag.str();
+		}
 		result.Error("Record", specificError, EncodableValue(errorText));
 	}
 
