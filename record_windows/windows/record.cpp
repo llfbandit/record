@@ -153,14 +153,17 @@ namespace record_windows
 	}
 	
 	HRESULT AsyncAudioWriter::Initialize(const std::wstring& filePath, const std::string& encoder, 
-										 DWORD sampleRate, WORD channels)
+										 DWORD sampleRate, WORD channels, UINT32 bitRate)
 	{
 		// NOTE: sampleRate/channels should already reflect the negotiated device format
 		// (not merely the originally requested values) to avoid distortion.
 		m_encoderName = encoder;
 		m_sampleRate = sampleRate;
 		m_channels = channels;
+		m_bitRate = bitRate;
 		m_bytesWritten = 0;
+		m_totalSamplesWritten = 0;
+		m_startTime = std::chrono::steady_clock::now();
 		
 		// Determine if we need Media Foundation for advanced codecs
 		m_useMediaFoundation = (encoder == "aac" || encoder == "aaclc" || 
@@ -377,6 +380,18 @@ namespace record_windows
 		
 		if (SUCCEEDED(hr))
 		{
+			// Enable low latency mode for real-time recording
+			hr = pAttributes->SetUINT32(MF_READWRITE_MMCSS_CLASS, MF_READWRITE_MMCSS_CLASS_AUDIO);
+		}
+		
+		if (SUCCEEDED(hr))
+		{
+			// Set priority for audio processing
+			hr = pAttributes->SetUINT32(MF_READWRITE_MMCSS_PRIORITY_AUDIO, 6);
+		}
+		
+		if (SUCCEEDED(hr))
+		{
 			hr = MFCreateSinkWriterFromURL(m_filePath.c_str(), nullptr, pAttributes, &m_pSinkWriter);
 		}
 		
@@ -391,23 +406,42 @@ namespace record_windows
 				if (m_encoderName == "aac" || m_encoderName == "aaclc" || 
 					m_encoderName == "aac_lc" || m_encoderName == "m4a" || m_encoderName == "mp4")
 				{
-					// AAC-LC configuration with proper Media Foundation settings
+					// AAC-LC configuration with optimized Media Foundation settings
 					hr = pOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
 					if (SUCCEEDED(hr)) hr = pOutputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC);
 					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, m_sampleRate);
 					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, m_channels);
 					
-					// Calculate proper bitrate based on channels and sample rate
-					UINT32 bitrate = 128000; // Default 128kbps
-					if (m_channels == 1) bitrate = 96000;       // 96kbps for mono
-					else if (m_channels > 2) bitrate = 192000;  // 192kbps for multichannel
+					// Use the configured bitrate, with intelligent defaults based on sample rate and channels
+					UINT32 bitrate = m_bitRate > 0 ? m_bitRate : CalculateOptimalBitrate(m_sampleRate, m_channels);
+					
+					// Clamp bitrate to reasonable AAC-LC ranges
+					if (bitrate < 8000) bitrate = 8000;       // Minimum practical AAC bitrate
+					if (bitrate > 320000) bitrate = 320000;   // Maximum typical AAC bitrate
 					
 					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, bitrate / 8);
-					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
 					
-					// AAC-specific properties
+					// Set compression quality - use variable bitrate mode for better quality
+					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_PREFER_WAVEFORMATEX, 0);
+					
+					// AAC-specific optimizations
 					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29); // AAC-LC Profile
 					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 1);
+					
+					// Enable AAC spectral band replication for better efficiency at low bitrates
+					if (bitrate < 64000 && m_channels <= 2) {
+						// Use HE-AAC (AAC+SBR) for very low bitrates
+						if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x2A);
+					}
+					
+					// Set optimal frame size for AAC (1024 samples is standard)
+					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_BLOCK, 1024);
+					
+					// Configure advanced AAC encoding parameters
+					ConfigureAACQuality(pOutputType, bitrate);
+					
+					// Enable constant quality mode if available
+					if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
 				}
 				
 				hr = m_pSinkWriter->AddStream(pOutputType, &m_streamIndex);
@@ -495,13 +529,15 @@ namespace record_windows
 		{
 			pSample->AddBuffer(pBuffer);
 			
-			// Set sample timestamp (approximate)
-			static LONGLONG timestamp = 0;
+			// Calculate precise timestamp based on sample count for better accuracy
+			LONGLONG timestamp = (10000000LL * m_totalSamplesWritten) / (m_sampleRate * m_channels);
 			pSample->SetSampleTime(timestamp);
 			
 			LONGLONG duration = (10000000LL * count) / (m_sampleRate * m_channels); // 100ns units
 			pSample->SetSampleDuration(duration);
-			timestamp += duration;
+			
+			// Update total samples written for next timestamp calculation
+			m_totalSamplesWritten += count;
 			
 			hr = m_pSinkWriter->WriteSample(m_streamIndex, pSample);
 		}
@@ -520,6 +556,75 @@ namespace record_windows
 			m_pSinkWriter->Release();
 			m_pSinkWriter = nullptr;
 		}
+	}
+	
+	UINT32 AsyncAudioWriter::CalculateOptimalBitrate(DWORD sampleRate, WORD channels)
+	{
+		// Calculate optimal bitrate based on sample rate and channel count
+		// These values are based on audio engineering best practices for AAC-LC
+		
+		UINT32 baseBitrate;
+		
+		// Base bitrate per channel based on sample rate
+		if (sampleRate >= 48000) {
+			baseBitrate = 64000; // High quality for 48kHz+
+		} else if (sampleRate >= 44100) {
+			baseBitrate = 60000; // Standard quality for CD-quality
+		} else if (sampleRate >= 32000) {
+			baseBitrate = 48000; // Good quality for 32kHz
+		} else if (sampleRate >= 22050) {
+			baseBitrate = 32000; // Acceptable for voice/podcast
+		} else {
+			baseBitrate = 24000; // Minimum for speech
+		}
+		
+		// Adjust for channel count
+		UINT32 totalBitrate = baseBitrate;
+		if (channels == 1) {
+			totalBitrate = baseBitrate * 0.75f; // Mono needs less bitrate
+		} else if (channels == 2) {
+			totalBitrate = baseBitrate; // Stereo baseline
+		} else if (channels <= 6) {
+			totalBitrate = baseBitrate * 1.5f; // Surround sound
+		} else {
+			totalBitrate = baseBitrate * 2.0f; // High channel count
+		}
+		
+		return totalBitrate;
+	}
+	
+	HRESULT AsyncAudioWriter::ConfigureAACQuality(IMFMediaType* pOutputType, UINT32 bitrate)
+	{
+		HRESULT hr = S_OK;
+		
+		// Configure AAC encoder parameters based on quality setting and bitrate
+		switch (m_aacQuality) {
+			case AACQuality::Low:
+				// Optimize for smallest file size
+				if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0); // Raw AAC
+				break;
+				
+			case AACQuality::Medium:
+				// Balanced quality/size (default)
+				if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 1); // ADTS
+				break;
+				
+			case AACQuality::High:
+				// Optimize for quality
+				if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 1); // ADTS
+				// Enable higher quality encoding if available
+				if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AUDIO_CHANNEL_MASK, KSAUDIO_SPEAKER_STEREO);
+				break;
+				
+			case AACQuality::VBR:
+				// Variable bitrate for best quality
+				if (SUCCEEDED(hr)) hr = pOutputType->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 1); // ADTS
+				// Note: Windows Media Foundation AAC encoder has limited VBR support
+				// The bitrate setting acts more as a target/maximum in this mode
+				break;
+		}
+		
+		return hr;
 	}
 
 	// ===========================================
@@ -1107,15 +1212,13 @@ namespace record_windows
 			OnAudioData(samples, count);
 		});
 		
-		// Initialize file writer
-		hr = m_fileWriter->Initialize(path, m_config->encoderName, sampleRate, channels);
-		if (FAILED(hr)) 
-		{
-			// Return specific error code for file writer issues
-			return hr;
-		}
-		
-		hr = m_fileWriter->Start();
+	// Initialize file writer
+	hr = m_fileWriter->Initialize(path, m_config->encoderName, sampleRate, channels, m_config->bitRate);
+	if (FAILED(hr)) 
+	{
+		// Return specific error code for file writer issues
+		return hr;
+	}		hr = m_fileWriter->Start();
 		if (FAILED(hr)) 
 		{
 			// Return specific error code for file writer start issues

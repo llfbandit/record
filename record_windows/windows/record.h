@@ -21,6 +21,7 @@
 #include <string>
 #include <map>
 #include <fstream>
+#include <chrono>
 
 // utility functions
 #include "utils.h"
@@ -76,8 +77,22 @@ namespace record_windows
 		std::string m_encoderName;
 		DWORD m_sampleRate;
 		WORD m_channels;
+		UINT32 m_bitRate{128000};
 		std::ofstream m_fileStream;
 		size_t m_bytesWritten{0};
+		
+		// AAC encoding quality settings
+		enum class AACQuality {
+			Low = 0,      // Optimized for file size
+			Medium = 1,   // Balanced quality/size
+			High = 2,     // Optimized for quality
+			VBR = 3       // Variable bitrate (best quality)
+		};
+		AACQuality m_aacQuality{AACQuality::Medium};
+		
+		// Precise timestamp tracking for AAC encoding
+		LONGLONG m_totalSamplesWritten{0};
+		std::chrono::steady_clock::time_point m_startTime;
 		
 		// Media Foundation for advanced codecs
 		IMFSinkWriter* m_pSinkWriter{nullptr};
@@ -92,13 +107,19 @@ namespace record_windows
 		HRESULT InitializeMediaFoundationEncoder();
 		HRESULT WriteMediaFoundationSample(const float* samples, size_t count);
 		void CleanupMediaFoundation();
+		
+		// Helper function to calculate optimal bitrate based on sample rate and channels
+		UINT32 CalculateOptimalBitrate(DWORD sampleRate, WORD channels);
+		
+		// Configure AAC quality settings
+		HRESULT ConfigureAACQuality(IMFMediaType* pOutputType, UINT32 bitrate);
 
 	public:
 		AsyncAudioWriter();
 		~AsyncAudioWriter();
 		
 		HRESULT Initialize(const std::wstring& filePath, const std::string& encoder, 
-						  DWORD sampleRate, WORD channels);
+						  DWORD sampleRate, WORD channels, UINT32 bitRate = 128000);
 		HRESULT Start();
 		HRESULT Stop();
 		void QueueAudio(const float* samples, size_t count);
