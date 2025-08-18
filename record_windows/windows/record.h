@@ -1,19 +1,31 @@
 #pragma once
 
 #include <windows.h>
-#include <mfidl.h>
+#include <mmdeviceapi.h>
+#include <audioclient.h>
+#include <audiopolicy.h>
 #include <mfapi.h>
-#include <mferror.h>
-#include <shlwapi.h>
-#include <Mfreadwrite.h>
+#include <mfidl.h>
+#include <mfreadwrite.h>
+#include <functiondiscoverykeys_devpkey.h>
+#include <mmreg.h>
+#include <ks.h>
+#include <ksmedia.h>
+#include <propvarutil.h>
 
-#include <assert.h>
+#include <atomic>
+#include <thread>
+#include <memory>
+#include <functional>
+#include <vector>
+#include <string>
+#include <map>
+#include <fstream>
+#include <chrono>
 
 // utility functions
 #include "utils.h"
-
 #include "record_config.h"
-
 #include "event_stream_handler.h"
 
 using namespace flutter;
@@ -24,14 +36,163 @@ namespace record_windows
 		pause, record, stop
 	};
 
-	class Recorder : public IMFSourceReaderCallback
+	// Lock-free ring buffer for real-time audio processing
+	template<typename T>
+	class LockFreeRingBuffer {
+	private:
+		std::vector<T> m_buffer;
+		std::atomic<size_t> m_writeIndex{0};
+		std::atomic<size_t> m_readIndex{0};
+		size_t m_size;
+		size_t m_mask; // For power-of-2 sizes
+
+	public:
+		explicit LockFreeRingBuffer(size_t size);
+		bool Write(const T* data, size_t count);
+		size_t Read(T* data, size_t maxCount);
+		size_t Available() const;
+		void Clear();
+	};
+
+	// Real-time amplitude analyzer
+	class AmplitudeAnalyzer {
+	private:
+		std::atomic<float> m_currentAmplitude{-160.0f};
+		std::atomic<float> m_maxAmplitude{-160.0f};
+		
+	public:
+		void ProcessSamples(const float* samples, size_t count);
+		float GetCurrentAmplitude() const { return m_currentAmplitude.load(); }
+		float GetMaxAmplitude() const { return m_maxAmplitude.load(); }
+		void Reset();
+	};
+
+	// Async audio file writer with multiple codec support
+	class AsyncAudioWriter {
+	private:
+		std::unique_ptr<LockFreeRingBuffer<float>> m_audioBuffer;
+		std::thread m_writerThread;
+		std::atomic<bool> m_isRunning{false};
+		std::wstring m_filePath;
+		std::string m_encoderName;
+		DWORD m_sampleRate;
+		WORD m_channels;
+		UINT32 m_bitRate{128000};
+		std::ofstream m_fileStream;
+		size_t m_bytesWritten{0};
+		
+		// AAC encoding quality settings
+		enum class AACQuality {
+			Low = 0,      // Optimized for file size
+			Medium = 1,   // Balanced quality/size
+			High = 2,     // Optimized for quality
+			VBR = 3       // Variable bitrate (best quality)
+		};
+		AACQuality m_aacQuality{AACQuality::Medium};
+		
+		// Precise timestamp tracking for AAC encoding
+		LONGLONG m_totalSamplesWritten{0};
+		std::chrono::steady_clock::time_point m_startTime;
+		
+		// Media Foundation for advanced codecs
+		IMFSinkWriter* m_pSinkWriter{nullptr};
+		DWORD m_streamIndex{0};
+		bool m_useMediaFoundation{false};
+
+		void WriterThreadProc();
+		HRESULT WriteWavHeader();
+		HRESULT UpdateWavHeader();
+		
+		// Media Foundation codec support
+		HRESULT InitializeMediaFoundationEncoder();
+		HRESULT WriteMediaFoundationSample(const float* samples, size_t count);
+		void CleanupMediaFoundation();
+		
+		// Helper function to calculate optimal bitrate based on sample rate and channels
+		UINT32 CalculateOptimalBitrate(DWORD sampleRate, WORD channels);
+		
+		// Configure AAC quality settings
+		HRESULT ConfigureAACQuality(IMFMediaType* pOutputType, UINT32 bitrate);
+
+	public:
+		AsyncAudioWriter();
+		~AsyncAudioWriter();
+		
+		HRESULT Initialize(const std::wstring& filePath, const std::string& encoder, 
+						  DWORD sampleRate, WORD channels, UINT32 bitRate = 128000);
+		HRESULT Start();
+		HRESULT Stop();
+		void QueueAudio(const float* samples, size_t count);
+		size_t GetBytesWritten() const { return m_bytesWritten; }
+	};
+
+	// WASAPI audio capture engine
+	class WASAPICapture {
+	private:
+		IMMDeviceEnumerator* m_pDeviceEnumerator;
+		IMMDevice* m_pDevice;
+		IAudioClient* m_pAudioClient;
+		IAudioCaptureClient* m_pCaptureClient;
+		
+		HANDLE m_hCaptureEvent;
+		std::thread m_captureThread;
+		std::atomic<bool> m_isCapturing{false};
+		
+		WAVEFORMATEX* m_pWaveFormat;
+		DWORD m_sampleRate;
+		WORD m_channels;
+		
+		// Audio processing configuration
+		bool m_enableNoiseSuppress{false};
+		bool m_enableEchoCancel{false};
+		bool m_enableAutoGain{false};
+		
+		// Callbacks
+		std::function<void(const float* samples, size_t count)> m_onAudioData;
+		
+		void CaptureThreadProc();
+		HRESULT InitializeAudioClient();
+		HRESULT InitializeAudioEffects();
+		bool IsFloatFormat();
+
+	public:
+		WASAPICapture();
+		~WASAPICapture();
+		
+		HRESULT Initialize(const std::string& deviceId, DWORD sampleRate, WORD channels, 
+						  bool noiseSuppress = false, bool echoCancel = false, bool autoGain = false);
+		HRESULT Start();
+		HRESULT Stop();
+		HRESULT Pause();
+		HRESULT Resume();
+		
+		void SetAudioDataCallback(std::function<void(const float* samples, size_t count)> callback);
+		
+		DWORD GetSampleRate() const { return m_sampleRate; }
+		WORD GetChannels() const { return m_channels; }
+		bool IsCapturing() const { return m_isCapturing.load(); }
+		
+		// Get actual device format for debugging
+		std::string GetActualFormat() const {
+			if (!m_pWaveFormat) return "No format";
+			return "Channels: " + std::to_string(m_pWaveFormat->nChannels) + 
+				   ", SampleRate: " + std::to_string(m_pWaveFormat->nSamplesPerSec) +
+				   ", BitsPerSample: " + std::to_string(m_pWaveFormat->wBitsPerSample);
+		}
+	};
+
+	// Main recorder class - orchestrates all components
+	class Recorder
 	{
 	public:
-		static HRESULT CreateInstance(EventStreamHandler<>* stateEventHandler, EventStreamHandler<>* recordEventHandler, Recorder** recorder);
+		static HRESULT CreateInstance(EventStreamHandler<>* stateEventHandler, 
+									  EventStreamHandler<>* recordEventHandler, 
+									  Recorder** recorder);
 
 		Recorder(EventStreamHandler<>* stateEventHandler, EventStreamHandler<>* recordEventHandler);
 		virtual ~Recorder();
 
+		// Public interface (matches existing API)
 		HRESULT Start(std::unique_ptr<RecordConfig> config, std::wstring path);
 		HRESULT StartStream(std::unique_ptr<RecordConfig> config);
 		HRESULT Pause();
@@ -44,59 +205,39 @@ namespace record_windows
 		std::map<std::string, double> GetAmplitude();
 		std::wstring GetRecordingPath();
 		HRESULT isEncoderSupported(std::string encoderName, bool* supported);
-		
-		// IUnknown methods
-		STDMETHODIMP QueryInterface(REFIID iid, void** ppv);
-		STDMETHODIMP_(ULONG) AddRef();
-		STDMETHODIMP_(ULONG) Release();
-
-		// IMFSourceReaderCallback methods
-		STDMETHODIMP OnReadSample(HRESULT hrStatus, DWORD dwStreamIndex, DWORD dwStreamFlags, LONGLONG llTimestamp, IMFSample* pSample);
-		STDMETHODIMP OnEvent(DWORD, IMFMediaEvent*);
-		STDMETHODIMP OnFlush(DWORD);
 
 	private:
-		HRESULT CreateAudioCaptureDevice(LPCWSTR pszEndPointID);
-		HRESULT CreateSourceReaderAsync();
-		HRESULT CreateSinkWriter(std::wstring path);
-		HRESULT CreateAudioProfileIn( IMFMediaType** ppMediaType);
-		HRESULT CreateAudioProfileOut( IMFMediaType** ppMediaType);
-
-		HRESULT CreateACCProfile( IMFMediaType* pMediaType);
-		HRESULT CreateFlacProfile( IMFMediaType* pMediaType);
-		HRESULT CreateAmrNbProfile( IMFMediaType* pMediaType);
-		HRESULT CreatePcmProfile( IMFMediaType* pMediaType);
-		HRESULT FillWavHeader();
-
-		HRESULT InitRecording(std::unique_ptr<RecordConfig> config);
-		void UpdateState(RecordState state);
-		HRESULT EndRecording();
-		void GetAmplitude(BYTE* chunk, DWORD size, int bytesPerSample);
-		std::vector<int16_t> convertBytesToInt16(BYTE* bytes, DWORD size);
-
-		long                m_nRefCount;        // Reference count.
-		CritSec				m_critsec;
-
-		IMFMediaSource* m_pSource;
-		IMFPresentationDescriptor* m_pPresentationDescriptor;
-		IMFSourceReader* m_pReader;
-		IMFSinkWriter* m_pWriter;
+		// Core components
+		std::unique_ptr<WASAPICapture> m_capture;
+		std::unique_ptr<AmplitudeAnalyzer> m_amplitudeAnalyzer;
+		std::unique_ptr<AsyncAudioWriter> m_fileWriter;
+		
+		// State management
+		RecordState m_recordState;
+		std::unique_ptr<RecordConfig> m_config;
 		std::wstring m_recordingPath;
-		bool m_mfStarted = false;
-		IMFMediaType* m_pMediaType;
-
-		bool m_bFirstSample = true;
-		LONGLONG m_llBaseTime = 0;
-		LONGLONG m_llLastTime = 0;
-
-		double m_amplitude = -160;
-		double m_maxAmplitude = -160;
-		DWORD m_dataWritten = 0;
-
+		
+		// Flutter event handlers
 		EventStreamHandler<>* m_stateEventHandler;
 		EventStreamHandler<>* m_recordEventHandler;
-
-		RecordState m_recordState = RecordState::stop;
-		std::unique_ptr<RecordConfig> m_pConfig;
+		
+		// Internal state
+		std::atomic<bool> m_isInitialized{false};
+		std::atomic<bool> m_isRecordingToFile{false};
+		std::atomic<bool> m_isStreaming{false};
+		
+		// Audio data callback
+		void OnAudioData(const float* samples, size_t count);
+		
+		// State updates
+		void UpdateState(RecordState state);
+		
+		// Cleanup
+		void Cleanup();
+		
+		// Helper methods
+		HRESULT ValidateConfig(const RecordConfig& config);
+		DWORD GetSampleRateFromConfig(const RecordConfig& config);
+		WORD GetChannelsFromConfig(const RecordConfig& config);
 	};
-};
+}
