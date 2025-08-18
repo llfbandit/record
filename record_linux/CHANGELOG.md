@@ -1,3 +1,6 @@
+## 1.2.1
+* fix: Bad state: StreamSink is bound to a stream error when stopping recording.
+
 ## 1.2.0
 * feat: Implement amplitude (dBFS)
 

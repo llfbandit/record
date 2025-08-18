@@ -19,7 +19,7 @@ class RecordLinux extends RecordPlatform {
   StreamController<RecordState>? _stateStreamCtrl;
   Process? _parecordProcess;
   Process? _ffmpegProcess;
-  StreamController<List<int>>? _amplitudeStreamController;
+  StreamController<List<int>>? _inputPcmController;
   double _currentAmplitude = -160.0;
   double _maxAmplitude = -160.0;
 
@@ -138,18 +138,17 @@ class RecordLinux extends RecordPlatform {
     final path = _path;
 
     // Close amplitude stream controller
-    await _amplitudeStreamController?.close();
-    _amplitudeStreamController = null;
+    await _inputPcmController?.close();
+    _inputPcmController = null;
 
     // Kill parecord first
     _parecordProcess?.kill();
     _parecordProcess = null;
 
     // Close ffmpeg stdin and wait for it to finish
-    if (_ffmpegProcess != null) {
-      await _ffmpegProcess!.stdin.close();
+    if (_ffmpegProcess case final process?) {
       // Wait for ffmpeg to finish writing
-      await _ffmpegProcess!.exitCode;
+      await process.exitCode;
       _ffmpegProcess = null;
     }
 
@@ -377,7 +376,7 @@ class RecordLinux extends RecordPlatform {
       }
     }
 
-    // Calculate dBFS (same formula as other platforms)
+    // Calculate dBFS
     if (maxSample > 0) {
       _currentAmplitude = 20 * (log(maxSample / 32767.0) / ln10);
     } else {
@@ -415,30 +414,22 @@ class RecordLinux extends RecordPlatform {
 
     _ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
 
-    // Log ffmpeg stderr for debugging (remove this after testing)
-    _ffmpegProcess!.stderr.transform(utf8.decoder).listen((data) {
-      if (data.isNotEmpty) {
-        debugPrint('FFmpeg: $data');
-      }
-    });
-
     // Create a passthrough stream controller to intercept audio data
-    _amplitudeStreamController = StreamController<List<int>>();
+    _inputPcmController = StreamController<List<int>>();
 
     // Listen to raw PCM data from parecord:
     // 1. Calculate amplitude for VU meter
     // 2. Forward the unchanged PCM data to our stream controller
     parecordProc.stdout.listen((data) {
       _calculateAmplitude(Uint8List.fromList(data));
-      if (!_amplitudeStreamController!.isClosed) {
-        _amplitudeStreamController!.add(data);
+
+      if (_inputPcmController case final ctrl? when !ctrl.isClosed) {
+        ctrl.add(data);
       }
-    }, onDone: () {
-      _amplitudeStreamController?.close();
-    });
+    }, onDone: () => _inputPcmController?.close());
 
     // Pipe the PCM data from our controller to ffmpeg for encoding
     // This uses pipe() for proper backpressure handling
-    _amplitudeStreamController!.stream.pipe(_ffmpegProcess!.stdin);
+    _inputPcmController!.stream.pipe(_ffmpegProcess!.stdin);
   }
 }
