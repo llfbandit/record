@@ -10,6 +10,7 @@
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 #include <memory>
+#include <mutex>
 
 #include <windows.h>
 #include <mfidl.h>
@@ -53,6 +54,8 @@ namespace record_windows {
 
 		// A queue of callbacks to run on the main thread.
 		static std::queue<std::function<void()>> callbacks;
+		// Mutex protecting access to the callbacks queue.
+		static std::mutex callbacks_mutex;
 
 		// Runs the given callback on the main thread.
 		static void RunOnMainThread(std::function<void()> callback);
@@ -71,6 +74,11 @@ namespace record_windows {
 		std::unique_ptr<RecordConfig> InitRecordConfig(const EncodableMap* args);
 
 		std::map<std::string, std::unique_ptr<Recorder>> m_recorders{};
+
+		// Keep event channels alive for each recorder so StreamHandler pointers
+		// stored by Recorder remain valid while the recorder exists.
+		std::map<std::string, std::unique_ptr<EventChannel<EncodableValue>>> m_state_event_channels{};
+		std::map<std::string, std::unique_ptr<EventChannel<EncodableValue>>> m_record_event_channels{};
 
 		// Called for top-level WindowProc delegation.
 		std::optional<LRESULT> HandleWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);

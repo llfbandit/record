@@ -87,11 +87,13 @@ namespace record_windows
 
 			if (SUCCEEDED(hr))
 			{
-				// Read another sample
-				hr = m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
-					0,
-					NULL, NULL, NULL, NULL
-				);
+				// Read another sample if reader still exists
+				if (m_pReader) {
+					hr = m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
+						0,
+						NULL, NULL, NULL, NULL
+					);
+				}
 			}
 
 		}

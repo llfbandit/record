@@ -242,6 +242,7 @@ namespace record_windows
 
 	HRESULT Recorder::EndRecording()
 	{
+		AutoLock lock(m_critsec);
 		HRESULT hr = S_OK;
 
 		// Release reader callback first
@@ -307,8 +308,13 @@ namespace record_windows
 		m_recordState = state;
 
 		if (m_stateEventHandler) {
-			RecordWindowsPlugin::RunOnMainThread([this, state]() -> void {
-				m_stateEventHandler->Success(std::make_unique<flutter::EncodableValue>(state));
+			// Capture raw pointer and check before calling. This is minimal and
+			// mirrors previous behavior with a quick null check on the main thread.
+			EventStreamHandler<>* handlerPtr = m_stateEventHandler;
+			RecordWindowsPlugin::RunOnMainThread([handlerPtr, state]() -> void {
+				if (handlerPtr) {
+					handlerPtr->Success(std::make_unique<flutter::EncodableValue>(state));
+				}
 			});
 		}
 	}

@@ -11,7 +11,10 @@ public:
     virtual ~EventStreamHandler() = default;
 
     void Success(std::unique_ptr<T> _data) {
-        if (m_sink.get()) m_sink.get()->Success(*_data.get());
+        auto sink = m_sink.get();
+        if (sink && _data) {
+            sink->Success(*_data.get());
+        }
     }
 
     void Error(const std::string& error_code, const std::string& error_message,
@@ -29,7 +32,7 @@ protected:
 
     std::unique_ptr<StreamHandlerError<T>> OnCancelInternal(
         const T* arguments) override {
-        m_sink.release();
+        m_sink.reset();
         return nullptr;
     }
 
