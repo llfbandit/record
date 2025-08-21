@@ -3,6 +3,7 @@
 #include <Mferror.h>
 #include "record_config.h"
 #include <flutter/event_stream_handler_functions.h>
+#include <mutex>
 
 using namespace flutter;
 
@@ -64,11 +65,18 @@ namespace record_windows {
 	std::queue<std::function<void()>> RecordWindowsPlugin::callbacks{};
 
 	// static
+	std::mutex RecordWindowsPlugin::callbacks_mutex{};
+
+	// static
 	FlutterRootWindowProvider RecordWindowsPlugin::get_root_window{};
 
 	// static
 	void RecordWindowsPlugin::RunOnMainThread(std::function<void()> callback) {
-		callbacks.push(callback);
+		// Lock only while pushing the callback, then release before posting the message.
+		{
+			std::lock_guard<std::mutex> lock(callbacks_mutex);
+			callbacks.push(callback);
+		}
 		PostMessage(get_root_window(), WM_RUN_DELEGATE, 0, 0);
 	}
 
@@ -104,9 +112,18 @@ namespace record_windows {
 		std::optional<LRESULT> result;
 		switch (message) {
 		case WM_RUN_DELEGATE:
-			callbacks.front()();
-			callbacks.pop();
-			result = 0;
+			{
+				std::function<void()> cb;
+				{
+					std::lock_guard<std::mutex> lock(callbacks_mutex);
+					if (!callbacks.empty()) {
+						cb = std::move(callbacks.front());
+						callbacks.pop();
+					}
+				}
+				if (cb) cb();
+				result = 0;
+			}
 			break;
 		}
 		return result;
@@ -227,8 +244,17 @@ namespace record_windows {
 		}
 		else if (method_call.method_name().compare("dispose") == 0)
 		{
+			// Dispose recorder and schedule removal on the main thread so any
+			// callbacks already queued to run on the main thread (e.g. UpdateState)
+			// can run safely and observe the disposed state before the object is
+			// destroyed. Immediate erase would destroy the Recorder while lambdas
+			// referencing it may still be pending, causing access violations.
 			recorder->Dispose();
-			m_recorders.erase(recorderId);
+			RecordWindowsPlugin::RunOnMainThread([this, recorderId]() -> void {
+				m_recorders.erase(recorderId);
+				m_state_event_channels.erase(recorderId);
+				m_record_event_channels.erase(recorderId);
+			});
 
 			result->Success(EncodableValue());
 		}
@@ -329,6 +355,11 @@ namespace record_windows {
 		auto eventRecordHandler = new EventStreamHandler<>();
 		std::unique_ptr<StreamHandler<EncodableValue>> pRecordEventHandler{static_cast<StreamHandler<EncodableValue>*>(eventRecordHandler)};
 		eventRecordChannel->SetStreamHandler(std::move(pRecordEventHandler));
+
+		// Keep channels alive for the recorder lifetime and also keep shared
+		// ownership of handlers so Recorder's weak_ptr captures remain valid
+		m_state_event_channels.insert(std::make_pair(recorderId, std::move(eventChannel)));
+		m_record_event_channels.insert(std::make_pair(recorderId, std::move(eventRecordChannel)));
 
 		Recorder* pRecorder = NULL;
 
