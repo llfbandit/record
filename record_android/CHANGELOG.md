@@ -1,7 +1,7 @@
 ## 1.4.1
-fix: Calling stop never ends when not recording.
-fix: Update max amplitude when streaming.
-fix: AudioRecord calls the wrong method to read shorts.
+* fix: Calling stop never ends when not recording.
+* fix: Update max amplitude when streaming.
+* fix: AudioRecord calls the wrong method to read shorts.
 
 ## 1.4.0
 * feat: Add AudioInterruptionMode to `RecordConfig`.
