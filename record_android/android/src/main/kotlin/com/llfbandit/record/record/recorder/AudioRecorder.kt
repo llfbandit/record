@@ -31,13 +31,14 @@ class AudioRecorder(
 ) : IRecorder, OnAudioRecordListener {
     companion object {
         private val TAG = AudioRecorder::class.java.simpleName
+        private const val DEFAULT_AMPLITUDE = -160.0
     }
 
     // Recorder thread with which we will interact
     private var recorderThread: RecordThread? = null
 
     // Amplitude
-    private var maxAmplitude = -160.0
+    private var maxAmplitude = DEFAULT_AMPLITUDE
 
     // Recording config
     private var config: RecordConfig? = null
@@ -120,7 +121,11 @@ class AudioRecorder(
         get() = recorderThread?.isPaused() == true
 
     override fun getAmplitude(): List<Double> {
-        val amplitude = recorderThread?.getAmplitude() ?: -160.0
+        val amplitude = recorderThread?.getAmplitude() ?: DEFAULT_AMPLITUDE
+        if (amplitude > maxAmplitude) {
+            maxAmplitude = amplitude
+        }
+
         val amps: MutableList<Double> = ArrayList()
         amps.add(amplitude)
         amps.add(maxAmplitude)
@@ -148,6 +153,8 @@ class AudioRecorder(
         stopCb = null
 
         recorderStateStreamHandler.sendStateEvent(RecordState.STOP)
+
+        maxAmplitude = DEFAULT_AMPLITUDE
     }
 
     override fun onFailure(ex: Exception) {
