@@ -20,6 +20,7 @@ class PCMReader(
 ) {
     companion object {
         private val TAG = PCMReader::class.java.simpleName
+        private const val DEFAULT_AMPLITUDE = -160.0
     }
 
     // Recorder & features
@@ -32,7 +33,7 @@ class PCMReader(
     private var bufferSize = 0
 
     // Last acquired amplitude
-    private var amplitude: Double = -160.0
+    private var amplitude: Double = DEFAULT_AMPLITUDE
 
     init {
         enableAutomaticGainControl()
@@ -49,25 +50,33 @@ class PCMReader(
             if (reader.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                 reader.stop()
             }
-        } catch (ex: IllegalStateException) {
+        } catch (_: IllegalStateException) {
             // Mute this exception, this should never happen
         }
     }
 
     @Throws(Exception::class)
     fun read(): ByteArray {
-        val buffer = ByteArray(bufferSize)
-        val resultBytes = reader.read(buffer, 0, buffer.size)
-        if (resultBytes < 0) {
-            throw Exception(getReadFailureReason(resultBytes))
+        val buffer = ShortArray(bufferSize / 2)
+        val results = reader.read(buffer, 0, buffer.size)
+        if (results < 0) {
+            throw Exception(getReadFailureReason(results))
         }
 
-        if (resultBytes > 0) {
+        if (results > 0) {
             // Update amplitude
-            amplitude = getAmplitude(buffer, resultBytes)
+            amplitude = getAmplitude(buffer, results)
         }
 
-        return buffer
+        return shortArrayToByteArray(buffer, results)
+    }
+
+    private fun shortArrayToByteArray(shorts: ShortArray, size: Int): ByteArray {
+        val byteBuffer = ByteBuffer.allocate(size * 2).order(ByteOrder.LITTLE_ENDIAN)
+        for (i in 0 until size) {
+            byteBuffer.putShort(shorts[i])
+        }
+        return byteBuffer.array()
     }
 
     fun getAmplitude(): Double {
@@ -183,19 +192,8 @@ class PCMReader(
     }
 
     // Assuming the input is signed int 16
-    private fun getAmplitude(chunk: ByteArray, size: Int): Double {
-        var max = -160
-
-        val buf = ShortArray(size / 2)
-        ByteBuffer.wrap(chunk, 0, size).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()[buf]
-
-        for (b in buf) {
-            val curSample = abs(b.toInt())
-            if (curSample > max) {
-                max = curSample
-            }
-        }
-
+    private fun getAmplitude(chunk: ShortArray, size: Int): Double {
+        val max = chunk.take(size).maxOf { abs(it.toInt()) }
         return 20 * log10(max / 32767.0) // 16 signed bits 2^15 - 1
     }
 }
