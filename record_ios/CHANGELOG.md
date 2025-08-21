@@ -1,3 +1,6 @@
+## 1.1.2
+* fix: Audio interruption with incoming call.
+
 ## 1.1.1
 * fix: Calling stop never ends when not recording.
 
