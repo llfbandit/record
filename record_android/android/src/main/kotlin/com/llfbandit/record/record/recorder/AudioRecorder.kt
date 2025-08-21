@@ -88,6 +88,8 @@ class AudioRecorder(
             } else {
                 onStop()
             }
+        } else {
+            onStop()
         }
     }
 
