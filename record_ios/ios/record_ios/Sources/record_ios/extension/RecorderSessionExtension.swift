@@ -14,7 +14,7 @@ extension AudioRecordingDelegate {
     
     if #available(iOS 14.5, *) {
       do {
-        try audioSession.setPrefersNoInterruptionsFromSystemAlerts(true)
+        try audioSession.setPrefersNoInterruptionsFromSystemAlerts(config.audioInterruption == AudioInterruptionMode.none)
       } catch {
         throw RecorderError.error(message: "Failed to start recording", details: "setPrefersNoInterruptionsFromSystemAlerts: \(error.localizedDescription)")
       }
@@ -67,14 +67,23 @@ extension AudioRecordingDelegate {
     guard let config = self.config else {
       return
     }
-    
+  
     if type == AVAudioSession.InterruptionType.began {
       if config.audioInterruption != AudioInterruptionMode.none {
         pause()
       }
     } else if type == AVAudioSession.InterruptionType.ended {
       if config.audioInterruption == AudioInterruptionMode.pauseResume {
-        do {try resume()} catch {}
+        guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
+          return
+        }
+        let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+
+        if options.contains(.shouldResume) {
+          do { try resume() } catch {}
+        } else {
+          stop { path in }
+        }
       }
     }
   }
