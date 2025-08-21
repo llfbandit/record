@@ -1,3 +1,6 @@
+## 1.0.7
+fix: Crashes (on Flutter 3.35.1 only ?)
+
 ## 1.0.6
 * fix: Attempt to fix crash when recording on w10.
 
