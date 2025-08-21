@@ -1,3 +1,7 @@
+## 1.4.1
+fix: Calling stop never ends when not recording.
+
+
 ## 1.4.0
 * feat: Add AudioInterruptionMode to `RecordConfig`.
 * feat: Add stream buffer size option.

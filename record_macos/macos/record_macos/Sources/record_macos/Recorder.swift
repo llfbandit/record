@@ -69,6 +69,9 @@ class Recorder {
         completionHandler(path)
         self.updateState(RecordState.stop)
       })
+    } else {
+      completionHandler(nil)
+      updateState(RecordState.stop)
     }
   }
   

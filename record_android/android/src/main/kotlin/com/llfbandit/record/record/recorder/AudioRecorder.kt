@@ -82,7 +82,13 @@ class AudioRecorder(
     override fun stop(stopCb: ((path: String?) -> Unit)?) {
         this.stopCb = stopCb
 
-        recorderThread?.stopRecording()
+        if (recorderThread != null) {
+            if (recorderThread?.isRecording() ?: false) {
+                recorderThread?.stopRecording()
+            } else {
+                onStop()
+            }
+        }
     }
 
     override fun cancel() {

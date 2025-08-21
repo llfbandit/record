@@ -23,12 +23,15 @@ class AudioRecorder {
 
   // Recorder ID
   final String _recorderId;
-  // Flag to create the recorder if needed with `_recorderId`.
-  bool _created = false;
 
-  AudioRecorder() : _recorderId = _uuid.v4();
+  AudioRecorder() : _recorderId = _uuid.v4() {
+    _semaphore.acquire();
+    _create().whenComplete(() => _semaphore.release());
+  }
 
   RecordPlatform get _platform => RecordPlatform.instance;
+
+  Future<void> _create() => _platform.create(_recorderId);
 
   /// Starts new recording session.
   ///
@@ -167,7 +170,6 @@ class AudioRecorder {
       await _stopRecordStream();
 
       await _platform.dispose(_recorderId);
-      _created = false;
     });
   }
 
@@ -266,14 +268,8 @@ class AudioRecorder {
   }
 
   Future<T> _safeCall<T>(Future<T> Function() fn) async {
+    await _semaphore.acquire();
     try {
-      await _semaphore.acquire();
-
-      if (!_created) {
-        await _platform.create(_recorderId);
-        _created = true;
-      }
-
       return await fn();
     } finally {
       _semaphore.release();

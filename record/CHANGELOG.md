@@ -1,3 +1,6 @@
+## 6.1.1
+fix: Calling stop never ends when not recording.
+
 ## 6.1.0
 * feat: Allow background recording on Android & iOS.
 * feat: Add iOS specific methods for `AVAudioSession`.
