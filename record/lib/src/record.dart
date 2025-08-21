@@ -179,18 +179,23 @@ class AudioRecorder {
   Stream<RecordState> onStateChanged() {
     if (_stateStreamCtrl == null) {
       _stateStreamCtrl = StreamController<RecordState>.broadcast();
-      final stream = _platform.onStateChanged(_recorderId);
 
-      _stateStreamSubscription = stream.listen(
-        (state) {
-          if (_stateStreamCtrl case final ctrl? when ctrl.hasListener) {
-            ctrl.add(state);
-          }
-        },
-        onError: (error) {
-          if (_stateStreamCtrl case final ctrl? when ctrl.hasListener) {
-            ctrl.addError(error);
-          }
+      _safeCall(
+        () async {
+          final stream = _platform.onStateChanged(_recorderId);
+
+          _stateStreamSubscription = stream.listen(
+            (state) {
+              if (_stateStreamCtrl case final ctrl? when ctrl.hasListener) {
+                ctrl.add(state);
+              }
+            },
+            onError: (error) {
+              if (_stateStreamCtrl case final ctrl? when ctrl.hasListener) {
+                ctrl.addError(error);
+              }
+            },
+          );
         },
       );
     }
