@@ -23,34 +23,12 @@ class AudioRecorder {
 
   // Recorder ID
   final String _recorderId;
+  // Flag to create the recorder if needed with `_recorderId`.
+  bool _created = false;
 
-  AudioRecorder() : _recorderId = _uuid.v4() {
-    _semaphore.acquire();
-    _create().whenComplete(() => _semaphore.release());
-  }
+  AudioRecorder() : _recorderId = _uuid.v4();
 
   RecordPlatform get _platform => RecordPlatform.instance;
-
-  Future<bool> _create() async {
-    await _platform.create(_recorderId);
-
-    _stateStreamCtrl ??= StreamController<RecordState>.broadcast();
-    final stream = _platform.onStateChanged(_recorderId);
-    _stateStreamSubscription = stream.listen(
-      (state) {
-        if (_stateStreamCtrl?.hasListener ?? false) {
-          _stateStreamCtrl?.add(state);
-        }
-      },
-      onError: (error) {
-        if (_stateStreamCtrl?.hasListener ?? false) {
-          _stateStreamCtrl?.addError(error);
-        }
-      },
-    );
-
-    return true;
-  }
 
   /// Starts new recording session.
   ///
@@ -189,6 +167,7 @@ class AudioRecorder {
       await _stopRecordStream();
 
       await _platform.dispose(_recorderId);
+      _created = false;
     });
   }
 
@@ -198,7 +177,24 @@ class AudioRecorder {
   ///
   /// Also, you can retrieve async errors from it by adding [Function? onError].
   Stream<RecordState> onStateChanged() {
-    _stateStreamCtrl ??= StreamController<RecordState>.broadcast();
+    if (_stateStreamCtrl == null) {
+      _stateStreamCtrl = StreamController<RecordState>.broadcast();
+      final stream = _platform.onStateChanged(_recorderId);
+
+      _stateStreamSubscription = stream.listen(
+        (state) {
+          if (_stateStreamCtrl case final ctrl? when ctrl.hasListener) {
+            ctrl.add(state);
+          }
+        },
+        onError: (error) {
+          if (_stateStreamCtrl case final ctrl? when ctrl.hasListener) {
+            ctrl.addError(error);
+          }
+        },
+      );
+    }
+
     return _stateStreamCtrl!.stream;
   }
 
@@ -265,8 +261,14 @@ class AudioRecorder {
   }
 
   Future<T> _safeCall<T>(Future<T> Function() fn) async {
-    await _semaphore.acquire();
     try {
+      await _semaphore.acquire();
+
+      if (!_created) {
+        await _platform.create(_recorderId);
+        _created = true;
+      }
+
       return await fn();
     } finally {
       _semaphore.release();
