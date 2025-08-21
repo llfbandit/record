@@ -35,7 +35,7 @@ namespace record_windows {
 	}
 
 	// static, Register the plugin
-		void RecordWindowsPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar) {
+	void RecordWindowsPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar) {
 		auto plugin = std::make_unique<RecordWindowsPlugin>(
 			[registrar](auto delegate) {
 				return registrar->RegisterTopLevelWindowProcDelegate(delegate);
@@ -134,9 +134,6 @@ namespace record_windows {
 		const MethodCall<EncodableValue>& method_call,
 		std::unique_ptr<MethodResult<EncodableValue>> result
 	) {
-		{
-			std::string m = std::string("record_windows: HandleMethodCall: ") + method_call.method_name();
-		}
 		const auto args = method_call.arguments();
 		const auto* mapArgs = std::get_if<EncodableMap>(args);
 		if (!mapArgs) {
@@ -359,10 +356,8 @@ namespace record_windows {
 		std::unique_ptr<StreamHandler<EncodableValue>> pRecordEventHandler{static_cast<StreamHandler<EncodableValue>*>(eventRecordHandler)};
 		eventRecordChannel->SetStreamHandler(std::move(pRecordEventHandler));
 
-			// Keep channels alive for the recorder lifetime and also keep shared
-			// ownership of handlers so Recorder's weak_ptr captures remain valid
-		// Keep channels alive for the recorder lifetime to ensure handlers
-		// (which Recorder stores raw pointers to) remain valid.
+		// Keep channels alive for the recorder lifetime and also keep shared
+		// ownership of handlers so Recorder's weak_ptr captures remain valid
 		m_state_event_channels.insert(std::make_pair(recorderId, std::move(eventChannel)));
 		m_record_event_channels.insert(std::make_pair(recorderId, std::move(eventRecordChannel)));
 
@@ -372,12 +367,6 @@ namespace record_windows {
 		if (SUCCEEDED(hr))
 		{
 			m_recorders.insert(std::make_pair(recorderId, std::move(pRecorder)));
-			{
-				std::string msg = std::string("record_windows: Recorder created: ") + recorderId;
-			}
-			{
-				std::string msg = std::string("record_windows: Recorder created: ") + recorderId;
-			}
 		}
 
 		return hr;
