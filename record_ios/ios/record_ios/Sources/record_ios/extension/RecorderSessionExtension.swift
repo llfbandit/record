@@ -74,7 +74,11 @@ extension AudioRecordingDelegate {
       }
     } else if type == AVAudioSession.InterruptionType.ended {
       if config.audioInterruption == AudioInterruptionMode.pauseResume {
-        let options = AVAudioSession.InterruptionOptions(rawValue: typeValue)
+        guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
+          return
+        }
+        let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+
         if options.contains(.shouldResume) {
           do { try resume() } catch {}
         } else {
