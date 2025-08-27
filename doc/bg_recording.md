@@ -17,9 +17,17 @@ Add the following the manifest in `android/app/src/main/AndroidManifest.xml`:
         android:foregroundServiceType="microphone"
         android:exported="false" />
 </application>
-
-A notification is added to conform to Android requirements.
 ```
+
+When starting recording, you need to enable the service explicitly by setting the following in the given config:
+```dart
+RecordConfig(
+  ...,
+  androidConfig: AndroidRecordConfig(service: AndroidService(title: 'Title', content: 'Content...'))
+);
+```
+
+A notification is added to conform to Android requirements if service is started.
 
 ## iOS
 
