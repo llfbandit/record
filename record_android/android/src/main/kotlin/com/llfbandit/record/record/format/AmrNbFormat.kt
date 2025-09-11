@@ -34,6 +34,6 @@ class AmrNbFormat : Format() {
       throw IllegalAccessException("AmrNb requires min API version: " + Build.VERSION_CODES.O)
     }
 
-    return MuxerContainer(path, MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP)
+    return MuxerContainer(path, false, MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP)
   }
 }

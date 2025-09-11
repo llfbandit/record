@@ -70,6 +70,6 @@ class AacFormat : Format() {
       return AdtsContainer(sampleRate, numChannels, aacProfile)
     }
 
-    return MuxerContainer(path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+    return MuxerContainer(path, true, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
   }
 }

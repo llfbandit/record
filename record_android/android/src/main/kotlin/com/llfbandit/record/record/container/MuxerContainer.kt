@@ -10,9 +10,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Wrapper around [MediaMuxer].
  *
  * @param path            Output file path.
+ * @param ignoreCodecSpecificData If true, ignores samples flagged as [MediaCodec.BUFFER_FLAG_CODEC_CONFIG].
  * @param containerFormat A valid [MediaMuxer.OutputFormat] value for the output container format.
  */
-class MuxerContainer(val path: String, private val containerFormat: Int) : IContainerWriter {
+class MuxerContainer(
+  val path: String,
+  val ignoreCodecSpecificData: Boolean,
+  private val containerFormat: Int
+) : IContainerWriter {
   private var mMuxer: MediaMuxer? = null
   private var mStarted = AtomicBoolean(false)
   private var mStopped = AtomicBoolean(false)
@@ -57,5 +62,9 @@ class MuxerContainer(val path: String, private val containerFormat: Int) : ICont
 
     mMuxer?.release()
     mMuxer = null
+  }
+
+  override fun ignoreCodecSpecificData(): Boolean {
+    return ignoreCodecSpecificData
   }
 }

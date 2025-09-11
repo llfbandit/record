@@ -34,6 +34,6 @@ class OpusFormat : Format() {
       throw IllegalAccessException("Opus requires min API version: " + Build.VERSION_CODES.Q)
     }
 
-    return MuxerContainer(path, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG)
+    return MuxerContainer(path, false, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG)
   }
 }

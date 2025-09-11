@@ -82,4 +82,9 @@ interface IContainerWriter {
 
     return out
   }
+
+  /**
+   * If true, ignores samples flagged as [MediaCodec.BUFFER_FLAG_CODEC_CONFIG].
+   */
+  fun ignoreCodecSpecificData(): Boolean = false
 }

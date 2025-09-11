@@ -17,7 +17,7 @@ class FlacContainer(path: String) : IContainerWriter {
 
   override fun start() {
     if (isStarted) {
-      throw IllegalStateException("Container already started")
+      throw Exception("Container already started")
     }
 
     Os.lseek(file.fd, 0, OsConstants.SEEK_SET)
@@ -27,7 +27,9 @@ class FlacContainer(path: String) : IContainerWriter {
   }
 
   override fun stop() {
-    check(isStarted) { "Container not started" }
+    if (!isStarted) {
+      throw Exception("Container not started")
+    }
 
     isStarted = false
 
@@ -46,9 +48,9 @@ class FlacContainer(path: String) : IContainerWriter {
 
   override fun addTrack(mediaFormat: MediaFormat): Int {
     if (isStarted) {
-      throw IllegalStateException("Container already started")
+      throw Exception("Container already started")
     } else if (track >= 0) {
-      throw IllegalStateException("Track already added")
+      throw Exception("Track already added")
     }
 
     track = 0
@@ -61,11 +63,11 @@ class FlacContainer(path: String) : IContainerWriter {
     bufferInfo: MediaCodec.BufferInfo
   ) {
     if (!isStarted) {
-      throw IllegalStateException("Container not started")
+      throw Exception("Container not started")
     } else if (track < 0) {
-      throw IllegalStateException("No track has been added")
+      throw Exception("No track has been added")
     } else if (track != trackIndex) {
-      throw IllegalStateException("Invalid track: $trackIndex")
+      throw Exception("Invalid track: $trackIndex")
     }
 
     Os.write(file.fd, byteBuffer)
