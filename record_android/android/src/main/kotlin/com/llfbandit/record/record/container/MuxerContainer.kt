@@ -13,49 +13,49 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @param containerFormat A valid [MediaMuxer.OutputFormat] value for the output container format.
  */
 class MuxerContainer(val path: String, private val containerFormat: Int) : IContainerWriter {
-    private var mMuxer: MediaMuxer? = null
-    private var mStarted = AtomicBoolean(false)
-    private var mStopped = AtomicBoolean(false)
+  private var mMuxer: MediaMuxer? = null
+  private var mStarted = AtomicBoolean(false)
+  private var mStopped = AtomicBoolean(false)
 
-    override fun start() {
-        if (mStarted.get() || mStopped.get()) return
+  override fun start() {
+    if (mStarted.get() || mStopped.get()) return
 
-        mStarted.set(true)
+    mStarted.set(true)
 
-        mMuxer?.start()
-    }
+    mMuxer?.start()
+  }
 
-    override fun stop() {
-        if (!mStarted.get() || mStopped.get()) return
+  override fun stop() {
+    if (!mStarted.get() || mStopped.get()) return
 
-        mStarted.set(false)
-        mStopped.set(true)
+    mStarted.set(false)
+    mStopped.set(true)
 
-        mMuxer?.stop()
-    }
+    mMuxer?.stop()
+  }
 
-    override fun addTrack(mediaFormat: MediaFormat): Int {
-        if (mStarted.get() || mStopped.get()) return -1
+  override fun addTrack(mediaFormat: MediaFormat): Int {
+    if (mStarted.get() || mStopped.get()) return -1
 
-        mMuxer = MediaMuxer(path, containerFormat)
+    mMuxer = MediaMuxer(path, containerFormat)
 
-        return mMuxer!!.addTrack(mediaFormat)
-    }
+    return mMuxer!!.addTrack(mediaFormat)
+  }
 
-    override fun writeSampleData(
-        trackIndex: Int,
-        byteBuffer: ByteBuffer,
-        bufferInfo: MediaCodec.BufferInfo
-    ) {
-        if (!mStarted.get() || mStopped.get()) return
+  override fun writeSampleData(
+    trackIndex: Int,
+    byteBuffer: ByteBuffer,
+    bufferInfo: MediaCodec.BufferInfo
+  ) {
+    if (!mStarted.get() || mStopped.get()) return
 
-        mMuxer?.writeSampleData(trackIndex, byteBuffer, bufferInfo)
-    }
+    mMuxer?.writeSampleData(trackIndex, byteBuffer, bufferInfo)
+  }
 
-    override fun release() {
-        stop()
+  override fun release() {
+    stop()
 
-        mMuxer?.release()
-        mMuxer = null
-    }
+    mMuxer?.release()
+    mMuxer = null
+  }
 }

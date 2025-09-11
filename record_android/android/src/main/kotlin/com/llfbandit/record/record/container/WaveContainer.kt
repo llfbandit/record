@@ -9,128 +9,128 @@ import java.nio.ByteOrder
 
 @OptIn(ExperimentalUnsignedTypes::class)
 class WaveContainer(path: String, private val frameSize: Int) : IContainerWriter {
-    private val file = createFile(path)
+  private val file = createFile(path)
 
-    private var isStarted = false
-    private var track = -1
-    private var channelCount = 0
-    private var sampleRate = 0
+  private var isStarted = false
+  private var track = -1
+  private var channelCount = 0
+  private var sampleRate = 0
 
-    override fun start() {
-        if (isStarted) {
-            throw IllegalStateException("Container already started")
-        }
-
-        Os.ftruncate(file.fd, 0)
-
-        // Skip header
-        Os.lseek(file.fd, HEADER_SIZE.toLong(), OsConstants.SEEK_SET)
-
-        isStarted = true
+  override fun start() {
+    if (isStarted) {
+      throw IllegalStateException("Container already started")
     }
 
-    override fun stop() {
-        if (!isStarted) {
-            throw IllegalStateException("Container not started")
-        }
+    Os.ftruncate(file.fd, 0)
 
-        isStarted = false
+    // Skip header
+    Os.lseek(file.fd, HEADER_SIZE.toLong(), OsConstants.SEEK_SET)
 
-        if (track >= 0) {
-            val fileSize = Os.lseek(file.fd, 0, OsConstants.SEEK_CUR)
-            val header = buildHeader(fileSize)
-            Os.lseek(file.fd, 0, OsConstants.SEEK_SET)
-            Os.write(file.fd, header)
-        }
+    isStarted = true
+  }
 
-        file.close()
+  override fun stop() {
+    if (!isStarted) {
+      throw IllegalStateException("Container not started")
     }
 
-    override fun release() {
-        if (isStarted) {
-            stop()
-        }
+    isStarted = false
+
+    if (track >= 0) {
+      val fileSize = Os.lseek(file.fd, 0, OsConstants.SEEK_CUR)
+      val header = buildHeader(fileSize)
+      Os.lseek(file.fd, 0, OsConstants.SEEK_SET)
+      Os.write(file.fd, header)
     }
 
-    override fun addTrack(mediaFormat: MediaFormat): Int {
-        if (isStarted) {
-            throw IllegalStateException("Container already started")
-        } else if (track >= 0) {
-            throw IllegalStateException("Track already added")
-        }
+    file.close()
+  }
 
-        track = 0
-        channelCount = mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-        sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+  override fun release() {
+    if (isStarted) {
+      stop()
+    }
+  }
 
-        return track
+  override fun addTrack(mediaFormat: MediaFormat): Int {
+    if (isStarted) {
+      throw IllegalStateException("Container already started")
+    } else if (track >= 0) {
+      throw IllegalStateException("Track already added")
     }
 
-    override fun writeSampleData(
-        trackIndex: Int,
-        byteBuffer: ByteBuffer,
-        bufferInfo: MediaCodec.BufferInfo
-    ) {
-        if (!isStarted) {
-            throw IllegalStateException("Container not started")
-        } else if (track < 0) {
-            throw IllegalStateException("No track has been added")
-        } else if (track != trackIndex) {
-            throw IllegalStateException("Invalid track: $trackIndex")
-        }
+    track = 0
+    channelCount = mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+    sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
 
-        Os.write(file.fd, byteBuffer)
+    return track
+  }
+
+  override fun writeSampleData(
+    trackIndex: Int,
+    byteBuffer: ByteBuffer,
+    bufferInfo: MediaCodec.BufferInfo
+  ) {
+    if (!isStarted) {
+      throw IllegalStateException("Container not started")
+    } else if (track < 0) {
+      throw IllegalStateException("No track has been added")
+    } else if (track != trackIndex) {
+      throw IllegalStateException("Invalid track: $trackIndex")
     }
 
-    @ExperimentalUnsignedTypes
-    private fun buildHeader(fileSize: Long): ByteBuffer {
-        return ByteBuffer.allocate(HEADER_SIZE).apply {
-            order(ByteOrder.LITTLE_ENDIAN)
+    Os.write(file.fd, byteBuffer)
+  }
 
-            val (chunkSize, dataSize) = if (fileSize >= Int.MAX_VALUE) {
-                // If, for some reason, the recording is excessively huge, don't set a size and just
-                // let the audio player guess
-                Pair(0, 0)
-            } else {
-                Pair(fileSize.toInt() - 8, fileSize.toInt() - HEADER_SIZE)
-            }
+  @ExperimentalUnsignedTypes
+  private fun buildHeader(fileSize: Long): ByteBuffer {
+    return ByteBuffer.allocate(HEADER_SIZE).apply {
+      order(ByteOrder.LITTLE_ENDIAN)
 
-            // 0-3: Chunk ID
-            put(RIFF_MAGIC.asByteArray())
-            // 4-7: Chunk size
-            putInt(chunkSize)
-            // 8-11: Format
-            put(WAVE_MAGIC.asByteArray())
-            // 12-15: Subchunk 1 ID
-            put(FMT_MAGIC.asByteArray())
-            // 16-19: Subchunk 1 size
-            putInt(16)
-            // 20-21: Audio format
-            putShort(1)
-            // 22-23: Number of channels
-            putShort(channelCount.toShort())
-            // 24-27: Sample rate
-            putInt(sampleRate)
-            // 28-31: Byte rate
-            putInt(sampleRate * frameSize)
-            // 32-33: Block align
-            putShort(frameSize.toShort())
-            // 34-35: Bits per sample
-            putShort(((frameSize / channelCount) * 8).toShort())
-            // 36-39: Subchunk 2 ID
-            put(DATA_MAGIC.asByteArray())
-            // 40-43: Subchunk 2 size
-            putInt(dataSize)
+      val (chunkSize, dataSize) = if (fileSize >= Int.MAX_VALUE) {
+        // If, for some reason, the recording is excessively huge, don't set a size and just
+        // let the audio player guess
+        Pair(0, 0)
+      } else {
+        Pair(fileSize.toInt() - 8, fileSize.toInt() - HEADER_SIZE)
+      }
 
-            flip()
-        }
+      // 0-3: Chunk ID
+      put(RIFF_MAGIC.asByteArray())
+      // 4-7: Chunk size
+      putInt(chunkSize)
+      // 8-11: Format
+      put(WAVE_MAGIC.asByteArray())
+      // 12-15: Subchunk 1 ID
+      put(FMT_MAGIC.asByteArray())
+      // 16-19: Subchunk 1 size
+      putInt(16)
+      // 20-21: Audio format
+      putShort(1)
+      // 22-23: Number of channels
+      putShort(channelCount.toShort())
+      // 24-27: Sample rate
+      putInt(sampleRate)
+      // 28-31: Byte rate
+      putInt(sampleRate * frameSize)
+      // 32-33: Block align
+      putShort(frameSize.toShort())
+      // 34-35: Bits per sample
+      putShort(((frameSize / channelCount) * 8).toShort())
+      // 36-39: Subchunk 2 ID
+      put(DATA_MAGIC.asByteArray())
+      // 40-43: Subchunk 2 size
+      putInt(dataSize)
+
+      flip()
     }
+  }
 
-    companion object {
-        private const val HEADER_SIZE = 44
-        private val RIFF_MAGIC = ubyteArrayOf(0x52u, 0x49u, 0x46u, 0x46u) // RIFF
-        private val WAVE_MAGIC = ubyteArrayOf(0x57u, 0x41u, 0x56u, 0x45u) // WAVE
-        private val FMT_MAGIC = ubyteArrayOf(0x66u, 0x6du, 0x74u, 0x20u) // "fmt "
-        private val DATA_MAGIC = ubyteArrayOf(0x64u, 0x61u, 0x74u, 0x61u) // data
-    }
+  companion object {
+    private const val HEADER_SIZE = 44
+    private val RIFF_MAGIC = ubyteArrayOf(0x52u, 0x49u, 0x46u, 0x46u) // RIFF
+    private val WAVE_MAGIC = ubyteArrayOf(0x57u, 0x41u, 0x56u, 0x45u) // WAVE
+    private val FMT_MAGIC = ubyteArrayOf(0x66u, 0x6du, 0x74u, 0x20u) // "fmt "
+    private val DATA_MAGIC = ubyteArrayOf(0x64u, 0x61u, 0x74u, 0x61u) // data
+  }
 }

@@ -7,33 +7,33 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 
 class RecorderStateStreamHandler : EventChannel.StreamHandler {
-    // Event producer
-    private var eventSink: EventSink? = null
-    private var state: RecordState = RecordState.STOP
+  // Event producer
+  private var eventSink: EventSink? = null
+  private var state: RecordState = RecordState.STOP
 
-    private val uiThreadHandler = Handler(Looper.getMainLooper())
+  private val uiThreadHandler = Handler(Looper.getMainLooper())
 
-    override fun onListen(arguments: Any?, events: EventSink?) {
-        this.eventSink = events
+  override fun onListen(arguments: Any?, events: EventSink?) {
+    this.eventSink = events
+  }
+
+  override fun onCancel(arguments: Any?) {
+    eventSink = null
+  }
+
+  fun sendStateEvent(state: RecordState) {
+    if (this.state != state) {
+      this.state = state
+
+      uiThreadHandler.post {
+        eventSink?.success(state.id)
+      }
     }
+  }
 
-    override fun onCancel(arguments: Any?) {
-        eventSink = null
+  fun sendStateErrorEvent(ex: Exception) {
+    uiThreadHandler.post {
+      eventSink?.error("-1", ex.message, ex)
     }
-
-    fun sendStateEvent(state: RecordState) {
-        if (this.state != state) {
-            this.state = state
-
-            uiThreadHandler.post {
-                eventSink?.success(state.id)
-            }
-        }
-    }
-
-    fun sendStateErrorEvent(ex: Exception) {
-        uiThreadHandler.post {
-            eventSink?.error("-1", ex.message, ex)
-        }
-    }
+  }
 }

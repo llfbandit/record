@@ -14,230 +14,230 @@ import java.io.IOException
 import kotlin.math.log10
 
 class MediaRecorder(
-    private val context: Context,
-    private val recorderStateStreamHandler: RecorderStateStreamHandler,
+  private val context: Context,
+  private val recorderStateStreamHandler: RecorderStateStreamHandler,
 ) : IRecorder {
-    companion object {
-        private val TAG = MediaRecorder::class.java.simpleName
+  companion object {
+    private val TAG = MediaRecorder::class.java.simpleName
+  }
+
+  // Signals whether a recording is in progress (true) or not (false).
+  private var mIsRecording = false
+
+  // Signals whether a recording is paused (true) or not (false).
+  private var mIsPaused = false
+
+  private var mRecorder: MediaRecorder? = null
+
+  // Amplitude
+  private var mMaxAmplitude = -160.0
+
+  // Recording config
+  private var mConfig: RecordConfig? = null
+
+  @Throws(Exception::class)
+  override fun start(config: RecordConfig) {
+    stopRecording()
+
+    val recorder = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+      @Suppress("DEPRECATION")
+      MediaRecorder()
+    } else {
+      MediaRecorder(context)
     }
 
-    // Signals whether a recording is in progress (true) or not (false).
-    private var mIsRecording = false
+    recorder.setAudioSource(config.audioSource)
+    recorder.setAudioEncodingBitRate(config.bitRate)
+    recorder.setAudioSamplingRate(config.sampleRate)
+    recorder.setAudioChannels(2.coerceAtMost(1.coerceAtLeast(config.numChannels)))
+    recorder.setOutputFormat(getOutputFormat(config.encoder))
+    // must be set after output format
+    recorder.setAudioEncoder(getEncoder(config.encoder))
+    recorder.setOutputFile(config.path)
 
-    // Signals whether a recording is paused (true) or not (false).
-    private var mIsPaused = false
+    try {
+      recorder.prepare()
+      recorder.start()
 
-    private var mRecorder: MediaRecorder? = null
+      mConfig = config
+      mRecorder = recorder
 
-    // Amplitude
-    private var mMaxAmplitude = -160.0
+      updateState(RecordState.RECORD)
+    } catch (e: IOException) {
+      recorder.release()
+      throw Exception(e)
+    } catch (e: IllegalStateException) {
+      recorder.release()
+      throw Exception(e)
+    }
+  }
 
-    // Recording config
-    private var mConfig: RecordConfig? = null
+  override fun stop(stopCb: ((path: String?) -> Unit)?) {
+    stopRecording()
+    stopCb?.invoke(mConfig?.path)
+  }
 
-    @Throws(Exception::class)
-    override fun start(config: RecordConfig) {
-        stopRecording()
+  override fun cancel() {
+    stopRecording()
+    Utils.deleteFile(mConfig?.path)
+  }
 
-        val recorder = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            @Suppress("DEPRECATION")
-            MediaRecorder()
-        } else {
-            MediaRecorder(context)
+  override fun pause() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      pauseRecording()
+    }
+  }
+
+  override fun resume() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      resumeRecording()
+    }
+  }
+
+  override val isRecording: Boolean
+    get() = mIsRecording
+  override val isPaused: Boolean
+    get() = mIsPaused
+
+  override fun getAmplitude(): List<Double> {
+    var current = -160.0
+
+    if (mIsRecording) {
+      current = 20 * log10(mRecorder!!.maxAmplitude / 32768.0)
+
+      if (current > mMaxAmplitude) {
+        mMaxAmplitude = current
+      }
+    }
+
+    val amps: MutableList<Double> = ArrayList()
+    amps.add(current)
+    amps.add(mMaxAmplitude)
+    return amps
+  }
+
+  override fun dispose() {
+    stopRecording()
+  }
+
+  private fun stopRecording() {
+    if (mRecorder != null) {
+      try {
+        if (mIsRecording || mIsPaused) {
+          mRecorder!!.stop()
         }
-
-        recorder.setAudioSource(config.audioSource)
-        recorder.setAudioEncodingBitRate(config.bitRate)
-        recorder.setAudioSamplingRate(config.sampleRate)
-        recorder.setAudioChannels(2.coerceAtMost(1.coerceAtLeast(config.numChannels)))
-        recorder.setOutputFormat(getOutputFormat(config.encoder))
-        // must be set after output format
-        recorder.setAudioEncoder(getEncoder(config.encoder))
-        recorder.setOutputFile(config.path)
-
-        try {
-            recorder.prepare()
-            recorder.start()
-
-            mConfig = config
-            mRecorder = recorder
-
-            updateState(RecordState.RECORD)
-        } catch (e: IOException) {
-            recorder.release()
-            throw Exception(e)
-        } catch (e: IllegalStateException) {
-            recorder.release()
-            throw Exception(e)
-        }
+      } catch (ex: RuntimeException) {
+        // Mute this exception since 'isRecording' can't be 100% sure
+      } finally {
+        mRecorder!!.reset()
+        mRecorder!!.release()
+        mRecorder = null
+      }
     }
 
-    override fun stop(stopCb: ((path: String?) -> Unit)?) {
-        stopRecording()
-        stopCb?.invoke(mConfig?.path)
-    }
+    updateState(RecordState.STOP)
+    mMaxAmplitude = -160.0
+  }
 
-    override fun cancel() {
-        stopRecording()
-        Utils.deleteFile(mConfig?.path)
-    }
-
-    override fun pause() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            pauseRecording()
-        }
-    }
-
-    override fun resume() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            resumeRecording()
-        }
-    }
-
-    override val isRecording: Boolean
-        get() = mIsRecording
-    override val isPaused: Boolean
-        get() = mIsPaused
-
-    override fun getAmplitude(): List<Double> {
-        var current = -160.0
-
+  @RequiresApi(api = Build.VERSION_CODES.N)
+  private fun pauseRecording() {
+    if (mRecorder != null) {
+      try {
         if (mIsRecording) {
-            current = 20 * log10(mRecorder!!.maxAmplitude / 32768.0)
-
-            if (current > mMaxAmplitude) {
-                mMaxAmplitude = current
-            }
+          mRecorder!!.pause()
+          updateState(RecordState.PAUSE)
         }
-
-        val amps: MutableList<Double> = ArrayList()
-        amps.add(current)
-        amps.add(mMaxAmplitude)
-        return amps
-    }
-
-    override fun dispose() {
-        stopRecording()
-    }
-
-    private fun stopRecording() {
-        if (mRecorder != null) {
-            try {
-                if (mIsRecording || mIsPaused) {
-                    mRecorder!!.stop()
-                }
-            } catch (ex: RuntimeException) {
-                // Mute this exception since 'isRecording' can't be 100% sure
-            } finally {
-                mRecorder!!.reset()
-                mRecorder!!.release()
-                mRecorder = null
-            }
-        }
-
-        updateState(RecordState.STOP)
-        mMaxAmplitude = -160.0
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    private fun pauseRecording() {
-        if (mRecorder != null) {
-            try {
-                if (mIsRecording) {
-                    mRecorder!!.pause()
-                    updateState(RecordState.PAUSE)
-                }
-            } catch (ex: IllegalStateException) {
-                Log.d(
-                    TAG,
-                    """
+      } catch (ex: IllegalStateException) {
+        Log.d(
+          TAG,
+          """
                         Did you call pause() before before start() or after stop()?
                         ${ex.message}
                         """.trimIndent()
-                )
-            }
-        }
+        )
+      }
     }
+  }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    private fun resumeRecording() {
-        if (mRecorder != null) {
-            try {
-                if (mIsPaused) {
-                    mRecorder!!.resume()
-                    updateState(RecordState.RECORD)
-                }
-            } catch (ex: IllegalStateException) {
-                Log.d(
-                    TAG,
-                    """
+  @RequiresApi(api = Build.VERSION_CODES.N)
+  private fun resumeRecording() {
+    if (mRecorder != null) {
+      try {
+        if (mIsPaused) {
+          mRecorder!!.resume()
+          updateState(RecordState.RECORD)
+        }
+      } catch (ex: IllegalStateException) {
+        Log.d(
+          TAG,
+          """
                         Did you call resume() before before start() or after stop()?
                         ${ex.message}
                         """.trimIndent()
-                )
-            }
-        }
+        )
+      }
     }
+  }
 
-    private fun updateState(state: RecordState) {
-        when (state) {
-            RecordState.PAUSE -> {
-                mIsRecording = true
-                mIsPaused = true
-                recorderStateStreamHandler.sendStateEvent(RecordState.PAUSE)
-            }
+  private fun updateState(state: RecordState) {
+    when (state) {
+      RecordState.PAUSE -> {
+        mIsRecording = true
+        mIsPaused = true
+        recorderStateStreamHandler.sendStateEvent(RecordState.PAUSE)
+      }
 
-            RecordState.RECORD -> {
-                mIsRecording = true
-                mIsPaused = false
-                recorderStateStreamHandler.sendStateEvent(RecordState.RECORD)
-            }
+      RecordState.RECORD -> {
+        mIsRecording = true
+        mIsPaused = false
+        recorderStateStreamHandler.sendStateEvent(RecordState.RECORD)
+      }
 
-            RecordState.STOP -> {
-                mIsRecording = false
-                mIsPaused = false
-                recorderStateStreamHandler.sendStateEvent(RecordState.STOP)
-            }
-        }
+      RecordState.STOP -> {
+        mIsRecording = false
+        mIsPaused = false
+        recorderStateStreamHandler.sendStateEvent(RecordState.STOP)
+      }
     }
+  }
 
-    private fun getOutputFormat(encoder: AudioEncoder): Int {
-        return when (encoder) {
-            AudioEncoder.AacLc, AudioEncoder.AacEld, AudioEncoder.AacHe -> MediaRecorder.OutputFormat.MPEG_4
-            AudioEncoder.AmrNb, AudioEncoder.AmrWb -> MediaRecorder.OutputFormat.THREE_GPP
-            AudioEncoder.Opus -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    MediaRecorder.OutputFormat.OGG
-                } else {
-                    MediaRecorder.OutputFormat.MPEG_4
-                }
-            }
-
-            else -> MediaRecorder.OutputFormat.DEFAULT
+  private fun getOutputFormat(encoder: AudioEncoder): Int {
+    return when (encoder) {
+      AudioEncoder.AacLc, AudioEncoder.AacEld, AudioEncoder.AacHe -> MediaRecorder.OutputFormat.MPEG_4
+      AudioEncoder.AmrNb, AudioEncoder.AmrWb -> MediaRecorder.OutputFormat.THREE_GPP
+      AudioEncoder.Opus -> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          MediaRecorder.OutputFormat.OGG
+        } else {
+          MediaRecorder.OutputFormat.MPEG_4
         }
+      }
+
+      else -> MediaRecorder.OutputFormat.DEFAULT
     }
+  }
 
-    // https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder
-    private fun getEncoder(encoder: AudioEncoder): Int {
-        return when (encoder) {
-            AudioEncoder.AacLc -> MediaRecorder.AudioEncoder.AAC
-            AudioEncoder.AacEld -> MediaRecorder.AudioEncoder.AAC_ELD
-            AudioEncoder.AacHe -> MediaRecorder.AudioEncoder.HE_AAC
-            AudioEncoder.AmrNb -> MediaRecorder.AudioEncoder.AMR_NB
-            AudioEncoder.AmrWb -> MediaRecorder.AudioEncoder.AMR_WB
-            AudioEncoder.Opus -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    MediaRecorder.AudioEncoder.OPUS
-                } else {
-                    Log.d(TAG, "Falling back to AAC LC")
-                    MediaRecorder.AudioEncoder.AAC
-                }
-            }
-
-            else -> {
-                Log.d(TAG, "Falling back to AAC LC")
-                MediaRecorder.AudioEncoder.AAC
-            }
+  // https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder
+  private fun getEncoder(encoder: AudioEncoder): Int {
+    return when (encoder) {
+      AudioEncoder.AacLc -> MediaRecorder.AudioEncoder.AAC
+      AudioEncoder.AacEld -> MediaRecorder.AudioEncoder.AAC_ELD
+      AudioEncoder.AacHe -> MediaRecorder.AudioEncoder.HE_AAC
+      AudioEncoder.AmrNb -> MediaRecorder.AudioEncoder.AMR_NB
+      AudioEncoder.AmrWb -> MediaRecorder.AudioEncoder.AMR_WB
+      AudioEncoder.Opus -> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          MediaRecorder.AudioEncoder.OPUS
+        } else {
+          Log.d(TAG, "Falling back to AAC LC")
+          MediaRecorder.AudioEncoder.AAC
         }
+      }
+
+      else -> {
+        Log.d(TAG, "Falling back to AAC LC")
+        MediaRecorder.AudioEncoder.AAC
+      }
     }
+  }
 }

@@ -12,62 +12,62 @@ import androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC
 import com.llfbandit.record.R
 
 class AudioRecordingService : Service() {
-    companion object {
-        private const val CHANNEL_ID = "AudioRecordingChannel"
-        private const val NOTIFICATION_ID = 1
-        const val DEFAULT_TITLE =  "Audio Capture"
-    }
+  companion object {
+    private const val CHANNEL_ID = "AudioRecordingChannel"
+    private const val NOTIFICATION_ID = 1
+    const val DEFAULT_TITLE = "Audio Capture"
+  }
 
-    private val binder: IBinder = LocalBinder()
-    private lateinit var notificationManager: NotificationManager
+  private val binder: IBinder = LocalBinder()
+  private lateinit var notificationManager: NotificationManager
 
-    inner class LocalBinder : Binder() {
+  inner class LocalBinder : Binder() {
 //        fun getService(): AudioRecordingService = this@AudioRecordingService
+  }
+
+  override fun onBind(intent: Intent): IBinder {
+    return binder
+  }
+
+  override fun onCreate() {
+    super.onCreate()
+
+    notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      stopForeground(STOP_FOREGROUND_REMOVE)
+    } else {
+      @Suppress("DEPRECATION")
+      stopForeground(true)
+    }
+  }
+
+  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    if (intent?.action == null) {
+      val notification = createNotification(
+        intent?.getStringExtra("title"),
+        intent?.getStringExtra("content")
+      )
+      startForeground(NOTIFICATION_ID, notification)
+
+      notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
-    override fun onBind(intent: Intent): IBinder {
-        return binder
-    }
+    return START_NOT_STICKY
+  }
 
-    override fun onCreate() {
-        super.onCreate()
-
-        notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-        }
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == null) {
-            val notification = createNotification(
-                intent?.getStringExtra("title"),
-                intent?.getStringExtra("content")
-            )
-            startForeground(NOTIFICATION_ID, notification)
-
-            notificationManager.notify(NOTIFICATION_ID, notification)
-        }
-
-        return START_NOT_STICKY
-    }
-
-    private fun createNotification(title: String?, content: String?): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(title ?: DEFAULT_TITLE)
-            .setContentText(content)
-            .setSmallIcon(R.drawable.ic_mic)
-            .setSilent(true)
-            .setOngoing(true)
-            .setVisibility(VISIBILITY_PUBLIC)
-            .build()
-    }
+  private fun createNotification(title: String?, content: String?): Notification {
+    return NotificationCompat.Builder(this, CHANNEL_ID)
+      .setContentTitle(title ?: DEFAULT_TITLE)
+      .setContentText(content)
+      .setSmallIcon(R.drawable.ic_mic)
+      .setSilent(true)
+      .setOngoing(true)
+      .setVisibility(VISIBILITY_PUBLIC)
+      .build()
+  }
 }
