@@ -27,6 +27,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
   double _maxAmplitude = kMinAmplitude;
   web.AudioContext? _audioCtx;
   web.AnalyserNode? _analyser;
+  web.MediaStreamAudioSourceNode? _source;
 
   final OnStateChanged onStateChanged;
   RecordConfig? _config;
@@ -78,6 +79,12 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
       try {
         _audioCtx?.resume();
+
+        if (_analyser case final analyser?) {
+          // Browsers may disconnet analyzer. Force reconnection.
+          _source?.disconnect();
+          _source?.connect(analyser);
+        }
       } catch (e) {
         debugPrint(e.toString());
       }
@@ -224,6 +231,10 @@ class MediaRecorderDelegate extends RecorderDelegate {
     await resetContext(_audioCtx, _mediaStream);
     _mediaStream = null;
     _audioCtx = null;
+
+    _source?.disconnect();
+    _source = null;
+
     _analyser = null;
 
     _chunks = [];
@@ -245,6 +256,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
     source.connect(analyser);
 
     _audioCtx = audioCtx;
+    _source = source;
     _analyser = analyser;
   }
 
