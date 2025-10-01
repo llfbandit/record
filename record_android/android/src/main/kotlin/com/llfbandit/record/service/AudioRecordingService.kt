@@ -1,6 +1,7 @@
 package com.llfbandit.record.service
 
 import android.app.Notification
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
@@ -31,8 +32,7 @@ class AudioRecordingService : Service() {
 
   override fun onCreate() {
     super.onCreate()
-
-    notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+    createNotificationChannel()
   }
 
   override fun onDestroy() {
@@ -58,6 +58,19 @@ class AudioRecordingService : Service() {
     }
 
     return START_NOT_STICKY
+  }
+
+  private fun createNotificationChannel() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val channel = NotificationChannel(
+        CHANNEL_ID,
+        DEFAULT_TITLE,
+        NotificationManager.IMPORTANCE_LOW
+      )
+
+      notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+      notificationManager.createNotificationChannel(channel)
+    }
   }
 
   private fun createNotification(title: String?, content: String?): Notification {

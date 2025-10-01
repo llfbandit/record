@@ -1,3 +1,6 @@
+## 1.4.3
+* fix: Missing notification channel when using AndroidService.
+
 ## 1.4.2
 * fix: Flac recording failure by isolating CSD frame skipping.
 

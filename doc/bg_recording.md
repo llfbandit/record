@@ -27,7 +27,7 @@ RecordConfig(
 );
 ```
 
-A notification is added to conform to Android requirements if service is started.
+A notification is added (with low importance) to conform to Android requirements if service is started.
 
 ## iOS
 
