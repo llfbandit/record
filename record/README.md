@@ -9,6 +9,7 @@ No external dependencies:
 
 External dependencies:
 - On linux, encoding is provided by `parecord` and `ffmpeg`. It **must** be installed separately.
+  See the Setup / Linux section below.
 
 ## Platform feature parity matrix
 | Feature          | Android       | iOS             | web     | Windows    | macOS  | linux
@@ -114,3 +115,12 @@ Add this to the macos/Runner/Info.plist file:
 ```
 
 - min SDK: 10.15
+
+### Linux
+
+You need to have `pulseaudio-utils` (for `parecord`, `pactl` binaries) and `ffmpeg` installed.
+
+On Ubuntu 24.04.3 LTS, you can install them using:
+```bash
+sudo apt install pulseaudio-utils ffmpeg
+```
