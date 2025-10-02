@@ -40,10 +40,12 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVCaptureFileO
     // Add input device
     audioSession.addInput(dev)
     // Add output
-    let outputSettings = try getOutputSettings(config: config)
     let audioOutput = AVCaptureAudioFileOutput()
-    audioOutput.audioSettings = outputSettings
     audioSession.addOutput(audioOutput)
+
+    // Set audioSettings *after* adding to session, otherwise it is ignored
+    let outputSettings = try getOutputSettings(config: config)
+    audioOutput.audioSettings = outputSettings
     
     audioSession.commitConfiguration()
     

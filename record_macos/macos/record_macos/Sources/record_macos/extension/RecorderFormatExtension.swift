@@ -100,7 +100,6 @@ extension AudioRecordingDelegate {
         AVLinearPCMIsNonInterleaved: false,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
-        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
       keepSampleRate = true
     case AudioEncoder.wav.rawValue:
@@ -112,7 +111,6 @@ extension AudioRecordingDelegate {
         AVLinearPCMIsNonInterleaved: false,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
-        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
       keepSampleRate = true
     default:
