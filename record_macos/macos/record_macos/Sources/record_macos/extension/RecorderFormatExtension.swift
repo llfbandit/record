@@ -41,7 +41,7 @@ extension AudioRecordingDelegate {
       ]
     case AudioEncoder.aacEld.rawValue:
       settings = [
-        AVFormatIDKey : kAudioFormatMPEG4AAC_ELD_V2,
+        AVFormatIDKey : kAudioFormatMPEG4AAC_ELD,
         AVEncoderBitRateKey: config.bitRate,
         AVSampleRateKey: config.sampleRate,
         AVNumberOfChannelsKey: config.numChannels,
