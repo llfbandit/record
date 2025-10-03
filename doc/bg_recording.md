@@ -40,3 +40,7 @@ Add the following in `ios/Runner/info.plist`:
   <string>fetch</string>
 </array>
 ```
+
+If you use `AudioInterruptionMode.pauseResume`, you must include `IosAudioCategoryOptions.mixWithOthers`.
+
+[stackoverflow reference](https://stackoverflow.com/questions/29036294/avaudiorecorder-not-recording-in-background-after-audio-session-interruption-end/35544795#35544795)
