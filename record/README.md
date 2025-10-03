@@ -8,7 +8,7 @@ No external dependencies:
 - On web, well... your browser! (and its underlying platform).
 
 External dependencies:
-- On linux, encoding is provided by `parecord` and `ffmpeg`. It **must** be installed separately.
+- On linux, encoding is provided by `parecord`, `pactl` and `ffmpeg`. It **must** be installed separately.
 
 ## Platform feature parity matrix
 | Feature          | Android       | iOS             | web     | Windows    | macOS  | linux
@@ -114,3 +114,15 @@ Add this to the macos/Runner/Info.plist file:
 ```
 
 - min SDK: 10.15
+
+### Linux
+
+`parecord`, `pactl` and `ffmpeg` dependencies are required and widely available on your system.
+
+`parecord`: Used for audio input.
+`pactl`: Used for utility methods like getting available devices.
+`ffmpeg`: Used for encoding and output.
+
+On Ubuntu 24.04.3 LTS, you can install them using:
+```bash
+sudo apt install pulseaudio-utils ffmpeg
