@@ -1,3 +1,7 @@
+## 6.1.2
+* chore: Updated transitive dependencies.
+* chore: Update README.md & bg_recording.md.
+
 ## 6.1.1
 * fix: Calling stop never ends when not recording.
 
