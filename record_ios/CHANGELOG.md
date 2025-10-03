@@ -1,3 +1,6 @@
+## 1.1.3
+* fix: Recording should resume after pause when in background.
+
 ## 1.1.2
 * fix: Audio interruption with incoming call.
 
