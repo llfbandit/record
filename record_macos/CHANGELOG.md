@@ -1,3 +1,7 @@
+## 1.1.2
+* fix: Use kAudioFormatMPEG4AAC_ELD instead of kAudioFormatMPEG4AAC_ELD_V2 for improved compatibility.
+* fix: Fix applying audio settings when saving file on macOS (for PCM/WAV mostly)
+
 ## 1.1.1
 * fix: Calling stop never ends when not recording.
 
