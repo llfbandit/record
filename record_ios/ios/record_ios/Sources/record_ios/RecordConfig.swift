@@ -92,7 +92,7 @@ struct IosConfig {
       case "duckOthers":
         AVAudioSession.CategoryOptions.duckOthers
       case "allowBluetooth":
-        AVAudioSession.CategoryOptions.allowBluetooth
+        AVAudioSession.CategoryOptions.allowBluetoothHFP
       case "defaultToSpeaker":
         AVAudioSession.CategoryOptions.defaultToSpeaker
       case "interruptSpokenAudioAndMixWithOthers":
