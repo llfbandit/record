@@ -1,3 +1,6 @@
+## 1.1.4
+* fix: Wrong deprecation on allowBluetooth on XCode 26.0.
+
 ## 1.1.3
 * fix: Recording should resume after pause when in background.
 

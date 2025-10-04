@@ -92,7 +92,13 @@ struct IosConfig {
       case "duckOthers":
         AVAudioSession.CategoryOptions.duckOthers
       case "allowBluetooth":
+        #if compiler(>=6.2)
+        // For XCode 26.0+, Swift 6.2 version
         AVAudioSession.CategoryOptions.allowBluetoothHFP
+        #else
+        // Deprecated in 26.0, not 8.0. Thanks Apple!
+        AVAudioSession.CategoryOptions.allowBluetooth
+        #endif
       case "defaultToSpeaker":
         AVAudioSession.CategoryOptions.defaultToSpeaker
       case "interruptSpokenAudioAndMixWithOthers":
