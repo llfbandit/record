@@ -6,7 +6,7 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
-  - record_ios (1.0.0):
+  - record_ios (1.1.0):
     - Flutter
 
 DEPENDENCIES:
@@ -29,7 +29,7 @@ SPEC CHECKSUMS:
   audioplayers_darwin: 4027b33a8f471d996c13f71cb77f0b1583b5d923
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  record_ios: 1bbc430ab8406174d70332f23e06a3dc751239b4
+  record_ios: 840d21cce013c5a3b2168b74a54ebdb4136359e2
 
 PODFILE CHECKSUM: cc1f88378b4bfcf93a6ce00d2c587857c6008d3b
 
