@@ -1,3 +1,6 @@
+## 1.2.1
+* fix: Analyser/amplitude disconnected after pause.
+
 ## 1.2.0
 * feat: Add stream buffer size option.
 
