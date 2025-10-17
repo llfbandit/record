@@ -32,6 +32,7 @@ class AudioRecordingService : Service() {
 
   override fun onCreate() {
     super.onCreate()
+    notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     createNotificationChannel()
   }
 
@@ -67,8 +68,6 @@ class AudioRecordingService : Service() {
         DEFAULT_TITLE,
         NotificationManager.IMPORTANCE_LOW
       )
-
-      notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
       notificationManager.createNotificationChannel(channel)
     }
   }
