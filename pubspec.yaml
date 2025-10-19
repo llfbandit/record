@@ -32,7 +32,7 @@ melos:
         flutter: ">=3.24.0"
       dev_dependencies:
         # Linter rules (https://pub.dev/packages/flutter_lints)
-        flutter_lints: ^5.0.0
+        flutter_lints: ^6.0.0
 
   clean:
     hooks:
