@@ -1,3 +1,7 @@
+## 1.4.4
+* fix: crash when notify a notification with a background service on devices below Android 8.0.
+* fix: Update build config.
+
 ## 1.4.3
 * fix: Missing notification channel when using AndroidService.
 
