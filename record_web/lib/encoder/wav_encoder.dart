@@ -9,40 +9,45 @@ import 'encoder.dart';
 class WavEncoder implements Encoder {
   final int sampleRate;
   final int numChannels;
-  int _numSamples = 0;
-  List<int> _dataViews = []; // Uint8List
+  Uint8List _audioData = Uint8List(0);
 
   WavEncoder({required this.sampleRate, required this.numChannels});
 
   @override
   void encode(Int16List buffer) {
-    _dataViews.addAll(buffer.buffer.asUint8List());
-    _numSamples += buffer.length;
+    _audioData = Uint8List.fromList(_audioData + buffer.buffer.asUint8List());
   }
 
   @override
   web.Blob finish() {
-    final dataSize = numChannels * _numSamples * 2;
-    final view = ByteData(44);
+    final headerSize = 44;
+    final bitsPerSample = 16;
+    final bytesPerSample = (bitsPerSample / 8).toInt();
+    final byteRate = sampleRate * numChannels * bytesPerSample;
+    final blockAlign = numChannels * bytesPerSample;
 
+    final view = ByteData(headerSize);
+
+    // RIFF chunk
     view.setString(0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, Endian.little);
+    view.setUint32(4, headerSize + _audioData.length - 8, Endian.little);
     view.setString(8, 'WAVE');
+
     view.setString(12, 'fmt ');
     view.setUint32(16, 16, Endian.little);
     view.setUint16(20, 1, Endian.little);
     view.setUint16(22, numChannels, Endian.little);
     view.setUint32(24, sampleRate, Endian.little);
-    view.setUint32(28, sampleRate * numChannels * 2, Endian.little);
-    view.setUint16(32, numChannels * 2, Endian.little);
-    view.setUint16(34, 16, Endian.little);
+    view.setUint32(28, byteRate, Endian.little);
+    view.setUint16(32, blockAlign, Endian.little);
+    view.setUint16(34, bitsPerSample, Endian.little);
+
     view.setString(36, 'data');
-    view.setUint32(40, dataSize, Endian.little);
+    view.setUint32(40, _audioData.length, Endian.little);
 
-    _dataViews.insertAll(0, view.buffer.asUint8List());
+    _audioData = Uint8List.fromList(view.buffer.asUint8List() + _audioData);
 
-    final blob = web.Blob(
-        <JSUint8Array>[Uint8List.fromList(_dataViews).toJS].toJS,
+    final blob = web.Blob(<JSUint8Array>[_audioData.toJS].toJS,
         web.BlobPropertyBag(type: 'audio/wav'));
 
     cleanup();
@@ -51,7 +56,7 @@ class WavEncoder implements Encoder {
   }
 
   @override
-  void cleanup() => _dataViews = [];
+  void cleanup() => _audioData = Uint8List(0);
 }
 
 extension ByteDataExt on ByteData {
