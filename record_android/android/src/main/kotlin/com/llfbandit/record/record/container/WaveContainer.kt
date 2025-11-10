@@ -4,10 +4,10 @@ import android.media.MediaCodec
 import android.media.MediaFormat
 import android.system.Os
 import android.system.OsConstants
+import android.util.Log
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-@OptIn(ExperimentalUnsignedTypes::class)
 class WaveContainer(path: String, private val frameSize: Int) : IContainerWriter {
   private val file = createFile(path)
 
@@ -82,27 +82,25 @@ class WaveContainer(path: String, private val frameSize: Int) : IContainerWriter
     Os.write(file.fd, byteBuffer)
   }
 
-  @ExperimentalUnsignedTypes
   private fun buildHeader(fileSize: Long): ByteBuffer {
     return ByteBuffer.allocate(HEADER_SIZE).apply {
       order(ByteOrder.LITTLE_ENDIAN)
 
-      val (chunkSize, dataSize) = if (fileSize >= Int.MAX_VALUE) {
-        // If, for some reason, the recording is excessively huge, don't set a size and just
-        // let the audio player guess
-        Pair(0, 0)
+      val (chunkSize, dataSize) = if (fileSize > MAX_FILE_SIZE - HEADER_SIZE) {
+        Log.w(TAG, "File is oversized! WAV files can only fit in 4GB max.")
+        Pair(MAX_FILE_SIZE - 8, MAX_FILE_SIZE - HEADER_SIZE)
       } else {
-        Pair(fileSize.toInt() - 8, fileSize.toInt() - HEADER_SIZE)
+        Pair(fileSize - 8, fileSize - HEADER_SIZE)
       }
 
       // 0-3: Chunk ID
-      put(RIFF_MAGIC.asByteArray())
+      put(RIFF_MAGIC)
       // 4-7: Chunk size
-      putInt(chunkSize)
+      put(longToUInt32(chunkSize))
       // 8-11: Format
-      put(WAVE_MAGIC.asByteArray())
+      put(WAVE_MAGIC)
       // 12-15: Subchunk 1 ID
-      put(FMT_MAGIC.asByteArray())
+      put(FMT_MAGIC)
       // 16-19: Subchunk 1 size
       putInt(16)
       // 20-21: Audio format
@@ -118,19 +116,31 @@ class WaveContainer(path: String, private val frameSize: Int) : IContainerWriter
       // 34-35: Bits per sample
       putShort(((frameSize / channelCount) * 8).toShort())
       // 36-39: Subchunk 2 ID
-      put(DATA_MAGIC.asByteArray())
+      put(DATA_MAGIC)
       // 40-43: Subchunk 2 size
-      putInt(dataSize)
+      put(longToUInt32(dataSize))
 
       flip()
     }
   }
 
+  private fun longToUInt32(value: Long): ByteArray {
+    val bytes = ByteArray(4)
+    bytes[0] = (value and 0xFF).toByte()
+    bytes[1] = ((value shr 8) and 0xFF).toByte()
+    bytes[2] = ((value shr 16) and 0xFF).toByte()
+    bytes[3] = ((value shr 24) and 0xFF).toByte()
+    return bytes
+  }
+
   companion object {
+    private val TAG = WaveContainer::class.java.simpleName
+
     private const val HEADER_SIZE = 44
-    private val RIFF_MAGIC = ubyteArrayOf(0x52u, 0x49u, 0x46u, 0x46u) // RIFF
-    private val WAVE_MAGIC = ubyteArrayOf(0x57u, 0x41u, 0x56u, 0x45u) // WAVE
-    private val FMT_MAGIC = ubyteArrayOf(0x66u, 0x6du, 0x74u, 0x20u) // "fmt "
-    private val DATA_MAGIC = ubyteArrayOf(0x64u, 0x61u, 0x74u, 0x61u) // data
+    private const val MAX_FILE_SIZE = 4_294_967_296L - 1
+    private val RIFF_MAGIC = byteArrayOf(0x52, 0x49, 0x46, 0x46) // RIFF
+    private val WAVE_MAGIC = byteArrayOf(0x57, 0x41, 0x56, 0x45) // WAVE
+    private val FMT_MAGIC = byteArrayOf(0x66, 0x6d, 0x74, 0x20) // "fmt "
+    private val DATA_MAGIC = byteArrayOf(0x64, 0x61, 0x74, 0x61) // data
   }
 }
