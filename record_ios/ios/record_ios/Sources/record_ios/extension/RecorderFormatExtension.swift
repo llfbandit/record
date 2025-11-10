@@ -76,10 +76,11 @@ extension AudioRecordingDelegate {
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
     case AudioEncoder.opus.rawValue:
+      let opusSampleRates = [8000, 12000, 16000, 24000, 48000] as [NSNumber]
       settings = [
         AVFormatIDKey : kAudioFormatOpus,
         AVEncoderBitRateKey: config.bitRate,
-        AVSampleRateKey: config.sampleRate,
+        AVSampleRateKey: nearestValue(values: opusSampleRates, value: config.sampleRate as NSNumber, key: "opus sample rate"),
         AVNumberOfChannelsKey: config.numChannels,
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
