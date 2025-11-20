@@ -1,3 +1,6 @@
+## 1.2.2
+* fix: WAVE header for big files (RAM pressure & truncated integer).
+
 ## 1.2.1
 * fix: Analyser/amplitude disconnected after pause.
 
