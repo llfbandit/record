@@ -74,6 +74,12 @@ if (await record.hasPermission()) {
   final stream = await record.startStream(const RecordConfig(encoder: AudioEncoder.pcm16bits));
 }
 
+// Check permission status without requesting (useful for UI state)
+final hasPermission = await record.hasPermission(request: false);
+if (!hasPermission) {
+  // Show permission request UI, then call hasPermission() to request
+}
+
 // Stop recording...
 final path = await record.stop();
 // ... or cancel it (and implicitly remove file/blob).

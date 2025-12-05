@@ -29,8 +29,8 @@ class RecordPluginWebWrapper extends RecordPlatform {
   }
 
   @override
-  Future<bool> hasPermission(String recorderId) {
-    return _getRecorder(recorderId).hasPermission();
+  Future<bool> hasPermission(String recorderId, {bool request = true}) {
+    return _getRecorder(recorderId).hasPermission(request: request);
   }
 
   @override

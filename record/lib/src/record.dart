@@ -130,9 +130,19 @@ class AudioRecorder {
     return _safeCall(() => _platform.isPaused(_recorderId));
   }
 
-  /// Checks and requests for audio record permission.
-  Future<bool> hasPermission() {
-    return _safeCall(() => _platform.hasPermission(_recorderId));
+  /// Checks and optionally requests for audio record permission.
+  ///
+  /// The [request] parameter controls whether to request permission if not
+  /// already granted. Defaults to `true`.
+  Future<bool> hasPermission({
+    bool request = true,
+  }) {
+    return _safeCall(
+      () => _platform.hasPermission(
+        _recorderId,
+        request: request,
+      ),
+    );
   }
 
   /// Lists capture/input devices available on the platform.

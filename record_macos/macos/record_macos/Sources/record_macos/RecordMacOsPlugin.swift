@@ -118,7 +118,8 @@ public class RecordMacOsPlugin: NSObject, FlutterPlugin {
       let isRecording = recorder.isRecording()
       result(isRecording)
     case "hasPermission":
-      hasPermission(result)
+      let request = args["request"] as? Bool ?? true
+      hasPermission(request: request, result)
     case "getAmplitude":
       let amp = recorder.getAmplitude()
       result(amp)
@@ -146,16 +147,20 @@ public class RecordMacOsPlugin: NSObject, FlutterPlugin {
     }
   }
 
-  private func hasPermission(_ result: @escaping FlutterResult) {
+  private func hasPermission(request: Bool, _ result: @escaping FlutterResult) {
     switch AVCaptureDevice.authorizationStatus(for: .audio) {
     case .authorized:
       result(true)
       break
     case .notDetermined:
-      AVCaptureDevice.requestAccess(for: .audio) { allowed in
-        DispatchQueue.main.async {
-          result(allowed)
+      if request {
+        AVCaptureDevice.requestAccess(for: .audio) { allowed in
+          DispatchQueue.main.async {
+            result(allowed)
+          }
         }
+      } else {
+        result(false)
       }
       break
     default:

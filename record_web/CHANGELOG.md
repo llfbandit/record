@@ -1,3 +1,6 @@
+## Upcoming
+* feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+
 ## 1.2.2
 * fix: WAVE header for big files (RAM pressure & truncated integer).
 

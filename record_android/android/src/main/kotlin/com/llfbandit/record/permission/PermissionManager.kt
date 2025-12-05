@@ -29,19 +29,20 @@ class PermissionManager : RequestPermissionsResultListener {
     return false
   }
 
-  fun hasPermission(resultCallback: PermissionResultCallback) {
+  fun hasPermission(request: Boolean = true, resultCallback: PermissionResultCallback) {
     if (activity == null) {
       resultCallback.onResult(false)
       return
     }
-    if (!isPermissionGranted(activity!!)) {
+    val isGranted = isPermissionGranted(activity!!)
+    if (!isGranted && request) {
       this.resultCallback = resultCallback
       ActivityCompat.requestPermissions(
         activity!!, arrayOf(Manifest.permission.RECORD_AUDIO),
         RECORD_AUDIO_REQUEST_CODE
       )
     } else {
-      resultCallback.onResult(true)
+      resultCallback.onResult(isGranted)
     }
   }
 

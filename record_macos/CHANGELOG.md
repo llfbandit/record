@@ -1,3 +1,6 @@
+## Upcoming
+* feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+
 ## 1.1.2
 * fix: Use kAudioFormatMPEG4AAC_ELD instead of kAudioFormatMPEG4AAC_ELD_V2 for improved compatibility.
 * fix: Fix applying audio settings when saving file on macOS (for PCM/WAV mostly)
