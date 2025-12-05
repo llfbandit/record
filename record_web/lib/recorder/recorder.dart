@@ -16,7 +16,7 @@ class Recorder {
   RecorderDelegate? _delegate;
   StreamController<RecordState>? _stateStreamCtrl;
 
-  Future<bool> hasPermission() async {
+  Future<bool> _requestPermission() async {
     final mediaDevices = web.window.navigator.mediaDevices;
 
     try {
@@ -33,6 +33,18 @@ class Recorder {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<bool> hasPermission({bool request = true}) async {
+    final permissions = web.window.navigator.permissions;
+    final permissionStatus = await permissions
+        .query(_PermissionDescriptor(name: 'microphone'))
+        .toDart;
+
+    final isGranted = permissionStatus.state == 'granted';
+    if (!isGranted && request) return _requestPermission();
+
+    return isGranted;
   }
 
   Future<List<InputDevice>> listInputDevices() async {
@@ -190,4 +202,12 @@ class Recorder {
       ctrl.add(state);
     }
   }
+}
+
+// copied from https://github.com/dart-lang/web/commit/7604578eb538c471d438608673c037121d95dba5#diff-6f4c7956b6e25b547b16fc561e54d5e7d520d2c79a59ace4438c60913cc2b1a2L35-L40
+extension type _PermissionDescriptor._(JSObject _) implements JSObject {
+  external factory _PermissionDescriptor({required String name});
+
+  external set name(String value);
+  external String get name;
 }

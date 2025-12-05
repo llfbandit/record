@@ -19,10 +19,10 @@ mixin RecordMethodChannel implements RecordMethodChannelPlatformInterface {
   }
 
   @override
-  Future<bool> hasPermission(String recorderId) async {
+  Future<bool> hasPermission(String recorderId, {bool request = true}) async {
     final result = await _methodChannel.invokeMethod<bool>(
       'hasPermission',
-      {'recorderId': recorderId},
+      {'recorderId': recorderId, 'request': request},
     );
     return result ?? false;
   }

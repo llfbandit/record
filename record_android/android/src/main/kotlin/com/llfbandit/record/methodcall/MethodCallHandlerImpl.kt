@@ -80,7 +80,10 @@ class MethodCallHandlerImpl(
       "isPaused" -> recorder.isPaused(result)
       "isRecording" -> recorder.isRecording(result)
       "cancel" -> recorder.cancel(result)
-      "hasPermission" -> permissionManager.hasPermission(result::success)
+      "hasPermission" -> {
+        val request = call.argument<Boolean>("request") ?: true
+        permissionManager.hasPermission(request, result::success)
+      }
       "getAmplitude" -> recorder.getAmplitude(result)
       "listInputDevices" -> result.success(DeviceUtils.listInputDevicesAsMap(appContext))
 

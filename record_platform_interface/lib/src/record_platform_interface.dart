@@ -67,8 +67,11 @@ abstract class RecordMethodChannelPlatformInterface {
   /// Checks if recording session is paused.
   Future<bool> isPaused(String recorderId);
 
-  /// Checks and requests for audio record permission.
-  Future<bool> hasPermission(String recorderId);
+  /// Checks and optionally requests for audio record permission.
+  ///
+  /// The [request] parameter controls whether to request permission if not
+  /// already granted. Defaults to `true`.
+  Future<bool> hasPermission(String recorderId, {bool request = true});
 
   /// Dispose the recorder
   Future<void> dispose(String recorderId);

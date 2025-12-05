@@ -42,7 +42,7 @@ class RecordLinux extends RecordPlatform {
   }
 
   @override
-  Future<bool> hasPermission(String recorderId) {
+  Future<bool> hasPermission(String recorderId, {bool request = true}) {
     return Future.value(true);
   }
 

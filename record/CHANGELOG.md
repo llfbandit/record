@@ -1,3 +1,6 @@
+## Upcoming
+* feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+
 ## 6.1.2
 * chore: Updated transitive dependencies.
 * chore: Update README.md & bg_recording.md.
