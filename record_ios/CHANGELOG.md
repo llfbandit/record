@@ -1,5 +1,6 @@
-## Upcoming
+## 1.1.6
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+* fix: Deactivate audio session when calling `stop()`, `pause()`, or `cancel()` to allow other audio apps to resume automatically.
 
 ## 1.1.5
 * fix: Clamp to supported sample rates for Opus.
