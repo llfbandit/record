@@ -1,5 +1,8 @@
-## Upcoming
+## 6.1.3
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+* fix(android): Release audio focus when calling `cancel()` method.
+* fix(android): Use `AUDIOFOCUS_GAIN_TRANSIENT` instead of `AUDIOFOCUS_GAIN` to allow other audio apps to resume automatically.
+* fix(ios): Deactivate audio session when calling `stop()`, `pause()` methods to allow other audio apps to resume automatically.
 
 ## 6.1.2
 * chore: Updated transitive dependencies.
