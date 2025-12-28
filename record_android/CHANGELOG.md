@@ -1,5 +1,7 @@
-## Upcoming
+## 1.4.6
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+* fix: Release audio focus when calling `cancel()` method.
+* fix: Use `AUDIOFOCUS_GAIN_TRANSIENT` instead of `AUDIOFOCUS_GAIN` to allow other audio apps to resume automatically after recording stops.
 
 ## 1.4.5
 * fix: WAVE header for files larger than 2GB.

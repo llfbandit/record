@@ -96,6 +96,7 @@ class AudioRecorder(
 
   override fun cancel() {
     recorderThread?.cancelRecording()
+    restoreAudioManagerSettings()
   }
 
   override fun pause() {
@@ -246,7 +247,7 @@ class AudioRecorder(
     }
 
     if (Build.VERSION.SDK_INT >= 26) {
-      afRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).run {
+      afRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).run {
         setAudioAttributes(AudioAttributes.Builder().run {
           setUsage(AudioAttributes.USAGE_MEDIA)
           setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
@@ -259,7 +260,7 @@ class AudioRecorder(
       audioManager.requestAudioFocus(afRequest!!)
     } else {
       audioManager.requestAudioFocus(
-        afChangeListener, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN
+        afChangeListener, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
       )
     }
   }
