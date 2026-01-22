@@ -1,5 +1,6 @@
 ## Upcoming
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+* feat: Add AAC/ADTS streaming.
 
 ## 1.1.2
 * fix: Use kAudioFormatMPEG4AAC_ELD instead of kAudioFormatMPEG4AAC_ELD_V2 for improved compatibility.

@@ -44,7 +44,7 @@ class Recorder {
   func startStream(config: RecordConfig) throws {
     stop(completionHandler: {(path) -> () in })
     
-    if config.encoder != AudioEncoder.pcm16bits.rawValue {
+    if config.encoder != AudioEncoder.pcm16bits.rawValue && config.encoder != AudioEncoder.aacLc.rawValue {
       throw RecorderError.error(
         message: "Failed to start recording",
         details: "\(config.encoder) not supported in streaming mode."

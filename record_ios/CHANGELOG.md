@@ -1,5 +1,6 @@
 ## Upcoming
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+* feat: Add AAC/ADTS streaming.
 
 ## 1.1.5
 * fix: Clamp to supported sample rates for Opus.

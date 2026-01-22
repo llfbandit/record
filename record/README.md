@@ -50,7 +50,7 @@ wav and pcm16bits are provided by the package directly.
 ## Stream
 | Encoder         | Android    | iOS     | web     | Windows | macOS   | linux
 |-----------------|------------|---------|---------|---------|---------|---------
-| aacLc       *   | ✔️ 2      |         |          |         |         |  
+| aacLc       *   | ✔️ 2      |  ✔️       |          |         |  ✔️       |  
 | pcm16bits       | ✔️ 2      |  ✔️    |   ✔️    |  ✔️     | ✔️     | ✔️
 
 \* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file!  

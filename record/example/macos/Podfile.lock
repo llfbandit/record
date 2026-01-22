@@ -26,10 +26,10 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/record_macos/macos
 
 SPEC CHECKSUMS:
-  audioplayers_darwin: 4027b33a8f471d996c13f71cb77f0b1583b5d923
+  audioplayers_darwin: 4f9ca89d92d3d21cec7ec580e78ca888e5fb68bd
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  record_macos: 4440ca269ad3b870ebb1965297a365d558f0c520
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  record_macos: 43194b6c06ca6f8fa132e2acea72b202b92a0f5b
 
 PODFILE CHECKSUM: 0d3963a09fc94f580682bd88480486da345dc3f0
 

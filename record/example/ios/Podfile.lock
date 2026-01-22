@@ -26,10 +26,10 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/record_ios/ios"
 
 SPEC CHECKSUMS:
-  audioplayers_darwin: 4027b33a8f471d996c13f71cb77f0b1583b5d923
+  audioplayers_darwin: 4f9ca89d92d3d21cec7ec580e78ca888e5fb68bd
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  record_ios: 840d21cce013c5a3b2168b74a54ebdb4136359e2
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  record_ios: f75fa1d57f840012775c0e93a38a7f3ceea1a374
 
 PODFILE CHECKSUM: cc1f88378b4bfcf93a6ce00d2c587857c6008d3b
 
