@@ -77,7 +77,7 @@ class AudioRecorder(
     recorderThread = RecordThread(config, this)
     recorderThread!!.startRecording()
 
-    assignAudioManagerSettings(config)
+    assignAudioManagerSettings(config, true)
   }
 
   override fun stop(stopCb: ((path: String?) -> Unit)?) {
@@ -108,7 +108,7 @@ class AudioRecorder(
 
   override fun resume() {
     if (isPaused) {
-      assignAudioManagerSettings(config)
+      assignAudioManagerSettings(config, false)
     }
 
     recorderThread?.resumeRecording()
@@ -183,12 +183,14 @@ class AudioRecorder(
 
   // Assign audio manager settings
   @Suppress("DEPRECATION")
-  private fun assignAudioManagerSettings(config: RecordConfig?) {
+  private fun assignAudioManagerSettings(config: RecordConfig?, initialSetup: Boolean) {
     val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-    requestAudioFocus(audioManager)
-
     val conf = config ?: return
+
+    if (initialSetup && config.audioInterruption != AudioInterruption.NONE) {
+      requestAudioFocus(audioManager)
+    }
 
     if (conf.muteAudio) {
       muteAudio(audioManager, true)
@@ -239,13 +241,9 @@ class AudioRecorder(
           AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
           AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK
       )) {
-        if (config!!.audioInterruption != AudioInterruption.NONE) {
-          recorderThread?.pauseRecording()
-        }
-      } else if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
-        if (config!!.audioInterruption == AudioInterruption.PAUSE_RESUME) {
-          recorderThread?.resumeRecording()
-        }
+        recorderThread?.pauseRecording()
+      } else if (focusChange == AudioManager.AUDIOFOCUS_GAIN && config!!.audioInterruption == AudioInterruption.PAUSE_RESUME) {
+        recorderThread?.resumeRecording()
       }
     }
 
