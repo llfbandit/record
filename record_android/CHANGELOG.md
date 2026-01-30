@@ -1,5 +1,6 @@
 ## Upcoming
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+* fix: `AudioInterruptionMode` not pausing.
 
 ## 1.4.5
 * fix: WAVE header for files larger than 2GB.
