@@ -1,3 +1,6 @@
+## 1.3.0
+* feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+
 ## 1.2.1
 * fix: Bad state: StreamSink is bound to a stream error when stopping recording.
 
