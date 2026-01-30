@@ -1,5 +1,8 @@
-## Upcoming
+## 6.2.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
+* feat: Improve `convertBytesToInt16` to allow pre-filled bytes array.
+* feat(iOS/macOS): Add AAC/ADTS streaming.
+* fix(Android/iOS): `AudioInterruptionMode` not pausing or resuming.
 
 ## 6.1.2
 * chore: Updated transitive dependencies.

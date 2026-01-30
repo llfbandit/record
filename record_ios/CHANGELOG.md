@@ -1,4 +1,4 @@
-## Upcoming
+## 1.2.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
 * feat: Add AAC/ADTS streaming.
 * fix: `AudioInterruptionMode.pauseResume` now ignores SDK `.shouldResume` flag.
