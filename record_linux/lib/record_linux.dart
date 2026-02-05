@@ -272,7 +272,8 @@ class RecordLinux extends RecordPlatform {
     VoidCallback? onStarted,
     bool consumeOutput = true,
   }) async {
-    final process = await Process.start('pactl', arguments);
+    // Force LC_ALL=C for pactl output to ensure consistent parsing
+    final process = await Process.start('pactl', arguments, environment: {"LC_ALL": "C"});
 
     if (onStarted != null) {
       onStarted();
