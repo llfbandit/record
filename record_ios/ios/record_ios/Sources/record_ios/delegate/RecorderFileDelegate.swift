@@ -6,12 +6,14 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
   
   private var audioRecorder: AVAudioRecorder?
   private var path: String?
+  private var onRecord: () -> ()
   private var onPause: () -> ()
   private var onStop: () -> ()
   private let manageAudioSession: Bool
   
-  init(manageAudioSession: Bool, onPause: @escaping () -> (), onStop: @escaping () -> ()) {
+  init(manageAudioSession: Bool, onRecord: @escaping () -> (), onPause: @escaping () -> (), onStop: @escaping () -> ()) {
     self.manageAudioSession = manageAudioSession
+    self.onRecord = onRecord
     self.onPause = onPause
     self.onStop = onStop
   }
@@ -34,6 +36,8 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
     audioRecorder = recorder
     self.path = path
     self.config = config
+    
+    onRecord()
   }
 
   func stop(completionHandler: @escaping (String?) -> ()) {
@@ -58,6 +62,7 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
   
   func resume() {
     audioRecorder?.record()
+    onRecord()
   }
 
   func cancel() throws {

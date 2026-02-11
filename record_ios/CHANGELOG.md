@@ -1,3 +1,6 @@
+## 1.2.1
+* fix: Fuzzy events firing for recording states.
+
 ## 1.2.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
 * feat: Add AAC/ADTS streaming.

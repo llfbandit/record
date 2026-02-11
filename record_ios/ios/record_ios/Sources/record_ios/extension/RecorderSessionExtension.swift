@@ -78,6 +78,7 @@ extension AudioRecordingDelegate {
           try AVAudioSession.sharedInstance().setActive(true)
           try resume()
         } catch {
+          print("Unable to resume the recording: \(error.localizedDescription)")
           stop { path in }
         }
       }

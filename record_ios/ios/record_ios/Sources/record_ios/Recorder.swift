@@ -35,6 +35,7 @@ class Recorder {
     
     let delegate = RecorderFileDelegate(
       manageAudioSession: manageAudioSession,
+      onRecord: {() -> () in self.updateState(RecordState.record)},
       onPause: {() -> () in self.updateState(RecordState.pause)},
       onStop: {() -> () in self.updateState(RecordState.stop)}
     )
@@ -42,8 +43,6 @@ class Recorder {
     try delegate.start(config: config, path: path)
     
     self.delegate = delegate
-    
-    updateState(RecordState.record)
   }
   
   func startStream(config: RecordConfig) throws {
@@ -58,6 +57,7 @@ class Recorder {
     
     let delegate = RecorderStreamDelegate(
       manageAudioSession: manageAudioSession,
+      onRecord: {() -> () in self.updateState(RecordState.record)},
       onPause: {() -> () in self.updateState(RecordState.pause)},
       onStop: {() -> () in self.updateState(RecordState.stop)}
     )
@@ -65,15 +65,12 @@ class Recorder {
     try delegate.start(config: config, recordEventHandler: m_recordEventHandler)
     
     self.delegate = delegate
-    
-    updateState(RecordState.record)
   }
 
   func stop(completionHandler: @escaping (_ path: String?) -> ()) {
     if isRecording() {
       delegate?.stop(completionHandler: {(path) -> () in
         completionHandler(path)
-        self.updateState(RecordState.stop)
       })
     } else {
       completionHandler(nil)
@@ -84,14 +81,12 @@ class Recorder {
   func pause() {
     if m_state == .record {
       delegate?.pause()
-      updateState(RecordState.pause)
     }
   }
   
   func resume()  throws {
     if isPaused() {
       try delegate?.resume()
-      updateState(RecordState.record)
     }
   }
   

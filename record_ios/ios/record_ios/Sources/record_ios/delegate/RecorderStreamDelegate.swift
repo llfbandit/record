@@ -8,6 +8,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   private var audioEngine: AVAudioEngine?
   private var amplitude: Float = -160.0
   private let bus = 0
+  private var onRecord: () -> ()
   private var onPause: () -> ()
   private var onStop: () -> ()
   private let manageAudioSession: Bool
@@ -15,8 +16,9 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   private var audioEncoder: AudioEnc?
   private var outputFormat: AVAudioFormat?
   
-  init(manageAudioSession: Bool, onPause: @escaping () -> (), onStop: @escaping () -> ()) {
+  init(manageAudioSession: Bool, onRecord: @escaping () -> (), onPause: @escaping () -> (), onStop: @escaping () -> ()) {
     self.manageAudioSession = manageAudioSession
+    self.onRecord = onRecord
     self.onPause = onPause
     self.onStop = onStop
   }
@@ -70,6 +72,8 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     
     self.audioEngine = audioEngine    
     self.config = config
+    
+    onRecord()
   }
   
   func stop(completionHandler: @escaping (String?) -> ()) {
@@ -102,6 +106,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   
   func resume() throws {
     try audioEngine?.start()
+    onRecord()
   }
   
   func cancel() throws {
