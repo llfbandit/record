@@ -1,3 +1,6 @@
+## 1.3.1
+* fix: Overriding the locale of `pactl` command for consistent parsing.
+
 ## 1.3.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
 
