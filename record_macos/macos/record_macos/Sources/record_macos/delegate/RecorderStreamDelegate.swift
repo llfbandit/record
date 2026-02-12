@@ -45,7 +45,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       commonFormat: .pcmFormatInt16,
       sampleRate: Double(config.sampleRate),
       channels: AVAudioChannelCount(config.numChannels),
-      interleaved: true
+      interleaved: false
     )
     
     guard let dstFormat = outputFormat else {
@@ -202,54 +202,13 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     buffer: AVAudioPCMBuffer,
     dstFormat: AVAudioFormat,
     converter: AVAudioConverter) -> AVAudioPCMBuffer? {
-
-    let bufferToConvert: AVAudioPCMBuffer
-    let converterToUse: AVAudioConverter
-
-    if buffer.format.channelCount > 1 {
-      // Create a mono version of the buffer and a new converter for it
-      guard let monoFormat = AVAudioFormat(
-        commonFormat: .pcmFormatFloat32,
-        sampleRate: buffer.format.sampleRate,
-        channels: 1,
-        interleaved: false
-      ) else {
-        print("Unable to create mono format")
-        return nil
-      }
-
-      guard let monoBuffer = AVAudioPCMBuffer(pcmFormat: monoFormat, frameCapacity: buffer.frameLength) else {
-        print("Unable to create mono buffer")
-        return nil
-      }
-
-      monoBuffer.frameLength = buffer.frameLength
-
-      // Copy the first channel
-      if let src = buffer.floatChannelData, let dst = monoBuffer.floatChannelData {
-          memcpy(dst[0], src[0], Int(buffer.frameLength) * MemoryLayout<Float>.size)
-      }
-
-      guard let monoConverter = AVAudioConverter(from: monoFormat, to: dstFormat) else {
-        print("Unable to create mono converter")
-        return nil
-      }
-      monoConverter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
-
-      bufferToConvert = monoBuffer
-      converterToUse = monoConverter
-    } else {
-      bufferToConvert = buffer
-      converterToUse = converter
-    }
-
     let inputCallback: AVAudioConverterInputBlock = { inNumPackets, outStatus in
       outStatus.pointee = .haveData
-      return bufferToConvert
+      return buffer
     }
 
     // Determine frame capacity
-    let capacity = AVAudioFrameCount(Double(bufferToConvert.frameLength) * dstFormat.sampleRate / bufferToConvert.format.sampleRate)
+    let capacity = AVAudioFrameCount(Double(buffer.frameLength) * dstFormat.sampleRate / buffer.format.sampleRate)
 
     // Destination buffer
     guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: dstFormat, frameCapacity: capacity) else {
@@ -259,7 +218,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
 
     // Convert input buffer (resample, num channels)
     var error: NSError? = nil
-    converterToUse.convert(to: convertedBuffer, error: &error, withInputFrom: inputCallback)
+    converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputCallback)
     if error != nil {
       print("Unable to convert input buffer \(error!)")
       return nil
