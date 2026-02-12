@@ -13,7 +13,7 @@ func listInputs() throws -> [Device] {
 
 func listInputDevices() -> [AVCaptureDevice] {
   let discoverySession = AVCaptureDevice.DiscoverySession(
-    deviceTypes: [.builtInMicrophone],
+    deviceTypes: [.builtInMicrophone, .externalUnknown],
     mediaType: .audio, position: .unspecified
   )
   
