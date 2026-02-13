@@ -82,22 +82,23 @@ class AdtsContainer(
     byteBuffer: ByteBuffer,
     bufferInfo: MediaCodec.BufferInfo
   ): ByteArray {
+    val frameSize = byteBuffer.remaining()
+
     // Add header
-    var bytes = addADTSFrame(bufferInfo.size)
+    val header = buildADTSHeader(frameSize)
 
     // Add frame
-    val buffer = ByteArray(bufferInfo.size)
-    byteBuffer[buffer, bufferInfo.offset, bufferInfo.size]
-    bytes += buffer
+    val frame = ByteArray(frameSize)
+    byteBuffer[frame, 0, frameSize]
 
-    return bytes
+    return header + frame
   }
 
   /**
    * Add ADTS frame at the beginning of each and every AAC frame.
    * Note the bufferLen must **NOT** count in the ADTS frame itself.
    */
-  private fun addADTSFrame(bufferLen: Int): ByteArray {
+  private fun buildADTSHeader(bufferLen: Int): ByteArray {
     val frame = ByteArray(7)
     val frameLen = bufferLen + 7
 

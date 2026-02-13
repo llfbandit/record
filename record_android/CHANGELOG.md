@@ -1,3 +1,6 @@
+## 1.5.1
+* fix: Potential `IndexOutOfBoundsException` for AAC ADTS streaming.
+
 ## 1.5.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
 * fix: `AudioInterruptionMode` not pausing.
