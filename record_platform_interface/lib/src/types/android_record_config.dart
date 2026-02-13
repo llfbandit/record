@@ -7,11 +7,15 @@ class AndroidRecordConfig {
   ///
   /// While advanced recorder unlocks additionnal features, legacy recorder
   /// is stability oriented.
+  ///
+  /// Legacy does __NOT__ mean obsolete.
   final bool useLegacy;
 
   /// Uses Android service to enable background recording.
   ///
   /// You must add mandatory project settings before using this. See docs.
+  @Deprecated(
+      'Prefer external package usage. Will be removed in next major version.')
   final AndroidService? service;
 
   /// If [true], this will mute all audio streams like alarms, music, ring, ...

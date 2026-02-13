@@ -74,12 +74,6 @@ if (await record.hasPermission()) {
   final stream = await record.startStream(const RecordConfig(encoder: AudioEncoder.pcm16bits));
 }
 
-// Check permission status without requesting (useful for UI state)
-final hasPermission = await record.hasPermission(request: false);
-if (!hasPermission) {
-  // Show permission request UI, then call hasPermission() to request
-}
-
 // Stop recording...
 final path = await record.stop();
 // ... or cancel it (and implicitly remove file/blob).
@@ -125,9 +119,9 @@ Add this to the macos/Runner/Info.plist file:
 
 `parecord`, `pactl` and `ffmpeg` dependencies are required and widely available on your system.
 
-`parecord`: Used for audio input.
-`pactl`: Used for utility methods like getting available devices.
-`ffmpeg`: Used for encoding and output.
+- `parecord`: Used for audio input.
+- `pactl`: Used for utility methods like getting available devices.
+- `ffmpeg`: Used for encoding and output.
 
 On Ubuntu 24.04.3 LTS, you can install them using:
 ```bash

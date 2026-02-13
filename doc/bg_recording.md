@@ -1,5 +1,13 @@
 # Background recording
 
+Consider the following deprecated.
+
+As of today, prefer use an external package such as [flutter_foreground_task](https://pub.dev/packages/flutter_foreground_task).
+
+There is also a ready to use example [here](https://github.com/Dev-hwang/flutter_foreground_task_example/tree/main/record_service).
+
+By using a dedicated package, you have much more control and this package can keep lower code surface to stay focused on recording features.
+
 ## Android
 
 Add the following the manifest in `android/app/src/main/AndroidManifest.xml`:
