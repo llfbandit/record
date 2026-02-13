@@ -1,3 +1,7 @@
+## 1.2.1
+* fix: Preserve stereo channels in stream mode.
+* fix: Include external audio devices in discovery.
+
 ## 1.2.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
 * feat: Add AAC/ADTS streaming.
