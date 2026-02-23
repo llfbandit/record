@@ -16,7 +16,7 @@ let package = Package(
     targets: [
         .target(
             name: "record_ios",
-            dependencies: [],
+            path: "Sources/record_ios",
             resources: [
                 .process("Resources")
             ]
