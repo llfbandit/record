@@ -1,3 +1,8 @@
+[![Release](https://img.shields.io/pub/v/record.svg)](https://pub.dev/packages/record)
+[![dl](https://img.shields.io/pub/dm/record?color=fe8e86)]()
+[![Using melos](https://img.shields.io/badge/maintained%20with-melos-linen.svg)](https://github.com/invertase/melos)
+
+
 Audio recorder from microphone to a given file path or stream.  
 
 No external dependencies:
