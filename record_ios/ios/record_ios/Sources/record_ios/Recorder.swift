@@ -81,7 +81,7 @@ class Recorder {
 
     // Create output writers for dual mode
     let outputWriters: [AudioOutputWriter] = [
-      M4aFileOutputWriter(outputPath: basePath + ".m4a"),
+      M4aFileOutputWriter(outputPath: basePath + ".m4a", bitRate: config.bitRateOutput ?? config.bitRate),
       WavFileOutputWriter(outputPath: basePath + ".wav")
     ]
 

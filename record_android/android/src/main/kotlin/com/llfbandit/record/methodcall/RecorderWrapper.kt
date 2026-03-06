@@ -73,6 +73,7 @@ class RecorderWrapper(
       path = config.path, // M4A path
       encoder = "aacLc", // Force AAC encoding as string
       bitRate = config.bitRate,
+      bitRateOutput = config.bitRateOutput ?: config.bitRate,
       sampleRate = config.sampleRate,
       numChannels = config.numChannels,
       device = config.device,

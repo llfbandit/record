@@ -28,6 +28,11 @@ class RecordConfig {
   /// The audio encoding bit rate in bits per second if applicable.
   final int bitRate;
 
+  /// The audio encoding bit rate used by dual-output encoded files (e.g. m4a).
+  ///
+  /// Falls back to [bitRate] when null.
+  final int? bitRateOutput;
+
   /// The sample rate for audio in samples per second if applicable.
   final int sampleRate;
 
@@ -78,6 +83,7 @@ class RecordConfig {
   const RecordConfig({
     this.encoder = AudioEncoder.aacLc,
     this.bitRate = 128000,
+    this.bitRateOutput,
     this.sampleRate = 44100,
     this.numChannels = 2,
     this.device,
@@ -94,6 +100,7 @@ class RecordConfig {
     return {
       'encoder': encoder.name,
       'bitRate': bitRate,
+      'bitRateOutput': bitRateOutput,
       'sampleRate': sampleRate,
       'numChannels': numChannels,
       'device': device?.toMap(),

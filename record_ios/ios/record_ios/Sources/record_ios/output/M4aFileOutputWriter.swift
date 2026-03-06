@@ -5,13 +5,15 @@ import Foundation
 /// Output writer that encodes PCM audio to M4A/AAC format.
 class M4aFileOutputWriter: AudioOutputWriter {
   private let outputPath: String
+  private let targetBitRate: Int
   private var writer: AVAssetWriter?
   private var input: AVAssetWriterInput?
   private var errorMessage: String?
   private var pcmFormat: AVAudioFormat?
   
-  init(outputPath: String) {
+  init(outputPath: String, bitRate: Int) {
     self.outputPath = outputPath
+    self.targetBitRate = bitRate
   }
   
   func start(pcmFormat: AVAudioFormat) throws {
@@ -26,16 +28,14 @@ class M4aFileOutputWriter: AudioOutputWriter {
     let url = URL(fileURLWithPath: outputPath)
     let writer = try AVAssetWriter(outputURL: url, fileType: .m4a)
     
-    // AAC settings
     let sampleRate = Int(pcmFormat.sampleRate)
     let channels = Int(pcmFormat.channelCount)
-    let bitRate = sampleRate * channels  // ~16kbps for 16kHz mono
     
     let settings: [String: Any] = [
       AVFormatIDKey: kAudioFormatMPEG4AAC,
       AVSampleRateKey: sampleRate,
       AVNumberOfChannelsKey: channels,
-      AVEncoderBitRateKey: bitRate
+      AVEncoderBitRateKey: targetBitRate
     ]
     
     // Create source format hint from pcmFormat

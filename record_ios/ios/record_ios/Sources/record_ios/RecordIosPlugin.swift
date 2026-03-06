@@ -253,6 +253,7 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
     let config = RecordConfig(
       encoder: encoder,
       bitRate: args["bitRate"] as? Int ?? 128000,
+      bitRateOutput: args["bitRateOutput"] as? Int,
       sampleRate: args["sampleRate"] as? Int ?? 44100,
       numChannels: args["numChannels"] as? Int ?? 2,
       device: device,

@@ -21,6 +21,7 @@ public enum AudioInterruptionMode: Int {
 public class RecordConfig {
   let encoder: String
   let bitRate: Int
+  let bitRateOutput: Int?
   let sampleRate: Int
   let numChannels: Int
   let device: Device?
@@ -33,6 +34,7 @@ public class RecordConfig {
 
   init(encoder: String,
        bitRate: Int,
+       bitRateOutput: Int?,
        sampleRate: Int,
        numChannels: Int,
        device: Device? = nil,
@@ -45,6 +47,7 @@ public class RecordConfig {
   ) {
     self.encoder = encoder
     self.bitRate = bitRate
+    self.bitRateOutput = bitRateOutput
     self.sampleRate = sampleRate
     self.numChannels = numChannels
     self.device = device
