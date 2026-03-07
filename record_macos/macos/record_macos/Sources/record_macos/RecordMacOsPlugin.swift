@@ -64,31 +64,56 @@ public class RecordMacOsPlugin: NSObject, FlutterPlugin {
         result(FlutterError(code: "record", message: "Call missing mandatory parameter path.", details: nil))
         return
       }
-      
+
       guard let config = getConfig(args, result: result) else {
         return
       }
-      
-      do {
-        try recorder.start(config: config, path: path)
-        result(nil)
-      } catch RecorderError.error(let message, let details) {
-        result(FlutterError(code: "record", message: message, details: details))
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+
+      // Avoid blocking Flutter platform thread
+      DispatchQueue.global(qos: .userInitiated).async {
+
+        do {
+          try recorder.start(config: config, path: path)
+
+          DispatchQueue.main.async {
+            result(nil)
+          }
+
+        } catch RecorderError.error(let message, let details) {
+          DispatchQueue.main.async {
+            result(FlutterError(code: "record", message: message, details: details))
+          }
+
+        } catch {
+          DispatchQueue.main.async {
+            result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+          }
+        }
       }
     case "startStream":
       guard let config = getConfig(args, result: result) else {
         return
       }
 
-      do {
-        try recorder.startStream(config: config)
-        result(nil)
-      } catch RecorderError.error(let message, let details) {
-        result(FlutterError(code: "record", message: message, details: details))
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+      DispatchQueue.global(qos: .userInitiated).async {
+
+        do {
+          try recorder.startStream(config: config)
+
+          DispatchQueue.main.async {
+            result(nil)
+          }
+
+        } catch RecorderError.error(let message, let details) {
+          DispatchQueue.main.async {
+            result(FlutterError(code: "record", message: message, details: details))
+          }
+
+        } catch {
+          DispatchQueue.main.async {
+            result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+          }
+        }
       }
     case "stop":
       recorder.stop { path in

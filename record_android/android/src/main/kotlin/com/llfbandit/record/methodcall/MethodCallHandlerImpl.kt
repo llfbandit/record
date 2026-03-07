@@ -1,6 +1,8 @@
 package com.llfbandit.record.methodcall
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.llfbandit.record.permission.PermissionManager
 import com.llfbandit.record.record.RecordConfig
 import com.llfbandit.record.record.device.DeviceUtils
@@ -12,6 +14,8 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import java.io.IOException
 import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class MethodCallHandlerImpl(
   private val permissionManager: PermissionManager,
@@ -19,6 +23,8 @@ class MethodCallHandlerImpl(
   private val appContext: Context
 ) : MethodCallHandler {
   private val recorders = ConcurrentHashMap<String, RecorderWrapper>()
+  private val uiThreadHandler = Handler(Looper.getMainLooper())
+  private val startExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
   fun dispose() {
     for (entry in recorders.entries) {
@@ -26,6 +32,7 @@ class MethodCallHandlerImpl(
     }
 
     recorders.clear()
+    startExecutor.shutdownNow()
   }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -56,21 +63,29 @@ class MethodCallHandlerImpl(
     }
 
     when (call.method) {
-      "start" -> {
+      "start" -> startExecutor.execute {
         try {
           val config = RecordConfig.fromMap(call, appContext)
-          recorder.startRecordingToFile(config, result)
+          recorder.startRecordingToFile(config, MainThreadResult(result))
         } catch (e: IOException) {
-          result.error("record", "Cannot create recording configuration.", e.message)
+          MainThreadResult(result).error(
+            "record",
+            "Cannot create recording configuration.",
+            e.message
+          )
         }
       }
 
-      "startStream" -> {
+      "startStream" -> startExecutor.execute {
         try {
           val config = RecordConfig.fromMap(call, appContext)
-          recorder.startRecordingToStream(config, result)
+          recorder.startRecordingToStream(config, MainThreadResult(result))
         } catch (e: IOException) {
-          result.error("record", "Cannot create recording configuration.", e.message)
+          MainThreadResult(result).error(
+            "record",
+            "Cannot create recording configuration.",
+            e.message
+          )
         }
       }
 
@@ -101,6 +116,22 @@ class MethodCallHandlerImpl(
       }
 
       else -> result.notImplemented()
+    }
+  }
+
+  private inner class MainThreadResult(
+    private val delegate: MethodChannel.Result
+  ) : MethodChannel.Result {
+    override fun success(result: Any?) {
+      uiThreadHandler.post { delegate.success(result) }
+    }
+
+    override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+      uiThreadHandler.post { delegate.error(errorCode, errorMessage, errorDetails) }
+    }
+
+    override fun notImplemented() {
+      uiThreadHandler.post { delegate.notImplemented() }
     }
   }
 

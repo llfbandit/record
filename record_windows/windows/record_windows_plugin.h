@@ -10,6 +10,7 @@
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 #include <memory>
+#include <functional>
 #include <mutex>
 
 #include <windows.h>
@@ -68,12 +69,12 @@ namespace record_windows {
 			std::unique_ptr<MethodResult<EncodableValue>> result);
 
 		HRESULT CreateRecorder(std::string recorderId);
-		Recorder* GetRecorder(std::string recorderId);
+		std::shared_ptr<Recorder> GetRecorder(std::string recorderId);
 		HRESULT ListInputDevices(MethodResult<EncodableValue>& result);
 
 		std::unique_ptr<RecordConfig> InitRecordConfig(const EncodableMap* args);
 
-		std::map<std::string, std::unique_ptr<Recorder>> m_recorders{};
+		std::map<std::string, std::shared_ptr<Recorder>> m_recorders{};
 
 		// Keep event channels alive for each recorder so StreamHandler pointers
 		// stored by Recorder remain valid while the recorder exists.

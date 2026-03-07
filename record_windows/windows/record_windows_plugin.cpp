@@ -4,6 +4,7 @@
 #include "record_config.h"
 #include <flutter/event_stream_handler_functions.h>
 #include <mutex>
+#include <thread>
 
 using namespace flutter;
 
@@ -202,19 +203,36 @@ namespace record_windows {
 			std::string path;
 			GetValueFromEncodableMap(mapArgs, "path", path);
 
-			HRESULT hr = recorder->Start(std::move(config), Utf16FromUtf8(path));
+			auto* rawResult = result.release();
+			auto recordingPath = Utf16FromUtf8(path);
 
-			if (SUCCEEDED(hr)) { result->Success(EncodableValue()); }
-			else { ErrorFromHR(hr, *result); }
+			std::thread([this, recorder, config = std::move(config), recordingPath = std::move(recordingPath), rawResult]() mutable {
+				HRESULT hr = recorder->Start(std::move(config), recordingPath);
+
+				RecordWindowsPlugin::RunOnMainThread([hr, rawResult]() mutable {
+					std::unique_ptr<MethodResult<EncodableValue>> resultPtr(rawResult);
+
+					if (SUCCEEDED(hr)) { resultPtr->Success(EncodableValue()); }
+					else { ErrorFromHR(hr, *resultPtr); }
+				});
+			}).detach();
 		}
 		else if (method_call.method_name().compare("startStream") == 0)
 		{
 			auto config = InitRecordConfig(mapArgs);
 
-			HRESULT hr = recorder->StartStream(std::move(config));
+			auto* rawResult = result.release();
 
-			if (SUCCEEDED(hr)) { result->Success(EncodableValue()); }
-			else { ErrorFromHR(hr, *result); }
+			std::thread([this, recorder, config = std::move(config), rawResult]() mutable {
+				HRESULT hr = recorder->StartStream(std::move(config));
+
+				RecordWindowsPlugin::RunOnMainThread([hr, rawResult]() mutable {
+					std::unique_ptr<MethodResult<EncodableValue>> resultPtr(rawResult);
+
+					if (SUCCEEDED(hr)) { resultPtr->Success(EncodableValue()); }
+					else { ErrorFromHR(hr, *resultPtr); }
+				});
+			}).detach();
 		}
 		else if (method_call.method_name().compare("stop") == 0)
 		{
@@ -366,19 +384,19 @@ namespace record_windows {
 		HRESULT hr = Recorder::CreateInstance(eventHandler, eventRecordHandler, &pRecorder);
 		if (SUCCEEDED(hr))
 		{
-			m_recorders.insert(std::make_pair(recorderId, std::move(pRecorder)));
+			m_recorders.insert(std::make_pair(recorderId, std::shared_ptr<Recorder>(pRecorder)));
 		}
 
 		return hr;
 	}
 
-	Recorder* RecordWindowsPlugin::GetRecorder(std::string recorderId)
+	std::shared_ptr<Recorder> RecordWindowsPlugin::GetRecorder(std::string recorderId)
 	{
 		auto searchedRecorder = m_recorders.find(recorderId);
 		if (searchedRecorder == m_recorders.end()) {
 			return nullptr;
 		}
-		return searchedRecorder->second.get();
+		return searchedRecorder->second;
 	}
 
 	HRESULT RecordWindowsPlugin::ListInputDevices(MethodResult<EncodableValue>& result)
