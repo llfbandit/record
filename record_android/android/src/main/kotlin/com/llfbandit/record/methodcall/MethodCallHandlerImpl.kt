@@ -9,7 +9,6 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-import java.io.IOException
 import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
 
@@ -20,14 +19,6 @@ class MethodCallHandlerImpl(
 ) : MethodCallHandler {
   private val recorders = ConcurrentHashMap<String, RecorderWrapper>()
 
-  fun dispose() {
-    for (entry in recorders.entries) {
-      disposeRecorder(entry.value, entry.key)
-    }
-
-    recorders.clear()
-  }
-
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
     val recorderId = call.argument<String>("recorderId")
 
@@ -37,12 +28,7 @@ class MethodCallHandlerImpl(
     }
 
     if (call.method == "create") {
-      try {
-        createRecorder(recorderId)
-        result.success(null)
-      } catch (e: Exception) {
-        result.error("record", "Cannot create recording configuration.", e.message)
-      }
+      createRecorder(recorderId, result)
       return
     }
 
@@ -56,61 +42,59 @@ class MethodCallHandlerImpl(
     }
 
     when (call.method) {
-      "start" -> {
-        try {
-          val config = RecordConfig.fromMap(call, appContext)
-          recorder.startRecordingToFile(config, result)
-        } catch (e: IOException) {
-          result.error("record", "Cannot create recording configuration.", e.message)
-        }
-      }
-
-      "startStream" -> {
-        try {
-          val config = RecordConfig.fromMap(call, appContext)
-          recorder.startRecordingToStream(config, result)
-        } catch (e: IOException) {
-          result.error("record", "Cannot create recording configuration.", e.message)
-        }
-      }
-
+      "start" -> recorder.startRecordingToFile(RecordConfig.fromMap(call, appContext), result)
+      "startStream" -> recorder.startRecordingToStream(RecordConfig.fromMap(call, appContext), result)
       "stop" -> recorder.stop(result)
       "pause" -> recorder.pause(result)
       "resume" -> recorder.resume(result)
       "isPaused" -> recorder.isPaused(result)
       "isRecording" -> recorder.isRecording(result)
       "cancel" -> recorder.cancel(result)
-      "hasPermission" -> {
-        val request = call.argument<Boolean>("request") ?: true
-        permissionManager.hasPermission(request, result::success)
-      }
+      "hasPermission" -> hasPermission(call, result)
       "getAmplitude" -> recorder.getAmplitude(result)
       "listInputDevices" -> result.success(DeviceUtils.listInputDevicesAsMap(appContext))
-
-      "dispose" -> {
-        disposeRecorder(recorder, recorderId)
-        result.success(null)
-      }
-
-      "isEncoderSupported" -> {
-        val codec = call.argument<String>("encoder")
-        val isSupported = AudioFormats.isEncoderSupported(
-          AudioFormats.getMimeType(Objects.requireNonNull(codec))
-        )
-        result.success(isSupported)
-      }
-
+      "dispose" -> disposeRecorder(recorder, recorderId, result)
+      "isEncoderSupported" -> isEncoderSupported(call, result)
       else -> result.notImplemented()
     }
   }
 
-  private fun createRecorder(recorderId: String) {
-    val recorder = RecorderWrapper(appContext, recorderId, messenger)
-    recorders[recorderId] = recorder
+  fun dispose() {
+    for (entry in recorders.entries) {
+      disposeRecorder(entry.value, entry.key, null)
+    }
+
+    recorders.clear()
   }
 
-  private fun disposeRecorder(recorder: RecorderWrapper, recorderId: String) {
+  private fun createRecorder(recorderId: String, result: MethodChannel.Result) {
+    try {
+      val recorder = RecorderWrapper(appContext, recorderId, messenger)
+      recorders[recorderId] = recorder
+      result.success(null)
+    } catch (e: Exception) {
+      result.error("record", "Cannot create recorder.", e.message)
+    }
+  }
+
+  private fun disposeRecorder(recorder: RecorderWrapper, recorderId: String, result: MethodChannel.Result?) {
     recorder.dispose()
     recorders.remove(recorderId)
+    result?.success(null)
+  }
+
+  private fun hasPermission(call: MethodCall, result: MethodChannel.Result) {
+    val request = call.argument<Boolean>("request") ?: true
+    permissionManager.hasPermission(request, result::success)
+  }
+
+  private fun isEncoderSupported(call: MethodCall, result: MethodChannel.Result) {
+    val codec = call.argument<String>("encoder")
+
+    val isSupported = AudioFormats.isEncoderSupported(
+      AudioFormats.getMimeType(Objects.requireNonNull(codec))
+    )
+
+    result.success(isSupported)
   }
 }

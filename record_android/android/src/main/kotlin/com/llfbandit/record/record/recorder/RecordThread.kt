@@ -15,7 +15,6 @@ import com.llfbandit.record.record.format.OpusFormat
 import com.llfbandit.record.record.format.PcmFormat
 import com.llfbandit.record.record.format.WaveFormat
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -24,18 +23,16 @@ class RecordThread(
   private val config: RecordConfig,
   private val recorderListener: OnAudioRecordListener
 ) : EncoderListener {
-  private var mPcmReader: PCMReader? = null
-  private var mEncoder: IEncoder? = null
-
   // Signals whether a recording is in progress (true) or not (false).
   private val mIsRecording = AtomicBoolean(false)
-
   // Signals whether a recording is paused (true) or not (false).
   private val mIsPaused = AtomicBoolean(false)
-  private val mIsPausedSem = Semaphore(0)
+  private val mIsPausedSem = Semaphore(0, true)
   private var mHasBeenCanceled = false
 
-  private val mExecutorService = Executors.newSingleThreadExecutor()
+  private var mRecordThread: Thread? = null
+  // Bridge for on-demand amplitude
+  @Volatile private var mPcmReaderRef: PCMReader? = null
 
   override fun onEncoderFailure(ex: Exception) {
     recorderListener.onFailure(ex)
@@ -46,11 +43,11 @@ class RecordThread(
   }
 
   fun isRecording(): Boolean {
-    return mEncoder != null && mIsRecording.get()
+    return mRecordThread != null && mIsRecording.get()
   }
 
   fun isPaused(): Boolean {
-    return mEncoder != null && mIsPaused.get()
+    return mRecordThread != null && mIsPaused.get()
   }
 
   fun pauseRecording() {
@@ -82,21 +79,27 @@ class RecordThread(
     }
   }
 
-  fun getAmplitude(): Double = mPcmReader?.getAmplitude() ?: -160.0
+  fun getAmplitude(): Double = mPcmReaderRef?.getAmplitude() ?: -160.0
 
   fun startRecording() {
     val startLatch = CountDownLatch(1)
 
-    mExecutorService.execute {
+    mRecordThread = Thread {
+      var pcmReader: PCMReader? = null
+      var encoder: IEncoder? = null
+
       try {
         val format = selectFormat()
-        val (encoder, adjustedFormat) = format.getEncoder(config, this)
+        val (encoderImpl, adjustedFormat) = format.getEncoder(config, this)
 
-        mPcmReader = PCMReader(config, adjustedFormat)
-        mPcmReader!!.start()
+        pcmReader = PCMReader(config, adjustedFormat)
+        pcmReader.start()
 
-        mEncoder = encoder
-        mEncoder!!.startEncoding()
+        encoder = encoderImpl
+        encoder.startEncoding()
+
+        // Publish PCMReader reference for on-demand amplitude
+        mPcmReaderRef = pcmReader
 
         recordState()
 
@@ -107,9 +110,9 @@ class RecordThread(
             recorderListener.onPause()
             mIsPausedSem.acquire()
           } else {
-            val buffer = mPcmReader!!.read()
+            val buffer = pcmReader.read()
             if (buffer.isNotEmpty()) {
-              mEncoder!!.encode(buffer)
+              encoder.encode(buffer)
             }
           }
         }
@@ -117,21 +120,24 @@ class RecordThread(
         recorderListener.onFailure(ex)
       } finally {
         startLatch.countDown()
-        stopAndRelease()
+        mPcmReaderRef = null
+        stopAndRelease(pcmReader, encoder)
       }
+    }.apply {
+      name = "RecordThread-${config.path}"
+      isDaemon = true
+      start()
     }
 
     startLatch.await()
   }
 
-  private fun stopAndRelease() {
+  private fun stopAndRelease(pcmReader: PCMReader?, encoder: IEncoder?) {
     try {
-      mPcmReader?.stop()
-      mPcmReader?.release()
-      mPcmReader = null
+      pcmReader?.stop()
+      pcmReader?.release()
 
-      mEncoder?.stopEncoding()
-      mEncoder = null
+      encoder?.stopEncoding()
 
       if (mHasBeenCanceled) {
         Utils.deleteFile(config.path)
@@ -139,6 +145,7 @@ class RecordThread(
     } catch (ex: Exception) {
       recorderListener.onFailure(ex)
     } finally {
+      mRecordThread = null
       recorderListener.onStop()
     }
   }

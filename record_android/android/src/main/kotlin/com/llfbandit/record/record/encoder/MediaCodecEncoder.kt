@@ -4,14 +4,12 @@ import android.media.MediaCodec
 import android.media.MediaFormat
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.Message
 import android.util.Log
 import com.llfbandit.record.record.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
 import com.llfbandit.record.record.format.Format
 import java.util.LinkedList
 import java.util.concurrent.Semaphore
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
 
 class MediaCodecEncoder(
@@ -19,10 +17,9 @@ class MediaCodecEncoder(
   private val format: Format,
   private val mediaFormat: MediaFormat,
   private val listener: EncoderListener,
-  private val codec: String,
+  private val codecName: String,
 ) : IEncoder,
-  HandlerThread("MediaCodecEncoder Thread"),
-  Handler.Callback {
+  HandlerThread("MediaCodecEncoder Thread") {
   private var mHandler: Handler? = null
   private var mCodec: MediaCodec? = null
   private var mContainer: IContainerWriter? = null
@@ -34,33 +31,43 @@ class MediaCodecEncoder(
 
   // Semaphore to signal the end of encoding
   private var mStoppedCompleter: Semaphore? = null
-  private var mStopped = AtomicBoolean(false)
+  private var mStopped = false
 
   override fun encode(bytes: ByteArray) {
-    if (mStopped.get()) {
+    if (mStopped) {
       return
     }
 
-    val s = Sample()
-    s.bytes = bytes
-    mHandler?.obtainMessage(MSG_ENCODE_INPUT, s)?.sendToTarget()
+    val s = Sample(bytes)
+    mHandler?.post {
+      if (!mStopped) {
+        mQueue.add(s)
+        if (mInputBufferIndex >= 0) {
+          processInputBuffer()
+        }
+      }
+    }
   }
 
   override fun startEncoding() {
     start() // Start the thread
-
-    mHandler = Handler(looper, this)
-    mHandler?.obtainMessage(MSG_INIT)?.sendToTarget()
+    mHandler = Handler(looper)
+    mHandler?.post { initEncoding() }
   }
 
   override fun stopEncoding() {
-    if (mStopped.get()) {
+    if (mStopped) {
       return
     }
-    mStopped.set(true)
+    mStopped = true
 
     val completer = Semaphore(0)
-    mHandler?.obtainMessage(MSG_STOP, completer)?.sendToTarget()
+    mHandler?.post {
+      mStoppedCompleter = completer
+      if (mInputBufferIndex >= 0) {
+        processInputBuffer()
+      }
+    }
 
     try {
       // Wait for the encoder to finish
@@ -70,44 +77,24 @@ class MediaCodecEncoder(
     }
   }
 
-  override fun handleMessage(msg: Message): Boolean {
-    if (msg.what == MSG_INIT) {
-      initEncoding()
-    } else if (msg.what == MSG_STOP) {
-      mStoppedCompleter = msg.obj as Semaphore
-      if (mInputBufferIndex >= 0) {
-        processInputBuffer()
-      }
-    } else if (msg.what == MSG_ENCODE_INPUT) {
-      if (!mStopped.get()) {
-        mQueue.add(msg.obj as Sample)
-        if (mInputBufferIndex >= 0) {
-          processInputBuffer()
-        }
-      }
-    }
-
-    return true
-  }
-
   private fun initEncoding() {
     calculateInputRate()
 
-    try {
-      mCodec = MediaCodec.createByCodecName(codec)
-      mCodec?.setCallback(AudioRecorderCodecCallback(), Handler(looper))
-      mCodec?.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-      mCodec?.start()
-    } catch (e: Exception) {
-      mCodec?.release()
-      mCodec = null
-      onError(e)
-      return
-    }
+    var codec: MediaCodec? = null
+    var container: IContainerWriter?
 
     try {
-      mContainer = format.getContainer(config.path)
+      codec = MediaCodec.createByCodecName(codecName)
+      codec.setCallback(AudioRecorderCodecCallback(), Handler(looper))
+      codec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+      codec.start()
+
+      container = format.getContainer(config.path)
+
+      mCodec = codec
+      mContainer = container
     } catch (e: Exception) {
+      codec?.release()
       onError(e)
     }
   }
@@ -132,17 +119,16 @@ class MediaCodecEncoder(
       }
 
       val b = codec.getInputBuffer(mInputBufferIndex)!!
-      val sz = min(b.capacity().toDouble(), (s.bytes.size - s.offset).toDouble()).toInt()
+      val sz = min(b.capacity(), s.remaining())
       val ts = getPresentationTimestampUs(mInputBufferPosition)
-      b.put(s.bytes, s.offset, sz)
+      b.put(s.bytes, s.position, sz)
 
       codec.queueInputBuffer(mInputBufferIndex, 0, sz, ts, 0)
 
       mInputBufferPosition += sz.toLong()
-      s.offset += sz
+      s.position += sz
 
-      // Are we done with this sample?
-      if (s.offset >= s.bytes.size) {
+      if (s.isConsumed()) {
         mQueue.pop()
       }
 
@@ -185,30 +171,37 @@ class MediaCodecEncoder(
   }
 
   private fun onError(e: Exception) {
-    mStopped.set(true)
+    mStopped = true
     stopAndRelease()
     listener.onEncoderFailure(e)
   }
 
   private fun stopAndRelease() {
-    mCodec?.stop()
-    mCodec?.release()
-    mCodec = null
+    try {
+      mCodec?.stop()
+    } finally {
+      mCodec?.release()
+      mCodec = null
+    }
 
-    mContainer?.stop()
-    mContainer?.release()
-    mContainer = null
+    try {
+      mContainer?.stop()
+    } finally {
+      mContainer?.release()
+      mContainer = null
+    }
 
     mStoppedCompleter?.release()
     mStoppedCompleter = null
   }
 
   private fun calculateInputRate() {
-    mRate = 16.toFloat()
-    mRate *= mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE).toFloat()
-    mRate *= mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT).toFloat()
-    mRate *= 1e-6.toFloat() // -> us
-    mRate /= 8f // -> bytes
+    val bitsPerSample = 16 // Default to 16-bit PCM
+    val sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+    val channelCount = mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+
+    // bytes per microsecond
+    mRate = (bitsPerSample / 8.0f) * sampleRate * channelCount * 1e-6f
   }
 
   private fun getPresentationTimestampUs(position: Long): Long {
@@ -239,14 +232,9 @@ class MediaCodecEncoder(
     }
   }
 
-  private inner class Sample {
-    lateinit var bytes: ByteArray
-    var offset: Int = 0
-  }
-
-  companion object {
-    private const val MSG_INIT = 100
-    private const val MSG_ENCODE_INPUT = 101
-    private const val MSG_STOP = 999
+  private class Sample(val bytes: ByteArray) {
+    var position: Int = 0
+    fun remaining(): Int = bytes.size - position
+    fun isConsumed(): Boolean = position >= bytes.size
   }
 }

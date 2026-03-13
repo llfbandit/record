@@ -19,7 +19,6 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
-
 class RecorderWrapper(
   private val context: Context,
   recorderId: String,

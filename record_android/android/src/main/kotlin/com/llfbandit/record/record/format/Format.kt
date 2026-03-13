@@ -116,26 +116,30 @@ sealed class Format {
     mediaFormat: MediaFormat
   ): Boolean {
     if (!caps.isFormatSupported(mediaFormat)) {
-      adjustBitRate(
-        mediaFormat,
-        checkBounds(caps.audioCapabilities.bitrateRange, config.bitRate)
-      )
-      if (caps.audioCapabilities.supportedSampleRates != null) {
-        adjustSampleRate(
+      val audioCapabilities = caps.audioCapabilities
+
+      if (audioCapabilities != null) {
+        adjustBitRate(
+          mediaFormat,
+          checkBounds(audioCapabilities.bitrateRange, config.bitRate)
+        )
+        if (audioCapabilities.supportedSampleRates != null) {
+          adjustSampleRate(
+            mediaFormat,
+            nearestValue(
+              audioCapabilities.supportedSampleRates,
+              config.sampleRate
+            )
+          )
+        }
+        adjustNumChannels(
           mediaFormat,
           nearestValue(
-            caps.audioCapabilities.supportedSampleRates,
-            config.sampleRate
+            intArrayOf(1, audioCapabilities.maxInputChannelCount),
+            config.numChannels
           )
         )
       }
-      adjustNumChannels(
-        mediaFormat,
-        nearestValue(
-          intArrayOf(1, caps.audioCapabilities.maxInputChannelCount),
-          config.numChannels
-        )
-      )
 
       return caps.isFormatSupported(mediaFormat)
     }
@@ -159,7 +163,7 @@ sealed class Format {
         if (caps != null && adjustFormat(caps, config, mediaFormat)) {
           return info.name
         }
-      } catch (e: IllegalArgumentException) {
+      } catch (_: IllegalArgumentException) {
         // type is not supported
       }
     }
