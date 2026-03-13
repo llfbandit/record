@@ -3,16 +3,12 @@ PODS:
     - Flutter
     - FlutterMacOS
   - Flutter (1.0.0)
-  - path_provider_foundation (0.0.1):
-    - Flutter
-    - FlutterMacOS
-  - record_ios (1.1.0):
+  - record_ios (1.2.0):
     - Flutter
 
 DEPENDENCIES:
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/darwin`)
   - Flutter (from `Flutter`)
-  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - record_ios (from `.symlinks/plugins/record_ios/ios`)
 
 EXTERNAL SOURCES:
@@ -20,16 +16,13 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/audioplayers_darwin/darwin"
   Flutter:
     :path: Flutter
-  path_provider_foundation:
-    :path: ".symlinks/plugins/path_provider_foundation/darwin"
   record_ios:
     :path: ".symlinks/plugins/record_ios/ios"
 
 SPEC CHECKSUMS:
-  audioplayers_darwin: 4f9ca89d92d3d21cec7ec580e78ca888e5fb68bd
+  audioplayers_darwin: 835ced6edd4c9fc8ebb0a7cc9e294a91d99917d5
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
-  record_ios: f75fa1d57f840012775c0e93a38a7f3ceea1a374
+  record_ios: 412daca2350b228e698fffcd08f1f94ceb1e3844
 
 PODFILE CHECKSUM: cc1f88378b4bfcf93a6ce00d2c587857c6008d3b
 
