@@ -18,11 +18,13 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
   
   // MARK: Plugin
   private var m_binaryMessenger: FlutterBinaryMessenger
-  
+  private let m_recorderQueue: DispatchQueue
+
   private var m_recorders = [String: Recorder]()
-  
+
   init(binaryMessenger: FlutterBinaryMessenger) {
     self.m_binaryMessenger = binaryMessenger
+    self.m_recorderQueue = DispatchQueue(label: "com.record.pluginQueue", qos: .userInitiated)
   }
 
   public func applicationWillTerminate(_ application: UIApplication) {
@@ -42,158 +44,146 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
   
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     let method = call.method
-    
+
     guard let args = call.arguments as? [String: Any] else {
       result(FlutterError(code: "record", message: "Failed to parse call.arguments from Flutter.", details: nil))
       return
     }
-    
+
     guard let recorderId = args["recorderId"] as? String else {
       result(FlutterError(code: "record", message: "Call missing mandatory parameter recorderId.", details: nil))
       return
     }
-    
+
     if method == "create" {
-      createRecorder(recorderId: recorderId)
+      handleCreate(recorderId: recorderId)
       result(nil)
       return
     }
-    
+
     guard let recorder = getRecorder(recorderId: recorderId) else {
       result(FlutterError(code: "record", message: "Recorder has not yet been created or has already been disposed.", details: nil))
       return
     }
-    
+
     switch call.method {
     case "start":
-      guard let path = args["path"] as? String else  {
-        result(FlutterError(code: "record", message: "Call missing mandatory parameter path.", details: nil))
-        return
-      }
-      
-      guard let config = getConfig(args, result: result) else {
-        return
-      }
-      
-      do {
-        try recorder.start(config: config, path: path)
-        result(nil)
-      } catch RecorderError.error(let message, let details) {
-        result(FlutterError(code: "record", message: message, details: details))
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
-      }
+      handleStart(recorder: recorder, args: args, result: result)
     case "startStream":
-      guard let config = getConfig(args, result: result) else {
-        return
-      }
-
-      do {
-        try recorder.startStream(config: config)
-        result(nil)
-      } catch RecorderError.error(let message, let details) {
-        result(FlutterError(code: "record", message: message, details: details))
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
-      }
+      handleStartStream(recorder: recorder, args: args, result: result)
     case "stop":
-      recorder.stop { path in
-        result(path)
-      }
+      handleStop(recorder: recorder, result: result)
     case "cancel":
-      do {
-        try recorder.cancel()
-        result(nil)
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
-      }
+      handleCancel(recorder: recorder, result: result)
     case "pause":
-      recorder.pause()
-      result(nil)
+      handlePause(recorder: recorder, result: result)
     case "resume":
-      do {
-        try recorder.resume()
-        result(nil)
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
-      }
+      handleResume(recorder: recorder, result: result)
     case "isPaused":
-      let isPaused = recorder.isPaused()
-      result(isPaused)
+      handleIsPaused(recorder: recorder, result: result)
     case "isRecording":
-      let isRecording = recorder.isRecording()
-      result(isRecording)
+      handleIsRecording(recorder: recorder, result: result)
     case "hasPermission":
-      let request = args["request"] as? Bool ?? true
-      hasPermission(request: request, result)
+      handleHasPermission(args: args, result: result)
     case "getAmplitude":
-      let amp = recorder.getAmplitude()
-      result(amp)
+      handleGetAmplitude(recorder: recorder, result: result)
     case "isEncoderSupported":
-      guard let encoder = args["encoder"] as? String else  {
-        result(FlutterError(code: "record", message: "Call missing mandatory parameter encoder.", details: nil))
-        return
-      }
-      
-      result(recorder.isEncoderSupported(encoder))
+      handleIsEncoderSupported(recorder: recorder, args: args, result: result)
     case "listInputDevices":
-      do {
-        let devices = try recorder.listInputDevices()
-        result(devices.map({ dev in dev.toMap() }))
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
-      }
+      handleListInputDevices(recorder: recorder, result: result)
     case "dispose":
-      m_recorders.removeValue(forKey: recorderId)
-      recorder.dispose()
-      result(nil)
+      handleDispose(recorderId: recorderId, recorder: recorder, result: result)
     case "ios.manageAudioSession":
-      guard let manage = args["manageAudioSession"] as? Bool else {
-        result(FlutterError(code: "record", message: "Failed to parse manageAudioSession from Flutter.", details: nil))
-        return
-      }
-      recorder.manageAudioSession(manage)
-      result(nil)
-    
+      handleManageAudioSession(recorder: recorder, args: args, result: result)
     case "ios.setAudioSessionActive":
-      guard let active = args["sessionActive"] as? Bool else {
-        result(FlutterError(code: "record", message: "Failed to parse sessionActive from Flutter.", details: nil))
-        return
-      }
-      
-      do {
-        try recorder.setAudioSessionActive(active)
-        result(nil)
-      } catch {
-        result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
-      }
-      
+      handleSetAudioSessionActive(recorder: recorder, args: args, result: result)
     case "ios.setAudioSessionCategory":
-      guard let category = args["category"] as? String else {
-        result(FlutterError(code: "stt", message: "Call missing mandatory parameter category.", details: nil))
-        return
-      }
-      guard let options = args["options"] as? [String] else  {
-        result(FlutterError(code: "stt", message: "Call missing mandatory parameter options.", details: nil))
-        return
-      }
-      
-      do {
-        try recorder.setAudioSessionCategory(toAVCategory(category), options: toAVCategoryOptions(options))
-        result(nil)
-      } catch {
-        result(FlutterError(code: "stt", message: error.localizedDescription, details: nil))
-      }
+      handleSetAudioSessionCategory(recorder: recorder, args: args, result: result)
     default:
       result(FlutterMethodNotImplemented)
     }
   }
 
-  private func hasPermission(request: Bool, _ result: @escaping FlutterResult) {
+  private func handleCreate(recorderId: String) {
+    let stateEventChannel = FlutterEventChannel(name: "com.llfbandit.record/events/\(recorderId)", binaryMessenger: m_binaryMessenger)
+    let stateEventHandler = StateStreamHandler()
+    stateEventChannel.setStreamHandler(stateEventHandler)
+
+    let recordEventChannel = FlutterEventChannel(name: "com.llfbandit.record/eventsRecord/\(recorderId)", binaryMessenger: m_binaryMessenger)
+    let recordEventHandler = RecordStreamHandler()
+    recordEventChannel.setStreamHandler(recordEventHandler)
+
+    let recorder = Recorder(
+      stateEventHandler: stateEventHandler,
+      recordEventHandler: recordEventHandler
+    )
+
+    m_recorders[recorderId] = recorder
+  }
+
+  private func handleStart(recorder: Recorder, args: [String: Any], result: @escaping FlutterResult) {
+    guard let path = args["path"] as? String else {
+      result(FlutterError(code: "record", message: "Call missing mandatory parameter path.", details: nil))
+      return
+    }
+
+    guard let config = getConfig(args, result: result) else {
+      return
+    }
+
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      try recorder.start(config: config, path: path)
+    }
+  }
+
+  private func handleStartStream(recorder: Recorder, args: [String: Any], result: @escaping FlutterResult) {
+    guard let config = getConfig(args, result: result) else {
+      return
+    }
+
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      try recorder.startStream(config: config)
+    }
+  }
+
+  private func handleStop(recorder: Recorder, result: @escaping FlutterResult) {
+    recorder.stop { path in
+      result(path)
+    }
+  }
+
+  private func handleCancel(recorder: Recorder, result: @escaping FlutterResult) {
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      try recorder.cancel()
+    }
+  }
+
+  private func handlePause(recorder: Recorder, result: @escaping FlutterResult) {
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      recorder.pause()
+    }
+  }
+
+  private func handleResume(recorder: Recorder, result: @escaping FlutterResult) {
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      try recorder.resume()
+    }
+  }
+
+  private func handleIsPaused(recorder: Recorder, result: @escaping FlutterResult) {
+    result(recorder.isPaused())
+  }
+
+  private func handleIsRecording(recorder: Recorder, result: @escaping FlutterResult) {
+    result(recorder.isRecording())
+  }
+
+  private func handleHasPermission(args: [String: Any], result: @escaping FlutterResult) {
+    let request = args["request"] as? Bool ?? true
+
     switch AVCaptureDevice.authorizationStatus(for: .audio) {
     case .authorized:
       result(true)
-      break
     case .notDetermined:
       if request {
         AVCaptureDevice.requestAccess(for: .audio) { allowed in
@@ -204,19 +194,80 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
       } else {
         result(false)
       }
-      break
     default:
       result(false)
-      break
+    }
+  }
+
+  private func handleGetAmplitude(recorder: Recorder, result: @escaping FlutterResult) {
+    result(recorder.getAmplitude())
+  }
+
+  private func handleIsEncoderSupported(recorder: Recorder, args: [String: Any], result: @escaping FlutterResult) {
+    guard let encoder = args["encoder"] as? String else {
+      result(FlutterError(code: "record", message: "Call missing mandatory parameter encoder.", details: nil))
+      return
+    }
+
+    result(recorder.isEncoderSupported(encoder))
+  }
+
+  private func handleListInputDevices(recorder: Recorder, result: @escaping FlutterResult) {
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      let devices = try recorder.listInputDevices()
+      return devices.map({ dev in dev.toMap() })
+    }
+  }
+
+  private func handleDispose(recorderId: String, recorder: Recorder, result: @escaping FlutterResult) {
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      self.m_recorders.removeValue(forKey: recorderId)
+      recorder.dispose()
+    }
+  }
+
+  private func handleManageAudioSession(recorder: Recorder, args: [String: Any], result: @escaping FlutterResult) {
+    guard let manage = args["manageAudioSession"] as? Bool else {
+      result(FlutterError(code: "record", message: "Failed to parse manageAudioSession from Flutter.", details: nil))
+      return
+    }
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      recorder.manageAudioSession(manage)
+    }
+  }
+
+  private func handleSetAudioSessionActive(recorder: Recorder, args: [String: Any], result: @escaping FlutterResult) {
+    guard let active = args["sessionActive"] as? Bool else {
+      result(FlutterError(code: "record", message: "Failed to parse sessionActive from Flutter.", details: nil))
+      return
+    }
+
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      try recorder.setAudioSessionActive(active)
+    }
+  }
+
+  private func handleSetAudioSessionCategory(recorder: Recorder, args: [String: Any], result: @escaping FlutterResult) {
+    guard let category = args["category"] as? String else {
+      result(FlutterError(code: "stt", message: "Call missing mandatory parameter category.", details: nil))
+      return
+    }
+    guard let options = args["options"] as? [String] else {
+      result(FlutterError(code: "stt", message: "Call missing mandatory parameter options.", details: nil))
+      return
+    }
+
+    runWithRecorder(recorder: recorder, result: result) { recorder in
+      try recorder.setAudioSessionCategory(self.toAVCategory(category), options: self.toAVCategoryOptions(options))
     }
   }
 
   private func getConfig(_ args: [String : Any], result: @escaping FlutterResult) -> RecordConfig? {
-    guard let encoder = args["encoder"] as? String else  {
+    guard let encoder = args["encoder"] as? String else {
       result(FlutterError(code: "record", message: "Call missing mandatory parameter encoder.", details: nil))
       return nil
     }
-    
+
     var device: Device? = nil
     if let deviceMap = args["device"] as? [String : Any] {
       device = Device(map: deviceMap)
@@ -228,7 +279,7 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
     } else {
       iosConfig = IosConfig(map: [:])
     }
-    
+
     var audioInterruption: AudioInterruptionMode = AudioInterruptionMode.pause
     if let value = args["audioInterruption"] as? Int {
       audioInterruption = AudioInterruptionMode(rawValue: value) ?? audioInterruption
@@ -247,29 +298,39 @@ public class RecordIosPlugin: NSObject, FlutterPlugin {
       audioInterruption: audioInterruption,
       streamBufferSize: args["streamBufferSize"] as? Int
     )
-    
+
     return config
   }
-  
-  private func createRecorder(recorderId: String) {
-    let stateEventChannel = FlutterEventChannel(name: "com.llfbandit.record/events/\(recorderId)", binaryMessenger: m_binaryMessenger)
-    let stateEventHandler = StateStreamHandler()
-    stateEventChannel.setStreamHandler(stateEventHandler)
-    
-    let recordEventChannel = FlutterEventChannel(name: "com.llfbandit.record/eventsRecord/\(recorderId)", binaryMessenger: m_binaryMessenger)
-    let recordEventHandler = RecordStreamHandler()
-    recordEventChannel.setStreamHandler(recordEventHandler)
-    
-    let recorder = Recorder(
-      stateEventHandler: stateEventHandler,
-      recordEventHandler: recordEventHandler
-    )
-  
-    m_recorders[recorderId] = recorder
-  }
-  
+
   private func getRecorder(recorderId: String) -> Recorder? {
     return m_recorders[recorderId]
+  }
+
+  private func runWithRecorder<T>(
+    recorder: Recorder,
+    result: @escaping FlutterResult,
+    _ block: @escaping (Recorder) throws -> T) {
+
+    m_recorderQueue.async {
+      do {
+        let value = try block(recorder)
+        DispatchQueue.main.async {
+          if T.self == Void.self {
+            result(nil)
+          } else {
+            result(value)
+          }
+        }
+      } catch RecorderError.error(let message, let details) {
+        DispatchQueue.main.async {
+          result(FlutterError(code: "record", message: message, details: details))
+        }
+      } catch {
+        DispatchQueue.main.async {
+          result(FlutterError(code: "record", message: error.localizedDescription, details: nil))
+        }
+      }
+    }
   }
   
   private func toAVCategory(_ category: String) -> AVAudioSession.Category {
