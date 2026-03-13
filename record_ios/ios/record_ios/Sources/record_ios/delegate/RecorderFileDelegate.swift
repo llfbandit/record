@@ -3,25 +3,25 @@ import Foundation
 
 class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorderDelegate {
   var config: RecordConfig?
-  
-  private var audioRecorder: AVAudioRecorder?
-  private var path: String?
-  private var onRecord: () -> ()
-  private var onPause: () -> ()
-  private var onStop: () -> ()
-  private let manageAudioSession: Bool
-  
+
+  private var m_audioRecorder: AVAudioRecorder?
+  private var m_path: String?
+  private var m_onRecord: () -> ()
+  private var m_onPause: () -> ()
+  private var m_onStop: () -> ()
+  private let m_manageAudioSession: Bool
+
   init(manageAudioSession: Bool, onRecord: @escaping () -> (), onPause: @escaping () -> (), onStop: @escaping () -> ()) {
-    self.manageAudioSession = manageAudioSession
-    self.onRecord = onRecord
-    self.onPause = onPause
-    self.onStop = onStop
+    m_manageAudioSession = manageAudioSession
+    m_onRecord = onRecord
+    m_onPause = onPause
+    m_onStop = onStop
   }
 
   func start(config: RecordConfig, path: String) throws {
     try deleteFile(path: path)
 
-    try initAVAudioSession(config: config, manageAudioSession: manageAudioSession)
+    try initAVAudioSession(config: config, manageAudioSession: m_manageAudioSession)
 
     let url = URL(fileURLWithPath: path)
 
@@ -30,52 +30,52 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
     recorder.delegate = self
     recorder.isMeteringEnabled = true
     recorder.prepareToRecord()
-    
+
     recorder.record()
-    
-    audioRecorder = recorder
-    self.path = path
+
+    m_audioRecorder = recorder
+    m_path = path
     self.config = config
-    
-    onRecord()
+
+    m_onRecord()
   }
 
   func stop(completionHandler: @escaping (String?) -> ()) {
-    audioRecorder?.stop()
-    audioRecorder = nil
+    m_audioRecorder?.stop()
+    m_audioRecorder = nil
 
-    completionHandler(path)
-    onStop()
-    
-    path = nil
+    completionHandler(m_path)
+    m_onStop()
+
+    m_path = nil
     config = nil
   }
-  
+
   func pause() {
-    guard let recorder = audioRecorder, recorder.isRecording else {
+    guard let recorder = m_audioRecorder, recorder.isRecording else {
       return
     }
-    
+
     recorder.pause()
-    onPause()
+    m_onPause()
   }
-  
+
   func resume() {
-    audioRecorder?.record()
-    onRecord()
+    m_audioRecorder?.record()
+    m_onRecord()
   }
 
   func cancel() throws {
-    guard let path = path else { return }
-    
+    guard let path = m_path else { return }
+
     stop { path in }
-    
+
     try deleteFile(path: path)
   }
-  
+
   func getAmplitude() -> Float {
-    audioRecorder?.updateMeters()
-    return audioRecorder?.averagePower(forChannel: 0) ?? -160
+    m_audioRecorder?.updateMeters()
+    return m_audioRecorder?.averagePower(forChannel: 0) ?? -160
   }
   
   func dispose() {

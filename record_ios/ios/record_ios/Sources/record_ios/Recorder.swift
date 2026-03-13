@@ -2,15 +2,16 @@ import Foundation
 import AVFoundation
 
 class Recorder {
+  private let minAmplitudeDB: Float = -160.0
   private var m_maxAmplitude: Float = -160.0
   private var m_state: RecordState = RecordState.stop
   
   private var m_stateEventHandler: StateStreamHandler
   private var m_recordEventHandler: RecordStreamHandler
   
-  private var delegate: AudioRecordingDelegate?
+  private var m_delegate: AudioRecordingDelegate?
   
-  private var manageAudioSession = true
+  private var m_manageAudioSession = true
   
   init(stateEventHandler: StateStreamHandler, recordEventHandler: RecordStreamHandler) {
     m_stateEventHandler = stateEventHandler
@@ -20,7 +21,7 @@ class Recorder {
   func dispose() {
     stop(completionHandler: {(path) -> () in })
     
-    manageAudioSession = true
+    m_manageAudioSession = true
   }
   
   func start(config: RecordConfig, path: String) throws {
@@ -34,7 +35,7 @@ class Recorder {
     }
     
     let delegate = RecorderFileDelegate(
-      manageAudioSession: manageAudioSession,
+      manageAudioSession: m_manageAudioSession,
       onRecord: {() -> () in self.updateState(RecordState.record)},
       onPause: {() -> () in self.updateState(RecordState.pause)},
       onStop: {() -> () in self.updateState(RecordState.stop)}
@@ -42,7 +43,7 @@ class Recorder {
     
     try delegate.start(config: config, path: path)
     
-    self.delegate = delegate
+    self.m_delegate = delegate
   }
   
   func startStream(config: RecordConfig) throws {
@@ -56,7 +57,7 @@ class Recorder {
     }
     
     let delegate = RecorderStreamDelegate(
-      manageAudioSession: manageAudioSession,
+      manageAudioSession: m_manageAudioSession,
       onRecord: {() -> () in self.updateState(RecordState.record)},
       onPause: {() -> () in self.updateState(RecordState.pause)},
       onStop: {() -> () in self.updateState(RecordState.stop)}
@@ -64,14 +65,15 @@ class Recorder {
     
     try delegate.start(config: config, recordEventHandler: m_recordEventHandler)
     
-    self.delegate = delegate
+    self.m_delegate = delegate
   }
 
   func stop(completionHandler: @escaping (_ path: String?) -> ()) {
     if isRecording() {
-      delegate?.stop(completionHandler: {(path) -> () in
+      m_delegate?.stop(completionHandler: {(path) -> () in
         completionHandler(path)
       })
+      m_maxAmplitude = minAmplitudeDB
     } else {
       completionHandler(nil)
       updateState(RecordState.stop)
@@ -80,13 +82,13 @@ class Recorder {
   
   func pause() {
     if m_state == .record {
-      delegate?.pause()
+      m_delegate?.pause()
     }
   }
   
   func resume()  throws {
     if isPaused() {
-      try delegate?.resume()
+      try m_delegate?.resume()
     }
   }
   
@@ -103,16 +105,16 @@ class Recorder {
   }
   
   func getAmplitude() -> [String : Float] {
-    var amp = ["current" : -160.0, "max" : -160.0] as [String : Float]
+    var amp = ["current" : minAmplitudeDB, "max" : minAmplitudeDB] as [String : Float]
     
-    let current = delegate?.getAmplitude()
+    let current = m_delegate?.getAmplitude()
     if let current = current {
       if (current > m_maxAmplitude) {
         m_maxAmplitude = current
       }
       
-      amp["current"] = min(0.0, max(current, -160.0))
-      amp["max"] = min(0.0, max(m_maxAmplitude, -160.0))
+      amp["current"] = min(0.0, max(current, minAmplitudeDB))
+      amp["max"] = min(0.0, max(m_maxAmplitude, minAmplitudeDB))
     }
     
     return amp
@@ -120,12 +122,12 @@ class Recorder {
   
   func cancel() throws {
     if isRecording() {
-      try delegate?.cancel()
+      try m_delegate?.cancel()
     }
   }
   
   func manageAudioSession(_ manage: Bool) {
-    manageAudioSession = manage
+    m_manageAudioSession = manage
   }
   
   func setAudioSessionActive(_ active: Bool) throws {
