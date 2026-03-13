@@ -2,11 +2,11 @@ import AVFoundation
 import Foundation
 
 class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVCaptureFileOutputRecordingDelegate {
-  private var audioSession: AVCaptureSession?
-  private var audioOutput: AVCaptureAudioFileOutput?
-  private var path: String?
-  private var amplitude:Float = -160.0
-  private var stopCb: ((String?) -> ())?
+  private var m_audioSession: AVCaptureSession?
+  private var m_audioOutput: AVCaptureAudioFileOutput?
+  private var m_path: String?
+  private var m_amplitude:Float = -160.0
+  private var m_stopCb: ((String?) -> ())?
   
   init(onPause: @escaping () -> (), onStop: @escaping () -> ()) {}
   
@@ -57,32 +57,32 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVCaptureFileO
       recordingDelegate: self
     )
     
-    self.audioOutput = audioOutput
-    self.audioSession = audioSession
-    self.path = path
+    m_audioOutput = audioOutput
+    m_audioSession = audioSession
+    m_path = path
   }
   
   func stop(completionHandler: @escaping (String?) -> ()) {
-    audioOutput?.stopRecording()
-    audioOutput = nil
-    audioSession?.stopRunning()
-    audioSession = nil
+    m_audioOutput?.stopRecording()
+    m_audioOutput = nil
+    m_audioSession?.stopRunning()
+    m_audioSession = nil
     
-    stopCb = completionHandler
+    m_stopCb = completionHandler
   }
   
   func pause() {
-    audioOutput?.pauseRecording()
+    m_audioOutput?.pauseRecording()
   }
 
   func resume() {
-    audioOutput?.resumeRecording()
+    m_audioOutput?.resumeRecording()
   }
   
   func cancel() throws {
     stop { _ in
       do {
-        guard let path = self.path else { return }
+        guard let path = self.m_path else { return }
         try self.deleteFile(path: path)
       } catch {
         print(error)
@@ -92,7 +92,7 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVCaptureFileO
   
   func getAmplitude() -> Float {
     var current: Float?
-    if let audioOutput = audioOutput {
+    if let audioOutput = m_audioOutput {
       current = audioOutput.connections.first?.audioChannels.first?.averagePowerLevel
     }
     
@@ -113,8 +113,8 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVCaptureFileO
       print(error)
     }
 
-    stopCb?(path)
-    stopCb = nil
+    m_stopCb?(m_path)
+    m_stopCb = nil
   }
   
   private func deleteFile(path: String) throws {

@@ -8,7 +8,7 @@ class Recorder {
   private var m_stateEventHandler: StateStreamHandler
   private var m_recordEventHandler: RecordStreamHandler
   
-  private var delegate: AudioRecordingDelegate?
+  private var m_delegate: AudioRecordingDelegate?
   
   init(stateEventHandler: StateStreamHandler, recordEventHandler: RecordStreamHandler) {
     m_stateEventHandler = stateEventHandler
@@ -36,7 +36,7 @@ class Recorder {
     
     try delegate.start(config: config, path: path)
     
-    self.delegate = delegate
+    self.m_delegate = delegate
     
     updateState(RecordState.record)
   }
@@ -58,14 +58,14 @@ class Recorder {
     
     try delegate.start(config: config, recordEventHandler: m_recordEventHandler)
     
-    self.delegate = delegate
+    self.m_delegate = delegate
     
     updateState(RecordState.record)
   }
 
   func stop(completionHandler: @escaping (_ path: String?) -> ()) {
     if isRecording() {
-      delegate?.stop(completionHandler: {(path) -> () in
+      m_delegate?.stop(completionHandler: {(path) -> () in
         completionHandler(path)
         self.updateState(RecordState.stop)
       })
@@ -77,14 +77,14 @@ class Recorder {
   
   func pause() {
     if m_state == .record {
-      delegate?.pause()
+      m_delegate?.pause()
       updateState(RecordState.pause)
     }
   }
   
   func resume()  throws {
     if isPaused() {
-      try delegate?.resume()
+      try m_delegate?.resume()
       updateState(RecordState.record)
     }
   }
@@ -104,7 +104,7 @@ class Recorder {
   func getAmplitude() -> [String : Float] {
     var amp = ["current" : -160.0, "max" : -160.0] as [String : Float]
     
-    let current = delegate?.getAmplitude()
+    let current = m_delegate?.getAmplitude()
     if let current = current {
       if (current > m_maxAmplitude) {
         m_maxAmplitude = current
@@ -119,7 +119,7 @@ class Recorder {
   
   func cancel() throws {
     if isRecording() {
-      try delegate?.cancel()
+      try m_delegate?.cancel()
     }
   }
 

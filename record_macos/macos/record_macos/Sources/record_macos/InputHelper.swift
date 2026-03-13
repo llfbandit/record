@@ -7,13 +7,19 @@ func listInputs() throws -> [Device] {
   listInputDevices().forEach { input in
     devices.append(Device(id: input.uniqueID, label: input.localizedName))
   }
-  
+
   return devices
 }
 
 func listInputDevices() -> [AVCaptureDevice] {
+  var deviceTypes: [AVCaptureDevice.DeviceType] = [.builtInMicrophone, .externalUnknown]
+  
+  if #available(macOS 14.0, *) {
+    deviceTypes.append(.microphone)
+  }
+
   let discoverySession = AVCaptureDevice.DiscoverySession(
-    deviceTypes: [.builtInMicrophone, .externalUnknown],
+    deviceTypes: deviceTypes,
     mediaType: .audio, position: .unspecified
   )
   

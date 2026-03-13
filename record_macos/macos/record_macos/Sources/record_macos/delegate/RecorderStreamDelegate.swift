@@ -5,18 +5,18 @@ import FlutterMacOS
 class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   var config: RecordConfig?
 
-  private var audioEngine: AVAudioEngine?
-  private var amplitude: Float = -160.0
-  private let bus = 0
-  private var onPause: () -> ()
-  private var onStop: () -> ()
+  private var m_audioEngine: AVAudioEngine?
+  private var m_amplitude: Float = -160.0
+  private let m_bus = 0
+  private var m_onPause: () -> ()
+  private var m_onStop: () -> ()
 
   private var audioEncoder: AudioEnc?
   private var outputFormat: AVAudioFormat?
   
   init(onPause: @escaping () -> (), onStop: @escaping () -> ()) {
-    self.onPause = onPause
-    self.onStop = onStop
+    m_onPause = onPause
+    m_onStop = onStop
   }
 
   func start(config: RecordConfig, recordEventHandler: RecordStreamHandler) throws {
@@ -64,7 +64,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     converter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
     
     audioEngine.inputNode.installTap(
-      onBus: bus,
+      onBus: m_bus,
       bufferSize: AVAudioFrameCount(config.streamBufferSize ?? 1024),
       format: srcFormat) { (buffer, _) -> Void in
 
@@ -79,20 +79,20 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     audioEngine.prepare()
     try audioEngine.start()
     
-    self.audioEngine = audioEngine
+    self.m_audioEngine = audioEngine
     self.config = config
   }
   
   func stop(completionHandler: @escaping (String?) -> ()) {
-    if let audioEngine = audioEngine {
+    if let audioEngine = m_audioEngine {
       do {
         try setVoiceProcessing(echoCancel: false, autoGain: false, audioEngine: audioEngine)
       } catch {}
     }
     
-    audioEngine?.inputNode.removeTap(onBus: bus)
-    audioEngine?.stop()
-    audioEngine = nil
+    m_audioEngine?.inputNode.removeTap(onBus: m_bus)
+    m_audioEngine?.stop()
+    m_audioEngine = nil
     
     if let encoder = audioEncoder {
       encoder.dispose()
@@ -101,18 +101,18 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     outputFormat = nil
     
     completionHandler(nil)
-    onStop()
+    m_onStop()
 
     config = nil
   }
   
   func pause() {
-    audioEngine?.pause()
-    onPause()
+    m_audioEngine?.pause()
+    m_onPause()
   }
   
   func resume() throws {
-    try audioEngine?.start()
+    try m_audioEngine?.start()
   }
   
   func cancel() throws {
@@ -120,7 +120,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   }
   
   func getAmplitude() -> Float {
-    return amplitude
+    return m_amplitude
   }
 
   func dispose() {
@@ -156,7 +156,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       }
     }
     
-    amplitude = 20 * (log(maxSample / 32767.0) / log(10))
+    m_amplitude = 20 * (log(maxSample / 32767.0) / log(10))
   }
 
   private func stream(
