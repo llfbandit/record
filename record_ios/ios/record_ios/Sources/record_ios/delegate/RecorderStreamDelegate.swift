@@ -23,6 +23,11 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   private var m_routeChangeObserver: NSObjectProtocol?
   private var m_shouldBeRunning: Bool = false
   private let m_recoveryQueue = DispatchQueue(label: "com.llfbandit.record.recovery")
+  // Cached UID of the currently-routed input. Used to distinguish genuine
+  // input-route changes from output-only .override events (e.g. user toggles
+  // speakerphone in Control Center), so we don't rebuild the tap for an
+  // override that didn't actually change the input.
+  private var m_currentInputUID: String?
 
   init(manageAudioSession: Bool, onRecord: @escaping () -> (), onPause: @escaping () -> (), onStop: @escaping () -> ()) {
     m_manageAudioSession = manageAudioSession
@@ -60,6 +65,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     audioEngine.prepare()
     try audioEngine.start()
     m_shouldBeRunning = true
+    m_currentInputUID = AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid
 
     // Observe AVAudioEngine configuration changes. Fires when the engine's
     // I/O format changes, e.g. after a route change that alters sample rate
@@ -129,9 +135,19 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       return
     }
     switch reason {
-    case .newDeviceAvailable, .oldDeviceUnavailable, .routeConfigurationChange, .override:
+    case .newDeviceAvailable, .oldDeviceUnavailable, .routeConfigurationChange:
       print("[record_ios] Route change recovery triggered (reason=\(reason.rawValue))")
       scheduleRouteRecovery()
+    case .override:
+      // .override covers both input overrides (setPreferredInput) and output
+      // overrides (overrideOutputAudioPort). Only recover when the input
+      // route actually changed, otherwise output-only toggles cause needless
+      // audio glitches.
+      let newInputUID = AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid
+      if newInputUID != m_currentInputUID {
+        print("[record_ios] Route change recovery triggered (reason=override, input \(m_currentInputUID ?? "nil") -> \(newInputUID ?? "nil"))")
+        scheduleRouteRecovery()
+      }
     default:
       break
     }
@@ -158,6 +174,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       if !audioEngine.isRunning {
         try audioEngine.start()
       }
+      m_currentInputUID = AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid
     } catch {
       print("[record_ios] Failed to recover from route change: \(error)")
     }
@@ -185,6 +202,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     m_audioEngine?.stop()
     m_audioEngine = nil
     m_recordEventHandler = nil
+    m_currentInputUID = nil
 
     if let encoder = m_audioEncoder {
       encoder.dispose()
