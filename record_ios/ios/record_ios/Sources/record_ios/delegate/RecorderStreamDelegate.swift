@@ -129,7 +129,8 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       return
     }
     switch reason {
-    case .newDeviceAvailable, .oldDeviceUnavailable, .routeConfigurationChange:
+    case .newDeviceAvailable, .oldDeviceUnavailable, .routeConfigurationChange, .override:
+      print("[record_ios] Route change recovery triggered (reason=\(reason.rawValue))")
       scheduleRouteRecovery()
     default:
       break
