@@ -16,10 +16,13 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   private var m_audioEncoder: AudioEnc?
   private var m_outputFormat: AVAudioFormat?
 
-  // Retained so that the tap can be reinstalled after an AVAudioEngine
-  // configuration change (route change from plug/unplug of an external mic).
+  // Retained so that the tap can be reinstalled after an audio route
+  // change (user plugs or unplugs an external mic mid-session).
   private var m_recordEventHandler: RecordStreamHandler?
   private var m_configurationChangeObserver: NSObjectProtocol?
+  private var m_routeChangeObserver: NSObjectProtocol?
+  private var m_shouldBeRunning: Bool = false
+  private let m_recoveryQueue = DispatchQueue(label: "com.llfbandit.record.recovery")
 
   init(manageAudioSession: Bool, onRecord: @escaping () -> (), onPause: @escaping () -> (), onStop: @escaping () -> ()) {
     m_manageAudioSession = manageAudioSession
@@ -56,16 +59,26 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
 
     audioEngine.prepare()
     try audioEngine.start()
+    m_shouldBeRunning = true
 
-    // Observe engine configuration changes (fired when the audio I/O route
-    // changes mid-session, e.g. user plugs in or unplugs a USB/Lightning mic).
-    // Without this, the engine gets stopped by the system and our tap goes
-    // silent until the recorder is fully restarted by the host app.
+    // Observe AVAudioEngine configuration changes. Fires when the engine's
+    // I/O format changes, e.g. after a route change that alters sample rate
+    // or channel count.
     m_configurationChangeObserver = NotificationCenter.default.addObserver(
       forName: .AVAudioEngineConfigurationChange,
       object: audioEngine,
       queue: nil) { [weak self] _ in
-        self?.handleConfigurationChange()
+        self?.scheduleRouteRecovery()
+      }
+
+    // Also observe AVAudioSession route changes. Covers plug/unplug events
+    // where the format happens to match and the engine configuration change
+    // notification does not fire.
+    m_routeChangeObserver = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.routeChangeNotification,
+      object: nil,
+      queue: nil) { [weak self] notification in
+        self?.handleRouteChangeNotification(notification)
       }
 
     m_onRecord()
@@ -109,12 +122,33 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       }
   }
 
-  private func handleConfigurationChange() {
-    // Per Apple: when the engine's I/O unit observes a change to the input or
-    // output hardware's channel count or sample rate, the engine stops itself
-    // and uninitializes. The tap installed against the old inputNode is gone.
-    // We must re-tap the (recreated) inputNode with its new input format and
-    // a fresh converter, then start the engine again.
+  private func handleRouteChangeNotification(_ notification: Notification) {
+    guard let userInfo = notification.userInfo,
+          let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+          let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+      return
+    }
+    switch reason {
+    case .newDeviceAvailable, .oldDeviceUnavailable, .routeConfigurationChange:
+      scheduleRouteRecovery()
+    default:
+      break
+    }
+  }
+
+  private func scheduleRouteRecovery() {
+    // Notifications may arrive on arbitrary threads. Serialize recovery onto
+    // a dedicated queue so overlapping notifications coalesce naturally and
+    // we never mutate the engine from AVFoundation's posting thread.
+    m_recoveryQueue.async { [weak self] in
+      self?.performRouteRecovery()
+    }
+  }
+
+  private func performRouteRecovery() {
+    // Respect user intent: if the recorder has been paused or stopped, do
+    // not auto-resume just because a route changed.
+    guard m_shouldBeRunning else { return }
     guard let audioEngine = m_audioEngine, let config = config else { return }
 
     do {
@@ -124,14 +158,20 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
         try audioEngine.start()
       }
     } catch {
-      print("[record_ios] Failed to handle configuration change: \(error)")
+      print("[record_ios] Failed to recover from route change: \(error)")
     }
   }
 
   func stop(completionHandler: @escaping (String?) -> ()) {
+    m_shouldBeRunning = false
+
     if let observer = m_configurationChangeObserver {
       NotificationCenter.default.removeObserver(observer)
       m_configurationChangeObserver = nil
+    }
+    if let observer = m_routeChangeObserver {
+      NotificationCenter.default.removeObserver(observer)
+      m_routeChangeObserver = nil
     }
 
     if let audioEngine = m_audioEngine {
@@ -158,12 +198,14 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   }
   
   func pause() {
+    m_shouldBeRunning = false
     m_audioEngine?.pause()
     m_onPause()
   }
 
   func resume() throws {
     try m_audioEngine?.start()
+    m_shouldBeRunning = true
     m_onRecord()
   }
   
