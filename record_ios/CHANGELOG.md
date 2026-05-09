@@ -1,5 +1,10 @@
 ## 1.2.1
 * fix: Fuzzy events firing for recording states.
+* fix: AVAudioPCMBuffer frame capacity calculation.
+* fix: Stay away from Flutter UI thread.
+* fix: SPM description.
+* chore: Code cleanup.
+* chore: Update example project.
 
 ## 1.2.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
