@@ -2,6 +2,7 @@
 * fix: Stop requesting for amplitude updates when recording is paused or stopped from native side.
 * chore: Code cleanup.
 * chore: Remove uuid package dependency.
+* chore: Updated transitive dependencies. See there for all related changes to dedicated platforms.
 
 ## 6.2.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.

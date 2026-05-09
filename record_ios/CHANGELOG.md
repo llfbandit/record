@@ -1,4 +1,5 @@
 ## 1.2.1
+* feat: Add `allowHapticsAndSystemSoundsDuringRecording` iOS option.
 * fix: Fuzzy events firing for recording states.
 * fix: AVAudioPCMBuffer frame capacity calculation.
 * fix: Stay away from Flutter UI thread.

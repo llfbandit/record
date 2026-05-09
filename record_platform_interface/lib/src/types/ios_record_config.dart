@@ -12,6 +12,17 @@ class IosRecordConfig {
   /// If `false`, there will be no check of the [RecordConfig] given.
   final bool manageAudioSession;
 
+  /// Whether haptics and system sounds (including incoming call ring tones) are
+  /// allowed to play while recording (defaults to `false`).
+  ///
+  /// When `true`, the recording session is not interrupted by an incoming call
+  /// ringing. The interruption only begins once the user actually answers the
+  /// call. This maps to
+  /// `AVAudioSession.setAllowHapticsAndSystemSoundsDuringRecording(_:)`.
+  ///
+  /// https://developer.apple.com/documentation/avfaudio/avaudiosession/setallowhapticsandsystemsoundsduringrecording(_:)
+  final bool allowHapticsAndSystemSoundsDuringRecording;
+
   const IosRecordConfig({
     this.categoryOptions = const [
       IosAudioCategoryOption.defaultToSpeaker,
@@ -20,11 +31,14 @@ class IosRecordConfig {
     ],
     @Deprecated('Use AudioRecorder.ios.manageAudioSession instead.')
     this.manageAudioSession = true,
+    this.allowHapticsAndSystemSoundsDuringRecording = false,
   });
   Map<String, dynamic> toMap() {
     return {
       "categoryOptions": categoryOptions.map((e) => e.name).join(','),
       "manageAudioSession": manageAudioSession,
+      "allowHapticsAndSystemSoundsDuringRecording":
+          allowHapticsAndSystemSoundsDuringRecording,
     };
   }
 }

@@ -1,3 +1,6 @@
+## 1.6.0
+* feat: Add `allowHapticsAndSystemSoundsDuringRecording` iOS option.
+
 ## 1.5.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
 

@@ -33,6 +33,14 @@ extension AudioRecordingDelegate {
         throw RecorderError.error(message: "Failed to start recording", details: "setActive: \(error.localizedDescription)")
       }
     }
+
+    if #available(iOS 13.0, *) {
+      do {
+        try audioSession.setAllowHapticsAndSystemSoundsDuringRecording(config.iosConfig.allowHapticsAndSystemSoundsDuringRecording)
+      } catch {
+        throw RecorderError.error(message: "Failed to start recording", details: "setAllowHapticsAndSystemSoundsDuringRecording: \(error.localizedDescription)")
+      }
+    }
     
     do {
       let newPreferredInputNumberOfChannels = min(config.numChannels, audioSession.maximumInputNumberOfChannels)

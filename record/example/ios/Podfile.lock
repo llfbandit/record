@@ -3,7 +3,7 @@ PODS:
     - Flutter
     - FlutterMacOS
   - Flutter (1.0.0)
-  - record_ios (1.2.0):
+  - record_ios (1.2.1):
     - Flutter
 
 DEPENDENCIES:
@@ -22,7 +22,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   audioplayers_darwin: 835ced6edd4c9fc8ebb0a7cc9e294a91d99917d5
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  record_ios: 412daca2350b228e698fffcd08f1f94ceb1e3844
+  record_ios: 980fd386a97a35987d0fce3dfda4b26a38c90f4c
 
 PODFILE CHECKSUM: cc1f88378b4bfcf93a6ce00d2c587857c6008d3b
 
