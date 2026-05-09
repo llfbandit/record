@@ -1,3 +1,7 @@
+## Next
+* chore: Code cleanup.
+* chore: Remove uuid package dependency.
+
 ## 6.2.0
 * feat: Add `request` parameter to `hasPermission()` method to check permission status without requesting.
 * feat: Improve `convertBytesToInt16` to allow pre-filled bytes array.
