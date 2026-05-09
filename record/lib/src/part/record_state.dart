@@ -1,5 +1,7 @@
 part of '../record.dart';
 
+typedef OnStateChanged = void Function(RecordState);
+
 /// Methods for state management.
 mixin _StateMixin {
   StreamController<RecordState>? _stateStreamCtrl;
@@ -11,7 +13,10 @@ mixin _StateMixin {
   ///
   /// Also, you can retrieve async errors from it by adding [Function? onError] callback to the subscription.
   Stream<RecordState> _onStateChanged(
-      RecordPlatform platform, String recorderId) {
+    RecordPlatform platform,
+    String recorderId,
+    OnStateChanged onStateChanged,
+  ) {
     if (_stateStreamCtrl case final ctrl?) {
       return ctrl.stream;
     }
@@ -23,6 +28,8 @@ mixin _StateMixin {
         if (_stateStreamCtrl case final ctrl? when ctrl.hasListener) {
           ctrl.add(state);
         }
+
+        onStateChanged(state);
       },
       onError: (error) {
         if (_stateStreamCtrl case final ctrl? when ctrl.hasListener) {

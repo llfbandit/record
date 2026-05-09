@@ -1,4 +1,5 @@
 ## Next
+* fix: Stop requesting for amplitude updates when recording is paused or stopped from native side.
 * chore: Code cleanup.
 * chore: Remove uuid package dependency.
 

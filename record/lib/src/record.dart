@@ -19,6 +19,8 @@ final _semaphore = Semaphore();
 class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   final String _recorderId;
 
+  Stream<RecordState>? _recordStateStream;
+
   RecordPlatform get _platform => RecordPlatform.instance;
 
   /// Creates a new audio recorder.
@@ -36,10 +38,11 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   /// Output path can be retrieves when [stop] method is called.
   Future<void> start(RecordConfig config, {required String path}) async {
     await _safeCall(
-      () => _platform.start(_recorderId, config, path: path),
+      () {
+        _initStateStream();
+        return _platform.start(_recorderId, config, path: path);
+      },
     );
-
-    _startAmplitudeMonitoring(isRecording, getAmplitude);
   }
 
   /// Starts stream recording and returns the stream.
@@ -50,12 +53,11 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
     final stream = await _safeCall(
       () async {
         await _stopRecordStream();
+        _initStateStream();
 
         return _platform.startStream(_recorderId, config);
       },
     );
-
-    _startAmplitudeMonitoring(isRecording, getAmplitude);
 
     return _startRecordStream(stream);
   }
@@ -65,8 +67,6 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   /// Returns the output path if any.
   Future<String?> stop() {
     return _safeCall(() async {
-      _stopAmplitudeMonitoring();
-
       final path = await _platform.stop(_recorderId);
 
       await _stopRecordStream();
@@ -78,8 +78,6 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   /// Stops and discards/deletes the file/blob.
   Future<void> cancel() {
     return _safeCall(() async {
-      _stopAmplitudeMonitoring();
-
       await _platform.cancel(_recorderId);
 
       return _stopRecordStream();
@@ -89,8 +87,6 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   /// Pauses recording session.
   Future<void> pause() {
     return _safeCall(() {
-      _stopAmplitudeMonitoring();
-
       return _platform.pause(_recorderId);
     });
   }
@@ -98,8 +94,6 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   /// Resumes recording session after [pause].
   Future<void> resume() {
     return _safeCall(() {
-      _startAmplitudeMonitoring(isRecording, getAmplitude);
-
       return _platform.resume(_recorderId);
     });
   }
@@ -109,9 +103,8 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   /// Provides pause, resume and stop states.
   ///
   /// Also, you can retrieve async errors from it by adding [Function? onError] callback to the subscription.
-  Stream<RecordState> onStateChanged() {
-    return _onStateChanged(_platform, _recorderId);
-  }
+  Stream<RecordState> onStateChanged() =>
+      _recordStateStream ?? _initStateStream();
 
   /// Requests for amplitude at given [interval].
   Stream<Amplitude> onAmplitudeChanged(Duration interval) {
@@ -172,6 +165,26 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   ///
   /// Returns [null] when not on iOS platform.
   RecordIos? get ios => _platform.getIos(_recorderId);
+
+  Stream<RecordState> _initStateStream() {
+    _recordStateStream ??= _onStateChanged(
+      _platform,
+      _recorderId,
+      _handleAmplitudeRequesting,
+    );
+
+    return _recordStateStream!;
+  }
+
+  void _handleAmplitudeRequesting(RecordState state) {
+    switch (state) {
+      case RecordState.pause:
+      case RecordState.stop:
+        _stopAmplitudeMonitoring();
+      case RecordState.record:
+        _startAmplitudeMonitoring(isRecording, getAmplitude);
+    }
+  }
 
   /// Safe call to [fn] with semaphore permit.
   Future<T> _safeCall<T>(Future<T> Function() fn) async {
