@@ -15,21 +15,32 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
 
   private var m_audioEncoder: AudioEnc?
   private var m_outputFormat: AVAudioFormat?
-  
+
+  // Retained so that the tap can be reinstalled after an audio route
+  // change (user plugs or unplugs an external mic mid-session).
+  private var m_recordEventHandler: RecordStreamHandler?
+  private var m_configurationChangeObserver: NSObjectProtocol?
+  private var m_routeChangeObserver: NSObjectProtocol?
+  private var m_shouldBeRunning: Bool = false
+  private let m_recoveryQueue = DispatchQueue(label: "com.llfbandit.record.recovery")
+  // Cached UID of the currently-routed input. Used to distinguish genuine
+  // input-route changes from output-only .override events (e.g. user toggles
+  // speakerphone in Control Center), so we don't rebuild the tap for an
+  // override that didn't actually change the input.
+  private var m_currentInputUID: String?
+
   init(manageAudioSession: Bool, onRecord: @escaping () -> (), onPause: @escaping () -> (), onStop: @escaping () -> ()) {
     m_manageAudioSession = manageAudioSession
     m_onRecord = onRecord
     m_onPause = onPause
     m_onStop = onStop
   }
-  
+
   func start(config: RecordConfig, recordEventHandler: RecordStreamHandler) throws {
     let audioEngine = AVAudioEngine()
 
     try initAVAudioSession(config: config, manageAudioSession: m_manageAudioSession)
     try setVoiceProcessing(echoCancel: config.echoCancel, autoGain: config.autoGain, audioEngine: audioEngine)
-
-    let srcFormat = audioEngine.inputNode.inputFormat(forBus: 0)
 
     m_outputFormat = AVAudioFormat(
       commonFormat: .pcmFormatInt16,
@@ -38,12 +49,60 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
       interleaved: true
     )
 
-    guard let dstFormat = m_outputFormat else {
+    guard m_outputFormat != nil else {
       throw RecorderError.error(
         message: "Failed to start recording",
         details: "Format is not supported: \(config.sampleRate)Hz - \(config.numChannels) channels."
       )
     }
+
+    self.m_audioEngine = audioEngine
+    self.config = config
+    self.m_recordEventHandler = recordEventHandler
+
+    try installInputTap(bufferSize: AVAudioFrameCount(config.streamBufferSize ?? 1024))
+
+    audioEngine.prepare()
+    try audioEngine.start()
+    m_shouldBeRunning = true
+    m_currentInputUID = AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid
+
+    // Observe AVAudioEngine configuration changes. Fires when the engine's
+    // I/O format changes, e.g. after a route change that alters sample rate
+    // or channel count.
+    m_configurationChangeObserver = NotificationCenter.default.addObserver(
+      forName: .AVAudioEngineConfigurationChange,
+      object: audioEngine,
+      queue: nil) { [weak self] _ in
+        self?.scheduleRouteRecovery()
+      }
+
+    // Also observe AVAudioSession route changes. Covers plug/unplug events
+    // where the format happens to match and the engine configuration change
+    // notification does not fire.
+    m_routeChangeObserver = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.routeChangeNotification,
+      object: nil,
+      queue: nil) { [weak self] notification in
+        self?.handleRouteChangeNotification(notification)
+      }
+
+    m_onRecord()
+  }
+
+  // Reinstall the tap on the input node using the current input format and a
+  // fresh AVAudioConverter. Safe to call both on initial start and from the
+  // configuration change handler; the caller must ensure any existing tap has
+  // been removed first when appropriate.
+  private func installInputTap(bufferSize: AVAudioFrameCount) throws {
+    guard let audioEngine = m_audioEngine, let dstFormat = m_outputFormat else {
+      return
+    }
+
+    // Re-read the current input format. After a route change the inputNode
+    // is lazily recreated against the new hardware, so this reflects the
+    // connected device's native sample rate and channel count.
+    let srcFormat = audioEngine.inputNode.inputFormat(forBus: 0)
 
     guard let converter = AVAudioConverter(from: srcFormat, to: dstFormat) else {
       throw RecorderError.error(
@@ -53,30 +112,86 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     }
     converter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
 
-
     audioEngine.inputNode.installTap(
       onBus: m_bus,
-      bufferSize: AVAudioFrameCount(config.streamBufferSize ?? 1024),
-      format: srcFormat) { (buffer, _) -> Void in
-
+      bufferSize: bufferSize,
+      format: srcFormat) { [weak self] (buffer, _) -> Void in
+        guard let self = self, let handler = self.m_recordEventHandler else {
+          return
+        }
         self.stream(
           buffer: buffer,
           dstFormat: dstFormat,
           converter: converter,
-          recordEventHandler: recordEventHandler
+          recordEventHandler: handler
         )
       }
-
-    audioEngine.prepare()
-    try audioEngine.start()
-
-    self.m_audioEngine = audioEngine
-    self.config = config
-
-    m_onRecord()
   }
-  
+
+  private func handleRouteChangeNotification(_ notification: Notification) {
+    guard let userInfo = notification.userInfo,
+          let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+          let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+      return
+    }
+    switch reason {
+    case .newDeviceAvailable, .oldDeviceUnavailable, .routeConfigurationChange:
+      print("[record_ios] Route change recovery triggered (reason=\(reason.rawValue))")
+      scheduleRouteRecovery()
+    case .override:
+      // .override covers both input overrides (setPreferredInput) and output
+      // overrides (overrideOutputAudioPort). Only recover when the input
+      // route actually changed, otherwise output-only toggles cause needless
+      // audio glitches.
+      let newInputUID = AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid
+      if newInputUID != m_currentInputUID {
+        print("[record_ios] Route change recovery triggered (reason=override, input \(m_currentInputUID ?? "nil") -> \(newInputUID ?? "nil"))")
+        scheduleRouteRecovery()
+      }
+    default:
+      break
+    }
+  }
+
+  private func scheduleRouteRecovery() {
+    // Notifications may arrive on arbitrary threads. Serialize recovery onto
+    // a dedicated queue so overlapping notifications coalesce naturally and
+    // we never mutate the engine from AVFoundation's posting thread.
+    m_recoveryQueue.async { [weak self] in
+      self?.performRouteRecovery()
+    }
+  }
+
+  private func performRouteRecovery() {
+    // Respect user intent: if the recorder has been paused or stopped, do
+    // not auto-resume just because a route changed.
+    guard m_shouldBeRunning else { return }
+    guard let audioEngine = m_audioEngine, let config = config else { return }
+
+    do {
+      audioEngine.inputNode.removeTap(onBus: m_bus)
+      try installInputTap(bufferSize: AVAudioFrameCount(config.streamBufferSize ?? 1024))
+      if !audioEngine.isRunning {
+        try audioEngine.start()
+      }
+      m_currentInputUID = AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid
+    } catch {
+      print("[record_ios] Failed to recover from route change: \(error)")
+    }
+  }
+
   func stop(completionHandler: @escaping (String?) -> ()) {
+    m_shouldBeRunning = false
+
+    if let observer = m_configurationChangeObserver {
+      NotificationCenter.default.removeObserver(observer)
+      m_configurationChangeObserver = nil
+    }
+    if let observer = m_routeChangeObserver {
+      NotificationCenter.default.removeObserver(observer)
+      m_routeChangeObserver = nil
+    }
+
     if let audioEngine = m_audioEngine {
       do {
         try setVoiceProcessing(echoCancel: false, autoGain: false, audioEngine: audioEngine)
@@ -86,6 +201,8 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     m_audioEngine?.inputNode.removeTap(onBus: m_bus)
     m_audioEngine?.stop()
     m_audioEngine = nil
+    m_recordEventHandler = nil
+    m_currentInputUID = nil
 
     if let encoder = m_audioEncoder {
       encoder.dispose()
@@ -100,12 +217,14 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   }
   
   func pause() {
+    m_shouldBeRunning = false
     m_audioEngine?.pause()
     m_onPause()
   }
 
   func resume() throws {
     try m_audioEngine?.start()
+    m_shouldBeRunning = true
     m_onRecord()
   }
   
