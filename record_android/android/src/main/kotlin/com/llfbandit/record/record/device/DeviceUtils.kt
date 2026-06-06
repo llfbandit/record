@@ -7,7 +7,7 @@ import android.os.Build
 
 class DeviceUtils {
   companion object {
-    fun listInputDevicesAsMap(context: Context): List<Map<String, String>> {
+    fun listInputDevicesAsMap(context: Context): List<Map<String, Any>> {
       val devices = listInputDevices(context).map {
         val label = StringBuilder()
         label.apply {
@@ -18,10 +18,17 @@ class DeviceUtils {
           append(")")
         }
 
-        mapOf(
+        val map = mutableMapOf<String, Any>(
           "id" to "${it.id}",
           "label" to label.toString(),
         )
+
+        val rates = it.sampleRates
+        if (rates.isNotEmpty()) {
+          map["sampleRates"] = rates.toList()
+        }
+
+        map
       }
 
       return devices

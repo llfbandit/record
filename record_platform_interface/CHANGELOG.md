@@ -1,3 +1,6 @@
+## 2.1.0
+* feat: Add `sampleRates` field to `InputDevice` — populated on Android; `null` on other platforms.
+
 ## 2.0.0
 * chore: Updates minimum supported SDK version to Flutter 3.44/Dart 3.12.
 

@@ -1,3 +1,6 @@
+## 2.1.0
+* feat: Expose device sample rates via `InputDevice.sampleRates` using `AudioDeviceInfo.getSampleRates()`.
+
 ## 2.0.2
 * fix: Bluetooth SCO connection before audio recording.
 * fix: Prevents potential double pause event.
