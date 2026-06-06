@@ -134,7 +134,8 @@ extension AudioRecordingDelegate {
       throw RecorderError.error(message: "Failed to start recording", details: "Format conversion isn’t possible. Format or configuration is not supported.")
     }
 
-    if let sampleRate = settings[AVSampleRateKey] as? NSNumber,
+    if !keepSampleRate,
+       let sampleRate = settings[AVSampleRateKey] as? NSNumber,
        let sampleRates = converter.availableEncodeSampleRates {
       settings[AVSampleRateKey] = nearestValue(values: sampleRates, value: sampleRate, key: "sample rates").floatValue
     } else if !keepSampleRate {

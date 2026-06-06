@@ -1,3 +1,7 @@
+## 2.0.2
+* fix: Clamp PCM/WAV channel count to hardware input maximum to prevent slow playback when more channels are requested than the device supports.
+* fix: Preserve user-specified sample rate for PCM/WAV encoders regardless of converter availability.
+
 ## 2.0.1
 fix: Wrong error code.
 fix: Don't override AVAudioSession.Category if there's no need for listing devices.

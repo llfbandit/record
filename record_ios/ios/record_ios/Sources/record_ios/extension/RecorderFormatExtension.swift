@@ -18,7 +18,7 @@ extension AudioRecordingDelegate {
     let format = AVAudioFormat(
       commonFormat: AVAudioCommonFormat.pcmFormatInt16,
       sampleRate: (config.sampleRate < 48000) ? Double(config.sampleRate) : 48000.0,
-      channels: UInt32((config.numChannels > 2) ? 2 : config.numChannels),
+      channels: UInt32(effectiveNumChannels(config.numChannels)),
       interleaved: false
     )
 
@@ -100,7 +100,7 @@ extension AudioRecordingDelegate {
         AVLinearPCMIsBigEndianKey: false,
         AVLinearPCMIsNonInterleaved: false,
         AVSampleRateKey: config.sampleRate,
-        AVNumberOfChannelsKey: config.numChannels,
+        AVNumberOfChannelsKey: effectiveNumChannels(config.numChannels),
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
       keepSampleRate = true
@@ -112,7 +112,7 @@ extension AudioRecordingDelegate {
         AVLinearPCMIsBigEndianKey: false,
         AVLinearPCMIsNonInterleaved: false,
         AVSampleRateKey: config.sampleRate,
-        AVNumberOfChannelsKey: config.numChannels,
+        AVNumberOfChannelsKey: effectiveNumChannels(config.numChannels),
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
       ]
       keepSampleRate = true
@@ -137,7 +137,8 @@ extension AudioRecordingDelegate {
       throw RecorderError.error(message: "Failed to start recording", details: "Format conversion isn’t possible. Format or configuration is not supported.")
     }
 
-    if let sampleRate = settings[AVSampleRateKey] as? NSNumber,
+    if !keepSampleRate,
+       let sampleRate = settings[AVSampleRateKey] as? NSNumber,
        let sampleRates = converter.availableEncodeSampleRates {
       settings[AVSampleRateKey] = nearestValue(values: sampleRates, value: sampleRate, key: "sample rates").floatValue
     } else if !keepSampleRate {
@@ -154,6 +155,12 @@ extension AudioRecordingDelegate {
     return settings
   }
   
+  private func effectiveNumChannels(_ numChannels: Int) -> Int {
+    let maxChannels = AVAudioSession.sharedInstance().maximumInputNumberOfChannels
+    guard maxChannels > 0 else { return min(numChannels, 2) }
+    return min(numChannels, maxChannels)
+  }
+
   private func nearestValue(values: [NSNumber], value: NSNumber, key: String) -> NSNumber {
     // Sometimes converter does not give any good listing
     if values.count == 0 || (values.count == 1 && values[0] == 0) {
