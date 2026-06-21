@@ -10,6 +10,12 @@ class WaveFormat : Format() {
 
   private var frameSize: Int = 0
 
+  override fun adjustNumChannels(format: MediaFormat, numChannels: Int) {
+    super.adjustNumChannels(format, numChannels)
+    frameSize = numChannels * 16 / 8
+    format.setInteger(KEY_X_FRAME_SIZE_IN_BYTES, frameSize)
+  }
+
   override fun getMediaFormat(config: RecordConfig): MediaFormat {
     val bitsPerSample = 16
     frameSize = config.numChannels * bitsPerSample / 8
