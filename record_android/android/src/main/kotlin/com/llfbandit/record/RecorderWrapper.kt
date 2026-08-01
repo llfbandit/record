@@ -1,6 +1,8 @@
 package com.llfbandit.record
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.llfbandit.record.record.bluetooth.BluetoothManager
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.recorder.AudioRecorder
@@ -16,6 +18,7 @@ class RecorderWrapper(
   private val context: Context,
   recorderId: String,
   messenger: BinaryMessenger,
+  private val dispatch: (() -> Unit) -> Boolean,
 ) {
   companion object {
     const val EVENTS_STATE_CHANNEL = "com.llfbandit.record/events/"
@@ -30,6 +33,8 @@ class RecorderWrapper(
   private val configChangedChannel: MethodChannel
   private var recorder: IRecorder? = null
   private val bluetoothManager = BluetoothManager(context)
+  private val uiThreadHandler = Handler(Looper.getMainLooper())
+  private var channelsAttached = true
 
   init {
     eventChannel = EventChannel(messenger, EVENTS_STATE_CHANNEL + recorderId)
@@ -50,7 +55,7 @@ class RecorderWrapper(
     startRecording(config, result)
   }
 
-  fun dispose() {
+  fun disposeRecorder() {
     try {
       recorder?.dispose()
     } catch (_: Exception) {
@@ -58,7 +63,10 @@ class RecorderWrapper(
       bluetoothManager.stop()
       recorder = null
     }
+  }
 
+  fun detachChannels() {
+    channelsAttached = false
     eventChannel?.setStreamHandler(null)
     eventChannel = null
 
@@ -130,21 +138,41 @@ class RecorderWrapper(
   private fun startRecording(config: RecordConfig, result: MethodChannel.Result) {
     try {
       if (recorder == null) {
-        bluetoothManager.maybeStart(config) {
+        startAfterBluetooth(config, result) {
           recorder = createRecorder(config)
           start(config, result)
         }
       } else if (recorder!!.isRecording) {
-        recorder!!.stop(fun(_) = bluetoothManager.maybeStart(config) {
-          start(config, result)
-        })
+        recorder!!.stop(fun(_) = startAfterBluetooth(config, result) { start(config, result) })
       } else {
-        bluetoothManager.maybeStart(config) {
-          start(config, result)
-        }
+        startAfterBluetooth(config, result) { start(config, result) }
       }
     } catch (e: Exception) {
       result.error("record", e.message, e.cause)
+    }
+  }
+
+  private fun startAfterBluetooth(
+    config: RecordConfig,
+    result: MethodChannel.Result,
+    start: () -> Unit
+  ) {
+    bluetoothManager.maybeStart(config) {
+      val accepted = dispatch {
+        try {
+          start()
+        } catch (e: Exception) {
+          result.error("record", e.message, e.cause)
+        }
+      }
+
+      if (!accepted) {
+        result.error(
+          "record",
+          "Recorder has not yet been created or has already been disposed.",
+          null
+        )
+      }
     }
   }
 
@@ -172,6 +200,11 @@ class RecorderWrapper(
   }
 
   private fun notifyConfigChanged(config: RecordConfig) {
-    configChangedChannel.invokeMethod("onConfigChanged", config.toMap())
+    val configMap = config.toMap()
+    uiThreadHandler.post {
+      if (channelsAttached) {
+        configChangedChannel.invokeMethod("onConfigChanged", configMap)
+      }
+    }
   }
 }
