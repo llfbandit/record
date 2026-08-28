@@ -162,6 +162,15 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
           let recordEventHandler = m_recordEventHandler else { return }
 
     engine.inputNode.removeTap(onBus: m_bus)
+
+    // Before the new format is read, not after: the tap has to be installed
+    // against the input this session actually ends up on. If the route is still
+    // settling and the format read below is the outgoing device's, the move
+    // posts a further configuration change and this runs again — that second
+    // pass finds the wanted input already current, skips the re-pin, and
+    // installs the tap against the settled format.
+    reapplyPreferredInputDevice(config.device)
+
     let format = engine.inputNode.inputFormat(forBus: 0)
 
     do {
