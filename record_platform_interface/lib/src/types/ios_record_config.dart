@@ -16,6 +16,17 @@ class IosRecordConfig {
   /// https://developer.apple.com/documentation/avfaudio/avaudiosession/setallowhapticsandsystemsoundsduringrecording(_:)
   final bool allowHapticsAndSystemSoundsDuringRecording;
 
+  /// Recover from an `AVAudioEngine` configuration change (defaults to `false`).
+  ///
+  /// A route change (or another app reconfiguring the shared session) can stop
+  /// the engine without an interruption ever being posted, silently ending
+  /// capture. When `true`, the tap is reinstalled against the new input format
+  /// and the engine restarted on
+  /// `AVAudioEngine.configurationChangeNotification`.
+  ///
+  /// https://developer.apple.com/documentation/avfaudio/avaudioengine/configurationchangenotification
+  final bool restartOnEngineConfigurationChange;
+
   const IosRecordConfig({
     this.categoryOptions = const [
       IosAudioCategoryOption.defaultToSpeaker,
@@ -23,12 +34,14 @@ class IosRecordConfig {
       IosAudioCategoryOption.allowBluetoothA2DP,
     ],
     this.allowHapticsAndSystemSoundsDuringRecording = false,
+    this.restartOnEngineConfigurationChange = false,
   });
   Map<String, dynamic> toMap() {
     return {
       "categoryOptions": categoryOptions.map((e) => e.name).join(','),
       "allowHapticsAndSystemSoundsDuringRecording":
           allowHapticsAndSystemSoundsDuringRecording,
+      "restartOnEngineConfigurationChange": restartOnEngineConfigurationChange,
     };
   }
 }

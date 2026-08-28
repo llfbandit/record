@@ -19,6 +19,34 @@ extension AudioRecordingDelegate {
 
     return registerInterruptionObserver(queue: queue)
   }
+
+  /// Re-asserts `config.device` after the route has moved underneath a live
+  /// session.
+  ///
+  /// `setPreferredInput` is applied once, from `initAVAudioSession`, and iOS
+  /// drops that preference when it re-routes — so a Bluetooth headset or
+  /// CarPlay unit connecting mid-session captures the microphone for the rest
+  /// of the recording even though a device was explicitly requested. Recording
+  /// apps that must stay on the built-in mic have no way to express that today.
+  ///
+  /// Deliberately a no-op when the wanted input is already current: calling
+  /// `setPreferredInput` forces a route change, which posts another
+  /// configuration change, which would call straight back into here.
+  func reapplyPreferredInputDevice(_ device: Device?) {
+    guard let device else { return }
+
+    let session = AVAudioSession.sharedInstance()
+    if session.currentRoute.inputs.first?.uid == device.id { return }
+
+    guard let inputs = session.availableInputs,
+          let match = inputs.first(where: { $0.uid == device.id }) else { return }
+
+    do {
+      try session.setPreferredInput(match)
+    } catch {
+      print("Unable to reapply the preferred input: \(error.localizedDescription)")
+    }
+  }
 }
 
 // MARK: - Session configuration steps
