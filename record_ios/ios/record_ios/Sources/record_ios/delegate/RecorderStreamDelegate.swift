@@ -32,11 +32,40 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   }
 
   func start(config: RecordConfig, recordEventHandler: RecordStreamHandler) throws {
-    let engine = AVAudioEngine()
+    // Configure the audio session before creating the engine: category /
+    // activation / preferred sample rate changes may trigger an asynchronous
+    // hardware sample rate switch, and an engine created beforehand can end
+    // up observing a stale input format.
     m_interruptionObserver = try initAVAudioSession(config: config, manageAudioSession: m_manageAudioSession, queue: m_queue)
-    try setVoiceProcessing(echoCancel: config.echoCancel, autoGain: config.autoGain, audioEngine: engine)
 
-    let srcFormat = engine.inputNode.inputFormat(forBus: 0)
+    // Wait for the input format to settle before installing the tap.
+    // While a hardware sample rate switch (session reconfiguration, Bluetooth
+    // HFP/A2DP negotiation, headphone route change) is still in progress,
+    // inputFormat(forBus:) can return a stale sample rate. installTap then
+    // hits the AVFAudio assertion
+    //   'required condition is false: format.sampleRate == hwFormat.sampleRate'
+    // which is raised as an NSException — uncatchable from Swift — and aborts
+    // the process (SIGABRT). The engine is re-created on each retry because
+    // the input node caches the format it first observed.
+    var engine = AVAudioEngine()
+    try setVoiceProcessing(echoCancel: config.echoCancel, autoGain: config.autoGain, audioEngine: engine)
+    var srcFormat = engine.inputNode.inputFormat(forBus: m_bus)
+    var tries = 0
+    while !isFormatSettled(srcFormat, config: config), tries < 10 {
+      // Runs on the plugin's background serial queue, not the main thread.
+      usleep(25_000)
+      engine = AVAudioEngine()
+      try setVoiceProcessing(echoCancel: config.echoCancel, autoGain: config.autoGain, audioEngine: engine)
+      srcFormat = engine.inputNode.inputFormat(forBus: m_bus)
+      tries += 1
+    }
+    guard srcFormat.sampleRate > 0, srcFormat.channelCount > 0 else {
+      throw RecorderError.error(
+        message: "Failed to start recording",
+        details: "Input format unavailable (rate=\(srcFormat.sampleRate), ch=\(srcFormat.channelCount))"
+      )
+    }
+
     let processor = try AudioStreamProcessor(config: config, srcFormat: srcFormat)
 
     engine.inputNode.installTap(
@@ -59,6 +88,16 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     m_lock.withLock { m_processor = processor }
     self.config = config
     m_onRecord()
+  }
+
+  // Whether the input format is usable for installTap: non-zero, and (unless
+  // voice processing is enabled) matching the session's hardware sample rate.
+  // With voice processing enabled the input node format may legitimately
+  // differ from the hardware sample rate.
+  private func isFormatSettled(_ format: AVAudioFormat, config: RecordConfig) -> Bool {
+    guard format.sampleRate > 0, format.channelCount > 0 else { return false }
+    guard !config.echoCancel else { return true }
+    return abs(format.sampleRate - AVAudioSession.sharedInstance().sampleRate) < 1.0
   }
 
   @discardableResult
