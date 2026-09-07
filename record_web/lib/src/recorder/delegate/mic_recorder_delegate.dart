@@ -82,15 +82,14 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<Stream<Uint8List>> startStream(RecordConfig config) async {
-    await _recordStreamCtrl?.close();
+    _closeRecordStream();
     _recordStreamCtrl = StreamController<Uint8List>();
 
     try {
       await _start(config, isStream: true);
     } catch (err) {
       debugPrint(err.toString());
-      await _recordStreamCtrl?.close();
-      _recordStreamCtrl = null;
+      _closeRecordStream();
       rethrow;
     }
 
@@ -227,6 +226,15 @@ class MicRecorderDelegate extends RecorderDelegate {
     _maxAmplitude = kMinAmplitude;
     _amplitude = kMinAmplitude;
 
+    _closeRecordStream();
+  }
+
+  /// Never awaits [StreamController.close]: its future is the controller's
+  /// `done` future, which for a single-subscription stream only completes
+  /// once a listener has received the done event. After a failed start the
+  /// stream was never handed out, so nobody listens and the await would
+  /// never return (startStream neither resolved nor threw).
+  void _closeRecordStream() {
     _recordStreamCtrl?.close();
     _recordStreamCtrl = null;
   }
