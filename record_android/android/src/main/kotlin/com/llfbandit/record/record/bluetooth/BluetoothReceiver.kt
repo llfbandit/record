@@ -8,6 +8,7 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
+import android.os.Handler
 import com.llfbandit.record.record.util.DeviceUtils
 
 interface BluetoothScoListener {
@@ -18,6 +19,7 @@ interface BluetoothScoListener {
 
 class BluetoothReceiver(
   private val context: Context,
+  private val handler: Handler,
 ) : BroadcastReceiver() {
   private val filter = IntentFilter()
   private val audioManager: AudioManager =
@@ -33,7 +35,7 @@ class BluetoothReceiver(
   }
 
   fun register(listener: BluetoothScoListener) {
-    context.registerReceiver(this, filter)
+    context.registerReceiver(this, filter, null, handler)
     mRegistered = true
 
     this.listener = listener
@@ -55,7 +57,7 @@ class BluetoothReceiver(
       }
     }
 
-    audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
+    audioManager.registerAudioDeviceCallback(audioDeviceCallback, handler)
 
     // Handle devices that were already connected before the callback was registered.
     devices.addAll(

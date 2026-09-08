@@ -6,12 +6,12 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
-import android.os.Looper
 import com.llfbandit.record.record.model.AudioInterruption
 import com.llfbandit.record.record.model.RecordConfig
 
 class AudioSessionManager(
   context: Context,
+  private val handler: Handler,
   private val onFocusLoss: () -> Unit,
   private val onFocusGain: (AudioInterruption) -> Unit,
 ) {
@@ -111,7 +111,7 @@ class AudioSessionManager(
       focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(audioAttrs)
         .setAcceptsDelayedFocusGain(true)
-        .setOnAudioFocusChangeListener(focusChangeListener!!, Handler(Looper.getMainLooper()))
+        .setOnAudioFocusChangeListener(focusChangeListener!!, handler)
         .build()
 
       audioManager.requestAudioFocus(focusRequest!!)

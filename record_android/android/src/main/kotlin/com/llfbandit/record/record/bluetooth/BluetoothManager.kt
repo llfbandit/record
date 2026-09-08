@@ -2,9 +2,10 @@ package com.llfbandit.record.record.bluetooth
 
 import android.content.Context
 import android.media.AudioDeviceInfo
+import android.os.Handler
 import com.llfbandit.record.record.model.RecordConfig
 
-class BluetoothManager(private val context: Context) {
+class BluetoothManager(private val context: Context, private val handler: Handler) {
   private var receiver: BluetoothReceiver? = null
 
   fun maybeStart(config: RecordConfig, onDone: () -> Unit) {
@@ -20,7 +21,7 @@ class BluetoothManager(private val context: Context) {
     }
 
     if (receiver == null) {
-      receiver = BluetoothReceiver(context)
+      receiver = BluetoothReceiver(context, handler)
       receiver!!.register(object : BluetoothScoListener {
         override fun onBlScoConnected() { onDone() }
         override fun onBlScoNone() { onDone() }

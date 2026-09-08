@@ -1,6 +1,8 @@
 package com.llfbandit.record
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.llfbandit.record.record.bluetooth.BluetoothManager
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.recorder.AudioRecorder
@@ -21,7 +23,12 @@ class RecorderWrapper(
     const val EVENTS_STATE_CHANNEL = "com.llfbandit.record/events/"
     const val EVENTS_RECORD_CHANNEL = "com.llfbandit.record/eventsRecord/"
     const val CONFIG_CHANGED_CHANNEL = "com.llfbandit.record/configChanged/"
+    private val mainHandler = Handler(Looper.getMainLooper())
   }
+
+  // Owns this recorder's control-plane thread; isolated from other recorders.
+  private val dispatcher = RecorderDispatcher()
+  private val handler = dispatcher.handler
 
   private var eventChannel: EventChannel?
   private val recorderStateStreamHandler = RecorderStateStreamHandler()
@@ -29,7 +36,7 @@ class RecorderWrapper(
   private val recorderRecordStreamHandler = RecorderRecordStreamHandler()
   private val configChangedChannel: MethodChannel
   private var recorder: IRecorder? = null
-  private val bluetoothManager = BluetoothManager(context)
+  private val bluetoothManager = BluetoothManager(context, handler)
 
   init {
     eventChannel = EventChannel(messenger, EVENTS_STATE_CHANNEL + recorderId)
@@ -40,25 +47,30 @@ class RecorderWrapper(
   }
 
   fun startRecordingToFile(config: RecordConfig, result: MethodChannel.Result) {
-    startRecording(config, result)
+    dispatcher.post { startRecording(config, result) }
   }
 
   fun startRecordingToStream(config: RecordConfig, result: MethodChannel.Result) {
     if (config.useLegacy) {
       throw Exception("Cannot stream audio while using the legacy recorder")
     }
-    startRecording(config, result)
+    dispatcher.post { startRecording(config, result) }
   }
 
   fun dispose() {
-    try {
-      recorder?.dispose()
-    } catch (_: Exception) {
-    } finally {
-      bluetoothManager.stop()
-      recorder = null
+    dispatcher.post {
+      try {
+        recorder?.dispose()
+      } catch (_: Exception) {
+      } finally {
+        bluetoothManager.stop()
+        recorder = null
+      }
     }
+    // Queued work above still runs before quit() actually stops the thread.
+    dispatcher.quit()
 
+    // Channel (de)registration stays on the platform thread dispose() runs on.
     eventChannel?.setStreamHandler(null)
     eventChannel = null
 
@@ -67,64 +79,74 @@ class RecorderWrapper(
   }
 
   fun pause(result: MethodChannel.Result) {
-    try {
-      recorder?.pause()
-      result.success(null)
-    } catch (e: Exception) {
-      result.error("record", e.message, e.cause)
+    dispatcher.post {
+      try {
+        recorder?.pause()
+        result.success(null)
+      } catch (e: Exception) {
+        result.error("record", e.message, e.cause)
+      }
     }
   }
 
   fun isPaused(result: MethodChannel.Result) {
-    result.success(recorder?.isPaused ?: false)
+    dispatcher.post { result.success(recorder?.isPaused ?: false) }
   }
 
   fun isRecording(result: MethodChannel.Result) {
-    result.success(recorder?.isRecording ?: false)
+    dispatcher.post { result.success(recorder?.isRecording ?: false) }
   }
 
   fun getAmplitude(result: MethodChannel.Result) {
-    if (recorder != null) {
-      val amps = recorder!!.getAmplitude()
-      val amp: MutableMap<String, Any> = HashMap()
-      amp["current"] = amps[0]
-      amp["max"] = amps[1]
-      result.success(amp)
-    } else {
-      result.success(null)
+    dispatcher.post {
+      if (recorder != null) {
+        val amps = recorder!!.getAmplitude()
+        val amp: MutableMap<String, Any> = HashMap()
+        amp["current"] = amps[0]
+        amp["max"] = amps[1]
+        result.success(amp)
+      } else {
+        result.success(null)
+      }
     }
   }
 
   fun resume(result: MethodChannel.Result) {
-    try {
-      recorder?.resume()
-      result.success(null)
-    } catch (e: Exception) {
-      result.error("record", e.message, e.cause)
+    dispatcher.post {
+      try {
+        recorder?.resume()
+        result.success(null)
+      } catch (e: Exception) {
+        result.error("record", e.message, e.cause)
+      }
     }
   }
 
   fun stop(result: MethodChannel.Result) {
-    try {
-      if (recorder == null) {
-        result.success(null)
-      } else {
-        recorder?.stop(fun(path) = result.success(path))
+    dispatcher.post {
+      try {
+        if (recorder == null) {
+          result.success(null)
+        } else {
+          recorder?.stop(fun(path) = result.success(path))
+        }
+      } catch (e: Exception) {
+        result.error("record", e.message, e.cause)
       }
-    } catch (e: Exception) {
-      result.error("record", e.message, e.cause)
     }
   }
 
   fun cancel(result: MethodChannel.Result) {
-    try {
-      recorder?.cancel()
-      result.success(null)
-    } catch (e: Exception) {
-      result.error("record", e.message, e.cause)
-    }
+    dispatcher.post {
+      try {
+        recorder?.cancel()
+        result.success(null)
+      } catch (e: Exception) {
+        result.error("record", e.message, e.cause)
+      }
 
-    bluetoothManager.stop()
+      bluetoothManager.stop()
+    }
   }
 
   private fun startRecording(config: RecordConfig, result: MethodChannel.Result) {
@@ -135,8 +157,11 @@ class RecorderWrapper(
           start(config, result)
         }
       } else if (recorder!!.isRecording) {
-        recorder!!.stop(fun(_) = bluetoothManager.maybeStart(config) {
-          start(config, result)
+        // stopCb may run on the dying recorder's own thread.
+        recorder!!.stop(fun(_) = dispatcher.post {
+          bluetoothManager.maybeStart(config) {
+            start(config, result)
+          }
         })
       } else {
         bluetoothManager.maybeStart(config) {
@@ -156,7 +181,8 @@ class RecorderWrapper(
     return AudioRecorder(
       recorderStateStreamHandler,
       recorderRecordStreamHandler,
-      context
+      context,
+      handler,
     )
   }
 
@@ -171,7 +197,10 @@ class RecorderWrapper(
     }
   }
 
+  // invokeMethod requires the platform thread; we're on the dispatcher thread here.
   private fun notifyConfigChanged(config: RecordConfig) {
-    configChangedChannel.invokeMethod("onConfigChanged", config.toMap())
+    mainHandler.post {
+      configChangedChannel.invokeMethod("onConfigChanged", config.toMap())
+    }
   }
 }

@@ -1,6 +1,7 @@
 package com.llfbandit.record.record.recorder
 
 import android.content.Context
+import android.os.Handler
 import android.util.Log
 import com.llfbandit.record.record.model.AudioInterruption
 import com.llfbandit.record.record.model.RecordConfig
@@ -21,7 +22,8 @@ interface OnAudioRecordListener {
 class AudioRecorder(
   private val recorderStateStreamHandler: RecorderStateStreamHandler,
   private val recorderRecordStreamHandler: RecorderRecordStreamHandler,
-  appContext: Context
+  appContext: Context,
+  handler: Handler,
 ) : IRecorder, OnAudioRecordListener {
   companion object {
     private val TAG = AudioRecorder::class.java.simpleName
@@ -35,6 +37,7 @@ class AudioRecorder(
 
   private val audioSession = AudioSessionManager(
     appContext,
+    handler,
     onFocusLoss = { recorderThread?.pauseRecording() },
     onFocusGain = { interruption ->
       if (interruption == AudioInterruption.PAUSE_RESUME) recorderThread?.resumeRecording()
