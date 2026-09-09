@@ -7,13 +7,18 @@
 #include <Mfreadwrite.h>
 
 #include <assert.h>
+#include <functional>
+#include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "utils.h"
 #include "record_config.h"
 #include "encoder/stream_encoder.h"
-#include "event_stream_handler.h"
 #include "amplitude/amplitude_tracker.h"
+#include "record/reader_callback.h"
+#include "recorder_dispatcher.h"
 
 namespace record_windows
 {
@@ -21,36 +26,39 @@ namespace record_windows
 		pause, record, stop
 	};
 
-	class Recorder : public IMFSourceReaderCallback
+	// What a finished take reports back.
+	struct StopResult
+	{
+		HRESULT hr;
+		// Empty when nothing was written: the take is cancelled instead.
+		std::wstring path;
+	};
+
+	// Everything the recorder reports. Invoked on the dispatcher thread.
+	struct RecorderCallbacks
+	{
+		std::function<void(RecordState)> onState;
+		std::function<void(std::vector<uint8_t>)> onChunk;
+		std::function<void(const RecordConfig&)> onConfigChanged;
+	};
+
+	// Media Foundation capture. Runs on the dispatcher thread, so nothing here is locked.
+	class Recorder
 	{
 	public:
-		static HRESULT CreateInstance(EventStreamHandler<>* stateEventHandler, EventStreamHandler<>* recordEventHandler, Recorder** recorder);
-
-		Recorder(EventStreamHandler<>* stateEventHandler, EventStreamHandler<>* recordEventHandler);
-		virtual ~Recorder();
-
-		void SetOnConfigChanged(std::function<void(const RecordConfig&)> callback);
+		Recorder(std::shared_ptr<RecorderDispatcher> dispatcher, RecorderCallbacks callbacks);
 
 		HRESULT Start(std::unique_ptr<RecordConfig> config, std::wstring path);
 		HRESULT StartStream(std::unique_ptr<RecordConfig> config);
 		HRESULT Pause();
 		HRESULT Resume();
-		HRESULT Stop();
+		StopResult Stop();
 		HRESULT Cancel();
 		bool IsPaused();
 		bool IsRecording();
+		// Final: Start() is refused afterwards.
 		HRESULT Dispose();
 		std::map<std::string, double> GetAmplitude();
-		std::wstring GetRecordingPath();
-		// IUnknown methods
-		STDMETHODIMP QueryInterface(REFIID iid, void** ppv);
-		STDMETHODIMP_(ULONG) AddRef();
-		STDMETHODIMP_(ULONG) Release();
-
-		// IMFSourceReaderCallback methods
-		STDMETHODIMP OnReadSample(HRESULT hrStatus, DWORD dwStreamIndex, DWORD dwStreamFlags, LONGLONG llTimestamp, IMFSample* pSample);
-		STDMETHODIMP OnEvent(DWORD, IMFMediaEvent*);
-		STDMETHODIMP OnFlush(DWORD);
 
 	private:
 		HRESULT CreateAudioCaptureDevice(LPCWSTR pszEndPointID);
@@ -61,21 +69,25 @@ namespace record_windows
 		void UpdateState(RecordState state);
 		HRESULT EndRecording();
 
+		void    OnSample(HRESULT hrStatus, DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample);
 		void    RebaseTimestamp(LONGLONG& llTimestamp);
 		HRESULT ProcessSample(DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample);
 		HRESULT ProcessBuffer(IMFSample* pSample);
 
-		long                m_nRefCount;
-		CritSec             m_critsec;
+		void AssertOnDispatcher() const { assert(m_dispatcher->IsCurrentThread()); }
+
+		std::shared_ptr<RecorderDispatcher> m_dispatcher;
+		RecorderCallbacks m_callbacks;
+		bool m_disposed = false;
 
 		IMFMediaSource*            m_pSource;
 		IMFPresentationDescriptor* m_pPresentationDescriptor;
 		IMFSourceReader*           m_pReader;
+		ReaderCallback*            m_pReaderCallback;
 		IMFSinkWriter*             m_pWriter;
 		IMFMediaType*              m_pMediaType;
 		std::unique_ptr<IStreamEncoder> m_pStreamEncoder;
 		std::wstring               m_recordingPath;
-		bool                       m_mfStarted = false;
 
 		bool     m_bFirstSample = true;
 		bool     m_bResuming    = false;
@@ -84,11 +96,6 @@ namespace record_windows
 
 		AmplitudeTracker m_amplitude;
 		DWORD            m_dataWritten = 0;
-
-		EventStreamHandler<>* m_stateEventHandler;
-		EventStreamHandler<>* m_recordEventHandler;
-		EventStreamHandler<>* m_recordEventHandlerOrigin;
-		std::function<void(const RecordConfig&)> m_onConfigChanged;
 
 		RecordState                m_recordState = RecordState::stop;
 		std::unique_ptr<RecordConfig> m_pConfig;

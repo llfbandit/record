@@ -1,3 +1,6 @@
+## 2.3.0
+* refactor: redirect recorder control onto one background thread.
+
 ## 2.2.3
 * fix: Corrupted WAV file size fields.
 

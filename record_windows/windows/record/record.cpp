@@ -1,56 +1,30 @@
 #include "record/record.h"
 #include "audio_device/record_audio_device.h"
 #include "mediatype/record_mediatype.h"
-#include "record_windows_plugin.h"
 #include "encoder/aac_adts_encoder.h"
 #include "encoder/pcm_encoder.h"
 
 namespace record_windows
 {
-	// static
-	HRESULT Recorder::CreateInstance(EventStreamHandler<>* stateEventHandler, EventStreamHandler<>* recordEventHandler, Recorder** ppRecorder)
-	{
-		auto pRecorder = new (std::nothrow) Recorder(stateEventHandler, recordEventHandler);
-
-		if (pRecorder == NULL)
-		{
-			return E_OUTOFMEMORY;
-		}
-
-		// The Recorder constructor sets the ref count to 1.
-		*ppRecorder = pRecorder;
-
-		return S_OK;
-	}
-
-	Recorder::Recorder(EventStreamHandler<>* stateEventHandler, EventStreamHandler<>* recordEventHandler)
-		: m_nRefCount(1),
-		m_critsec(),
-		m_pConfig(nullptr),
+	Recorder::Recorder(std::shared_ptr<RecorderDispatcher> dispatcher, RecorderCallbacks callbacks)
+		: m_dispatcher(std::move(dispatcher)),
+		m_callbacks(std::move(callbacks)),
 		m_pSource(NULL),
-		m_pReader(NULL),
-		m_pWriter(NULL),
 		m_pPresentationDescriptor(NULL),
-		m_stateEventHandler(stateEventHandler),
-		m_recordEventHandler(recordEventHandler),
-		m_recordEventHandlerOrigin(recordEventHandler),
+		m_pReader(NULL),
+		m_pReaderCallback(NULL),
+		m_pWriter(NULL),
+		m_pMediaType(NULL),
 		m_recordingPath(std::wstring()),
-		m_pMediaType(NULL)
+		m_pConfig(nullptr)
 	{
-	}
-
-	Recorder::~Recorder()
-	{
-		Dispose();
-	}
-
-	void Recorder::SetOnConfigChanged(std::function<void(const RecordConfig&)> callback)
-	{
-		m_onConfigChanged = std::move(callback);
 	}
 
 	HRESULT Recorder::Start(std::unique_ptr<RecordConfig> config, std::wstring path)
 	{
+		AssertOnDispatcher();
+		if (m_disposed) return E_ABORT;
+
 		bool supported = false;
 		HRESULT hr = AudioDevice::IsEncoderSupported(config->encoderName, &supported);
 
@@ -88,6 +62,9 @@ namespace record_windows
 
 	HRESULT Recorder::StartStream(std::unique_ptr<RecordConfig> config)
 	{
+		AssertOnDispatcher();
+		if (m_disposed) return E_ABORT;
+
 		const auto& enc = config->encoderName;
 		const bool isAac = enc == AudioEncoder::aacLc;
 		const bool isPcm = enc == AudioEncoder::pcm16bits;
@@ -99,12 +76,6 @@ namespace record_windows
 
 		HRESULT hr = InitRecording(std::move(config));
 
-		if (SUCCEEDED(hr))
-		{
-			// EndRecording (called inside InitRecording) nulls m_recordEventHandler to guard
-			// against in-flight callbacks after stop. Restore it here before samples arrive.
-			m_recordEventHandler = m_recordEventHandlerOrigin;
-		}
 		if (SUCCEEDED(hr))
 		{
 			if (isAac)
@@ -142,24 +113,19 @@ namespace record_windows
 	{
 		HRESULT hr = EndRecording();
 
-		if (SUCCEEDED(hr) && !m_mfStarted)
-		{
-			hr = MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET);
-		}
 		if (SUCCEEDED(hr))
 		{
-			m_mfStarted = true;
 			const int origSampleRate  = config->sampleRate;
 			const int origNumChannels = config->numChannels;
 			const int origBitRate     = config->bitRate;
 			AudioDevice::AdjustConfigToDeviceCaps(*config);
 			hr = AudioDevice::AdjustConfigToCodecCaps(*config);
-			if (SUCCEEDED(hr) && m_onConfigChanged &&
+			if (SUCCEEDED(hr) && m_callbacks.onConfigChanged &&
 				(config->sampleRate  != origSampleRate ||
 				 config->numChannels != origNumChannels ||
 				 config->bitRate     != origBitRate))
 			{
-				m_onConfigChanged(*config);
+				m_callbacks.onConfigChanged(*config);
 			}
 		}
 		if (SUCCEEDED(hr))
@@ -189,6 +155,7 @@ namespace record_windows
 
 	HRESULT Recorder::Pause()
 	{
+		AssertOnDispatcher();
 		HRESULT hr = S_OK;
 
 		if (m_pSource)
@@ -206,6 +173,7 @@ namespace record_windows
 
 	HRESULT Recorder::Resume()
 	{
+		AssertOnDispatcher();
 		HRESULT hr = S_OK;
 
 		if (m_pSource)
@@ -225,26 +193,28 @@ namespace record_windows
 		return hr;
 	}
 
-	HRESULT Recorder::Stop()
+	StopResult Recorder::Stop()
 	{
+		AssertOnDispatcher();
+
 		if (m_dataWritten == 0)
 		{
-			return Cancel();
+			return { Cancel(), std::wstring() };
 		}
 
+		auto path = m_recordingPath;
 		HRESULT hr = EndRecording();
 
-		if (SUCCEEDED(hr))
-		{
-			UpdateState(RecordState::stop);
-		}
+		if (FAILED(hr)) return { hr, std::wstring() };
 
-		return hr;
+		UpdateState(RecordState::stop);
+		return { hr, path };
 	}
 
 	HRESULT Recorder::Cancel()
 	{
-		auto recordingPath = GetRecordingPath();
+		AssertOnDispatcher();
+		auto recordingPath = m_recordingPath;
 		HRESULT hr = EndRecording();
 
 		if (SUCCEEDED(hr))
@@ -262,50 +232,38 @@ namespace record_windows
 
 	bool Recorder::IsPaused()
 	{
-		switch (m_recordState)
-		{
-		case RecordState::pause:
-			return true;
-		default:
-			return false;
-		}
+		AssertOnDispatcher();
+		return m_recordState == RecordState::pause;
 	}
 
 	bool Recorder::IsRecording()
 	{
-		switch (m_recordState)
-		{
-		case RecordState::record:
-			return true;
-		default:
-			return false;
-		}
+		AssertOnDispatcher();
+		return m_recordState == RecordState::record;
 	}
 
 	HRESULT Recorder::EndRecording()
 	{
-		AutoLock lock(m_critsec);
 		HRESULT hr = S_OK;
 
-		// Release reader callback first; null the stream handler under the lock
-		// so no in-flight OnReadSample can queue a lambda with a stale pointer.
 		SafeRelease(m_pReader);
-		m_recordEventHandler = nullptr;
+		// MF may still deliver from this reader: drop rather than mix into a next take.
+		if (m_pReaderCallback)
+		{
+			m_pReaderCallback->Disarm();
+			SafeRelease(m_pReaderCallback);
+		}
 
 		if (m_pSource)
 		{
-			hr = m_pSource->Stop();
-
-			if (SUCCEEDED(hr))
-			{
-				hr = m_pSource->Shutdown();
-			}
+			// The reader already shut the source down: only Finalize tells the outcome.
+			m_pSource->Stop();
+			m_pSource->Shutdown();
 		}
 
 		if (m_pWriter)
 		{
-			HRESULT hrFinalize = m_pWriter->Finalize();
-			if (SUCCEEDED(hr)) hr = hrFinalize;
+			hr = m_pWriter->Finalize();
 		}
 
 		if (m_pConfig && m_pConfig->encoderName == AudioEncoder::wav) {
@@ -322,15 +280,6 @@ namespace record_windows
 
 		m_pStreamEncoder.reset();
 
-		if (m_mfStarted)
-		{
-			hr = MFShutdown();
-			if (SUCCEEDED(hr))
-			{
-				m_mfStarted = false;
-			}
-		}
-
 		SafeRelease(m_pSource);
 		SafeRelease(m_pPresentationDescriptor);
 		SafeRelease(m_pWriter);
@@ -343,10 +292,11 @@ namespace record_windows
 
 	HRESULT Recorder::Dispose()
 	{
-		HRESULT hr = EndRecording();
+		AssertOnDispatcher();
+		m_disposed = true;
 
-		m_stateEventHandler = nullptr;
-		m_onConfigChanged = nullptr;
+		HRESULT hr = EndRecording();
+		m_callbacks = {};
 
 		return hr;
 	}
@@ -355,14 +305,7 @@ namespace record_windows
 	{
 		m_recordState = state;
 
-		if (m_stateEventHandler) {
-			// Capture raw pointer and check before calling. This is minimal and
-			// mirrors previous behavior with a quick null check on the main thread.
-			EventStreamHandler<>* handlerPtr = m_stateEventHandler;
-			RecordWindowsPlugin::RunOnMainThread([handlerPtr, state]() -> void {
-				handlerPtr->Success(std::make_unique<flutter::EncodableValue>(state));
-			});
-		}
+		if (m_callbacks.onState) m_callbacks.onState(state);
 	}
 
 	HRESULT Recorder::CreateAudioCaptureDevice(LPCWSTR deviceId)
@@ -410,10 +353,17 @@ namespace record_windows
 		IMFAttributes* pAttributes = NULL;
 		IMFMediaType* pMediaTypeIn = NULL;
 
+		// One callback per reader, so a late sample from a previous reader can be told apart.
+		assert(m_pReaderCallback == NULL);
+		m_pReaderCallback = new ReaderCallback(m_dispatcher,
+			[this](HRESULT hrStatus, DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample) {
+				OnSample(hrStatus, dwStreamIndex, llTimestamp, pSample);
+			});
+
 		hr = MFCreateAttributes(&pAttributes, 1);
 		if (SUCCEEDED(hr))
 		{
-			hr = pAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this);
+			hr = pAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, m_pReaderCallback);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -485,16 +435,10 @@ namespace record_windows
 
 	std::map<std::string, double> Recorder::GetAmplitude()
 	{
-		AutoLock lock(m_critsec);
+		AssertOnDispatcher();
 		return {
 			{"current", m_amplitude.current},
 			{"max"    , m_amplitude.peak},
 		};
 	}
-
-	std::wstring Recorder::GetRecordingPath()
-	{
-		return m_recordingPath;
-	}
-
 };

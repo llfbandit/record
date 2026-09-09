@@ -1,14 +1,14 @@
 #include "record_windows_plugin.h"
 #include "audio_device/record_audio_device.h"
-#include <mfreadwrite.h>
-#include <Mferror.h>
 #include "record_config.h"
-#include <flutter/event_stream_handler_functions.h>
+#include <exception>
 #include <mutex>
 
 using namespace flutter;
 
 namespace record_windows {
+	typedef std::shared_ptr<MethodResult<EncodableValue>> SharedResult;
+
 	static void ErrorFromHR(HRESULT hr, MethodResult<EncodableValue>& result)
 	{
 		_com_error err(hr);
@@ -17,22 +17,19 @@ namespace record_windows {
 		result.Error("Record", "", EncodableValue(errorText));
 	}
 
-	static HWND GetRootWindow(flutter::FlutterView* view) {
-		return ::GetAncestor(view->GetNativeWindow(), GA_ROOT);
+	// Answers a call that has no value.
+	static RecorderWrapper::Reply HrReply(SharedResult result, std::shared_ptr<bool> alive)
+	{
+		return [result, alive](HRESULT hr) {
+			if (!*alive) return;
+			if (SUCCEEDED(hr)) { result->Success(EncodableValue()); }
+			else { ErrorFromHR(hr, *result); }
+		};
 	}
 
 	// static, Register the plugin
 	void RecordWindowsPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar) {
-		auto plugin = std::make_unique<RecordWindowsPlugin>(
-			registrar->messenger(),
-			[registrar](auto delegate) {
-				return registrar->RegisterTopLevelWindowProcDelegate(delegate);
-			},
-			[registrar](auto proc_id) {
-				registrar->UnregisterTopLevelWindowProcDelegate(proc_id);
-			},
-			[registrar] { return GetRootWindow(registrar->GetView()); }
-		);
+		auto plugin = std::make_unique<RecordWindowsPlugin>(registrar->messenger());
 
 		auto methodChannel = std::make_unique<MethodChannel<EncodableValue>>(
 			registrar->messenger(), "com.llfbandit.record/messages",
@@ -47,76 +44,15 @@ namespace record_windows {
 		registrar->AddPlugin(std::move(plugin));
 	}
 
-	// static
-	std::queue<std::function<void()>> RecordWindowsPlugin::callbacks{};
-
-	// static
-	std::mutex RecordWindowsPlugin::callbacks_mutex{};
-
-	// static
-	FlutterRootWindowProvider RecordWindowsPlugin::get_root_window{};
-
-	// static
-	void RecordWindowsPlugin::RunOnMainThread(std::function<void()> callback) {
-		// Lock only while pushing the callback, then release before posting the message.
-		{
-			std::lock_guard<std::mutex> lock(callbacks_mutex);
-			callbacks.push(callback);
-		}
-		PostMessage(get_root_window(), WM_RUN_DELEGATE, 0, 0);
-	}
-
-	RecordWindowsPlugin::RecordWindowsPlugin(
-		BinaryMessenger* messenger,
-		WindowProcDelegateRegistrator registrator,
-		WindowProcDelegateUnregistrator unregistrator,
-		FlutterRootWindowProvider window_provider
-	):	m_binaryMessenger(messenger),
-		m_win_proc_delegate_registrator(registrator),
-		m_win_proc_delegate_unregistrator(unregistrator) {
-
-		get_root_window = std::move(window_provider);
-
-		m_window_proc_id = m_win_proc_delegate_registrator(
-			[this](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
-				return HandleWindowProc(hwnd, message, wparam, lparam);
-			}
-		);
+	RecordWindowsPlugin::RecordWindowsPlugin(BinaryMessenger* messenger)
+		: m_binaryMessenger(messenger) {
 	}
 
 	RecordWindowsPlugin::~RecordWindowsPlugin() {
 		*m_alive = false;
 
-		for (const auto& [recorderId, recorder] : m_recorders)
-		{
-			recorder->Dispose();
-		}
-
-		m_win_proc_delegate_unregistrator(m_window_proc_id);
-	}
-
-	std::optional<LRESULT> RecordWindowsPlugin::HandleWindowProc(HWND hwnd,
-		UINT message,
-		WPARAM wparam,
-		LPARAM lparam) {
-		std::optional<LRESULT> result;
-		switch (message) {
-		case WM_RUN_DELEGATE:
-			{
-				std::function<void()> cb;
-				{
-					std::lock_guard<std::mutex> lock(callbacks_mutex);
-					if (!callbacks.empty()) {
-						cb = std::move(callbacks.front());
-						callbacks.pop();
-					}
-				}
-				if (cb) cb();
-				result = 0;
-			}
-			break;
-		}
-		return result;
+		// Each one joins its thread, so nothing posts to m_platform afterwards.
+		m_recorders.clear();
 	}
 
 	// Called when a method is called on this plugin's channel from Dart.
@@ -139,14 +75,13 @@ namespace record_windows {
 		}
 
 		if (method_call.method_name().compare("create") == 0) {
-			HRESULT hr = CreateRecorder(recorderId);
-
-			if (SUCCEEDED(hr)) {
+			try {
+				CreateRecorder(recorderId);
 				result->Success(EncodableValue(NULL));
 			}
-			else {
-				ErrorFromHR(hr, *result);
-			}
+			catch (const std::exception& e) {
+				result->Error("Record", e.what());
+			}			
 			return;
 		}
 
@@ -159,31 +94,32 @@ namespace record_windows {
 			return;
 		}
 
+		SharedResult shared(std::move(result));
+		auto alive = m_alive;
+
 		if (method_call.method_name().compare("hasPermission") == 0)
 		{
-			result->Success(EncodableValue(true));
+			shared->Success(EncodableValue(true));
 		}
 		else if (method_call.method_name().compare("isPaused") == 0)
 		{
-			result->Success(EncodableValue(recorder->IsPaused()));
+			recorder->IsPaused([shared, alive](bool paused) {
+				if (*alive) shared->Success(EncodableValue(paused));
+			});
 		}
 		else if (method_call.method_name().compare("isRecording") == 0)
 		{
-			result->Success(EncodableValue(recorder->IsRecording()));
+			recorder->IsRecording([shared, alive](bool recording) {
+				if (*alive) shared->Success(EncodableValue(recording));
+			});
 		}
 		else if (method_call.method_name().compare("pause") == 0)
 		{
-			HRESULT hr = recorder->Pause();
-
-			if (SUCCEEDED(hr)) { result->Success(EncodableValue()); }
-			else { ErrorFromHR(hr, *result); }
+			recorder->Pause(HrReply(shared, alive));
 		}
 		else if (method_call.method_name().compare("resume") == 0)
 		{
-			HRESULT hr = recorder->Resume();
-
-			if (SUCCEEDED(hr)) { result->Success(EncodableValue()); }
-			else { ErrorFromHR(hr, *result); }
+			recorder->Resume(HrReply(shared, alive));
 		}
 		else if (method_call.method_name().compare("start") == 0)
 		{
@@ -192,83 +128,58 @@ namespace record_windows {
 			std::string path;
 			GetValueFromEncodableMap(mapArgs, "path", path);
 
-			HRESULT hr = recorder->Start(std::move(config), Utf16FromUtf8(path));
-
-			if (SUCCEEDED(hr)) { result->Success(EncodableValue()); }
-			else { ErrorFromHR(hr, *result); }
+			recorder->Start(std::move(config), Utf16FromUtf8(path), HrReply(shared, alive));
 		}
 		else if (method_call.method_name().compare("startStream") == 0)
 		{
 			auto config = InitRecordConfig(mapArgs);
 
-			HRESULT hr = recorder->StartStream(std::move(config));
-
-			if (SUCCEEDED(hr)) { result->Success(EncodableValue()); }
-			else { ErrorFromHR(hr, *result); }
+			recorder->StartStream(std::move(config), HrReply(shared, alive));
 		}
 		else if (method_call.method_name().compare("stop") == 0)
 		{
-			auto recordingPath = recorder->GetRecordingPath();
-			HRESULT hr = recorder->Stop();
-
-			if (SUCCEEDED(hr))
-			{
-				result->Success(recordingPath.empty() ? EncodableValue() : EncodableValue(Utf8FromUtf16(recordingPath.c_str())));
-			}
-			else {
-				ErrorFromHR(hr, *result);
-			}
+			recorder->Stop([shared, alive](StopResult r) {
+				if (!*alive) return;
+				if (SUCCEEDED(r.hr))
+				{
+					shared->Success(r.path.empty() ? EncodableValue() : EncodableValue(Utf8FromUtf16(r.path.c_str())));
+				}
+				else {
+					ErrorFromHR(r.hr, *shared);
+				}
+			});
 		}
 		else if (method_call.method_name().compare("cancel") == 0)
 		{
-			HRESULT hr = recorder->Cancel();
-
-			if (SUCCEEDED(hr))
-			{
-				result->Success(EncodableValue());
-			}
-			else
-			{
-				ErrorFromHR(hr, *result);
-			}
+			recorder->Cancel(HrReply(shared, alive));
 		}
 		else if (method_call.method_name().compare("dispose") == 0)
 		{
-			// Dispose recorder and schedule removal on the main thread so any
-			// callbacks already queued to run on the main thread (e.g. UpdateState)
-			// can run safely and observe the disposed state before the object is
-			// destroyed. Immediate erase would destroy the Recorder while lambdas
-			// referencing it may still be pending, causing access violations.
-			recorder->Dispose();
-			auto alive = m_alive;
-			RecordWindowsPlugin::RunOnMainThread([this, alive, recorderId]() -> void {
+			recorder->Dispose([this, shared, alive, recorderId] {
 				if (!*alive) return;
 				m_recorders.erase(recorderId);
-				m_state_event_channels.erase(recorderId);
-				m_record_event_channels.erase(recorderId);
-				m_config_changed_channels.erase(recorderId);
+				shared->Success(EncodableValue());
 			});
-
-			result->Success(EncodableValue());
 		}
 		else if (method_call.method_name().compare("getAmplitude") == 0)
 		{
-			auto amp = recorder->GetAmplitude();
-
-			result->Success(EncodableValue(
-				EncodableMap({
-					{EncodableValue("current"), EncodableValue(amp["current"])},
-					{EncodableValue("max"), EncodableValue(amp["max"])}
-					}
-				))
-			);
+			recorder->GetAmplitude([shared, alive](std::map<std::string, double> amp) {
+				if (!*alive) return;
+				shared->Success(EncodableValue(
+					EncodableMap({
+						{EncodableValue("current"), EncodableValue(amp["current"])},
+						{EncodableValue("max"), EncodableValue(amp["max"])}
+						}
+					))
+				);
+			});
 		}
 		else if (method_call.method_name().compare("isEncoderSupported") == 0)
 		{
 			std::string encoderName;
 			if (!GetValueFromEncodableMap(mapArgs, "encoder", encoderName))
 			{
-				result->Error("Bad arguments", "Expected encoder name.");
+				shared->Error("Bad arguments", "Expected encoder name.");
 				return;
 			}
 
@@ -277,11 +188,11 @@ namespace record_windows {
 
 			if (SUCCEEDED(hr))
 			{
-				result->Success(EncodableValue(supported));
+				shared->Success(EncodableValue(supported));
 			}
 			else
 			{
-				ErrorFromHR(hr, *result);
+				ErrorFromHR(hr, *shared);
 			}
 		}
 		else if (method_call.method_name().compare("listInputDevices") == 0)
@@ -289,9 +200,9 @@ namespace record_windows {
 			EncodableList devices;
 			HRESULT hr = AudioDevice::ListInputDevices(devices);
 			if (SUCCEEDED(hr)) {
-				result->Success(EncodableValue(std::move(devices)));
+				shared->Success(EncodableValue(std::move(devices)));
 			} else {
-				ErrorFromHR(hr, *result);
+				ErrorFromHR(hr, *shared);
 			}
 		}
 	}
@@ -336,62 +247,20 @@ namespace record_windows {
 		return config;
 	}
 
-	HRESULT RecordWindowsPlugin::CreateRecorder(std::string recorderId)
+	void RecordWindowsPlugin::CreateRecorder(std::string recorderId)
 	{
-		// State event channel
-		auto eventChannel = std::make_unique<EventChannel<EncodableValue>>(
-			m_binaryMessenger, "com.llfbandit.record/events/" + recorderId,
-			&StandardMethodCodec::GetInstance());
+		// Warmup codec capabilities since this is quite slow. This is done only once for all instances.
+		static std::once_flag sWarmFlag;
+		std::call_once(sWarmFlag, [] { AudioDevice::WarmCodecCapsAsync(); });
 
-		auto eventHandler = new EventStreamHandler<>();
-		std::unique_ptr<StreamHandler<EncodableValue>> pStateEventHandler{static_cast<StreamHandler<EncodableValue>*>(eventHandler)};
-		eventChannel->SetStreamHandler(std::move(pStateEventHandler));
-
-		// Record stream event channel
-		auto eventRecordChannel = std::make_unique<EventChannel<EncodableValue>>(
-			m_binaryMessenger, "com.llfbandit.record/eventsRecord/" + recorderId,
-			&StandardMethodCodec::GetInstance());
-
-		auto eventRecordHandler = new EventStreamHandler<>();
-		std::unique_ptr<StreamHandler<EncodableValue>> pRecordEventHandler{static_cast<StreamHandler<EncodableValue>*>(eventRecordHandler)};
-		eventRecordChannel->SetStreamHandler(std::move(pRecordEventHandler));
-
-		// Config-changed method channel
-		auto configChangedChannel = std::make_unique<MethodChannel<EncodableValue>>(
-			m_binaryMessenger, "com.llfbandit.record/configChanged/" + recorderId,
-			&StandardMethodCodec::GetInstance());
-
-		Recorder* pRecorder = NULL;
-
-		HRESULT hr = Recorder::CreateInstance(eventHandler, eventRecordHandler, &pRecorder);
-		if (SUCCEEDED(hr))
+		if (m_recorders.find(recorderId) == m_recorders.end())
 		{
-			// Warmup codec capabilities since this is quite slow. This is done only once for all instances.
-			static std::once_flag sWarmFlag;
-			std::call_once(sWarmFlag, [] { AudioDevice::WarmCodecCapsAsync(); });
-
-			auto* pChannel = configChangedChannel.get();
-			pRecorder->SetOnConfigChanged([pChannel](const RecordConfig& cfg) {
-				EncodableMap args = cfg.rawArgs;
-				args[EncodableValue("bitRate")]     = EncodableValue(cfg.bitRate);
-				args[EncodableValue("sampleRate")]  = EncodableValue(cfg.sampleRate);
-				args[EncodableValue("numChannels")] = EncodableValue(cfg.numChannels);
-				pChannel->InvokeMethod("onConfigChanged",
-					std::make_unique<EncodableValue>(EncodableMap(std::move(args))));
-			});
-
-			// Keep channels alive for the recorder lifetime so handler pointers
-			// held by the recorder remain valid.
-			m_state_event_channels.insert(std::make_pair(recorderId, std::move(eventChannel)));
-			m_record_event_channels.insert(std::make_pair(recorderId, std::move(eventRecordChannel)));
-			m_config_changed_channels.insert(std::make_pair(recorderId, std::move(configChangedChannel)));
-			m_recorders.insert(std::make_pair(recorderId, std::move(pRecorder)));
+			auto recorder = std::make_unique<RecorderWrapper>(m_binaryMessenger, recorderId, m_platform);
+			m_recorders[recorderId] = std::move(recorder);
 		}
-
-		return hr;
 	}
 
-	Recorder* RecordWindowsPlugin::GetRecorder(std::string recorderId)
+	RecorderWrapper* RecordWindowsPlugin::GetRecorder(std::string recorderId)
 	{
 		auto searchedRecorder = m_recorders.find(recorderId);
 		if (searchedRecorder == m_recorders.end()) {

@@ -366,23 +366,29 @@ HRESULT AdjustConfigToCodecCaps(RecordConfig& config)
 void WarmCodecCapsAsync()
 {
 	std::thread([]() {
-		if (FAILED(MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET))) return;
+		// Fresh thread: nobody else initializes COM here.
+		CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
-		static const struct { const char* name; GUID guid; } kEncoders[] = {
-			{AudioEncoder::aacLc,  MFAudioFormat_AAC},
-			{AudioEncoder::aacEld, MFAudioFormat_AAC},
-			{AudioEncoder::aacHe,  MFAudioFormat_AAC},
-			{AudioEncoder::flac,   MFAudioFormat_FLAC},
-		};
-
-		for (const auto& enc : kEncoders)
+		if (SUCCEEDED(MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET)))
 		{
-			auto caps = FetchCodecCaps(enc.guid);
-			std::lock_guard<std::mutex> lock(gCapsMutex);
-			gCapsCache.emplace(enc.name, std::move(caps));
+			static const struct { const char* name; GUID guid; } kEncoders[] = {
+				{AudioEncoder::aacLc,  MFAudioFormat_AAC},
+				{AudioEncoder::aacEld, MFAudioFormat_AAC},
+				{AudioEncoder::aacHe,  MFAudioFormat_AAC},
+				{AudioEncoder::flac,   MFAudioFormat_FLAC},
+			};
+
+			for (const auto& enc : kEncoders)
+			{
+				auto caps = FetchCodecCaps(enc.guid);
+				std::lock_guard<std::mutex> lock(gCapsMutex);
+				gCapsCache.emplace(enc.name, std::move(caps));
+			}
+
+			MFShutdown();
 		}
 
-		MFShutdown();
+		CoUninitialize();
 	}).detach();
 }
 

@@ -1,27 +1,20 @@
 #include "record/record.h"
-#include "record_windows_plugin.h"
+
+#include <cstdio>
 
 namespace record_windows
 {
-	STDMETHODIMP Recorder::OnEvent(DWORD, IMFMediaEvent*) { return S_OK; }
-	STDMETHODIMP Recorder::OnFlush(DWORD) { return S_OK; }
-
-	HRESULT Recorder::OnReadSample(
-		HRESULT hrStatus,
-		DWORD dwStreamIndex,
-		DWORD dwStreamFlags,
-		LONGLONG llTimestamp,
-		IMFSample* pSample
-	)
+	// Dispatcher thread, via ReaderCallback.
+	void Recorder::OnSample(HRESULT hrStatus, DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample)
 	{
-		AutoLock lock(m_critsec);
+		AssertOnDispatcher();
 
 		if (FAILED(hrStatus))
 		{
 			auto errorText = std::system_category().message(hrStatus);
 			printf("Record: Error when reading sample (0x%X)\n%s\n", hrStatus, errorText.c_str());
-			RecordWindowsPlugin::RunOnMainThread([this]() -> void { Stop(); });
-			return hrStatus;
+			Stop();
+			return;
 		}
 
 		HRESULT hr = S_OK;
@@ -33,11 +26,9 @@ namespace record_windows
 
 		if (SUCCEEDED(hr) && m_pReader)
 		{
-			hr = m_pReader->ReadSample(
+			m_pReader->ReadSample(
 				(DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, NULL, NULL, NULL, NULL);
 		}
-
-		return hr;
 	}
 
 	void Recorder::RebaseTimestamp(LONGLONG& llTimestamp)
@@ -57,8 +48,7 @@ namespace record_windows
 		else if (m_bResuming)
 		{
 			m_bResuming = false;
-			// Shift base so rebased timestamps continue from where we paused.
-			// Without this, (llTimestamp - old_base) would jump backward.
+			// Shift base so timestamps resume from the pause instead of jumping back.
 			m_llBaseTime = llTimestamp - (m_llLastTime - m_llBaseTime);
 			UpdateState(RecordState::record);
 		}
@@ -84,14 +74,11 @@ namespace record_windows
 
 	HRESULT Recorder::ProcessBuffer(IMFSample* pSample)
 	{
-		if (m_recordEventHandler && !m_pWriter && m_pStreamEncoder)
+		if (!m_pWriter && m_pStreamEncoder && m_callbacks.onChunk)
 		{
-			EventStreamHandler<>* h = m_recordEventHandler;
 			for (auto& packet : m_pStreamEncoder->Feed(pSample))
 			{
-				RecordWindowsPlugin::RunOnMainThread([h, b = std::move(packet)]() mutable {
-					h->Success(std::make_unique<flutter::EncodableValue>(std::move(b)));
-				});
+				m_callbacks.onChunk(std::move(packet));
 			}
 		}
 

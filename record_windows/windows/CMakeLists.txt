@@ -17,10 +17,16 @@ list(APPEND PLUGIN_SOURCES
   "record_windows_plugin.cpp"
   "record_windows_plugin.h"
   "record_config.h"
+  "platform_thread.h"
+  "platform_thread.cpp"
+  "recorder_dispatcher.h"
+  "recorder_wrapper.h"
+  "recorder_wrapper.cpp"
   "record/record.h"
   "record/record.cpp"
   "record/record_readercallback.cpp"
-  "record/record_iunknown.cpp"
+  "record/reader_callback.h"
+  "record/reader_callback.cpp"
   "encoder/stream_encoder.h"
   "encoder/codec_caps.h"
   "encoder/codec_caps.cpp"
@@ -71,6 +77,49 @@ target_include_directories(${PLUGIN_NAME} PRIVATE
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin ${wmf_libs})
 
 
+
+# === Tests ===
+# Off in app builds. Configure the example with -Dinclude_record_windows_tests=ON
+# and build the record_windows_test target.
+if (include_${PROJECT_NAME}_tests)
+  set(TEST_RUNNER "${PROJECT_NAME}_test")
+  enable_testing()
+
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
+    URL_HASH SHA256=f179ec217f9b3b3f3c6e8b02d3e7eda997b49e4ce26d6b235c9053bec9c0bf9f
+  )
+  # Match the plugin's CRT.
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  # Its install rules otherwise join the bundle step and fail it.
+  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+
+  # Built straight in: the plugin's C API is no use for unit testing.
+  add_executable(${TEST_RUNNER}
+    "test/recorder_dispatcher_test.cpp"
+    "test/platform_thread_test.cpp"
+    "test/reader_callback_test.cpp"
+    "test/recorder_wrapper_test.cpp"
+    "test/recorder_stop_test.cpp"
+    ${PLUGIN_SOURCES}
+  )
+
+  apply_standard_settings(${TEST_RUNNER})
+  target_include_directories(${TEST_RUNNER} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_link_libraries(${TEST_RUNNER} PRIVATE flutter flutter_wrapper_plugin gtest_main ${wmf_libs})
+
+  # flutter_wrapper_plugin links against the Flutter DLL.
+  add_custom_command(TARGET ${TEST_RUNNER} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${FLUTTER_LIBRARY}" $<TARGET_FILE_DIR:${TEST_RUNNER}>
+  )
+
+  include(GoogleTest)
+  gtest_discover_tests(${TEST_RUNNER})
+endif()
 
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an
