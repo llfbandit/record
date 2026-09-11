@@ -131,3 +131,8 @@ Add this to the macos/Runner/Info.plist file:
 On Ubuntu 24.04.3 LTS, you can install them using:
 ```bash
 sudo apt install pulseaudio-utils ffmpeg
+```
+
+### Web
+
+`stop()` returns a blob URL that keeps the recording in memory. Revoke it with `URL.revokeObjectURL` once you are done with it.

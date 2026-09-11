@@ -70,6 +70,9 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   /// Stops recording session and release internal recorder resource.
   ///
   /// Returns the output path if any.
+  ///
+  /// On web, this is a blob URL that keeps the recording in memory
+  /// until you call `URL.revokeObjectURL` on it.
   Future<String?> stop() {
     return _safeCall(() async {
       final path = await _platform.stop(_recorderId);
