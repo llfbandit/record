@@ -2,6 +2,7 @@
 * fix: `startStream` hang when `getUserMedia` fails.
 * fix: Lower WAVE and PCM memory footprint.
 * fix: Respect typed data bounds when reading audio chunks.
+* fix: WAVE and PCM honor requested sample rate and channels again.
 
 ## 2.1.2
 * fix: Potential Future hang when stopping.

@@ -95,10 +95,12 @@ class MediaRecorderDelegate extends RecorderDelegate {
     try {
       final mediaStream = await initMediaStream(config);
 
+      // MediaRecorder encodes the track as-is.
       final effectiveConfig = adjustConfig(
         mediaStream,
         config,
-        onConfigChanged,
+        canConvert: false,
+        onConfigChanged: onConfigChanged,
       );
       config = effectiveConfig.config;
 

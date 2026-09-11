@@ -136,7 +136,7 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 360),
+                  constraints: const BoxConstraints(maxWidth: 800),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       border: Border.all(
@@ -354,11 +354,11 @@ class _RecordConfigControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final labelStyle = Theme.of(context).textTheme.bodyMedium;
 
-    Widget row(String label, Widget control) {
+    Widget row(String label, Widget control, {bool expand = false}) {
       return Row(
         children: [
           Expanded(child: Text(label, style: labelStyle)),
-          control,
+          if (expand) Expanded(flex: 2, child: control) else control,
         ],
       );
     }
@@ -375,16 +375,21 @@ class _RecordConfigControls extends StatelessWidget {
             'Device',
             DropdownButton<InputDevice?>(
               value: config.device,
+              isExpanded: true,
               underline: const SizedBox.shrink(),
               items: [
                 const DropdownMenuItem(value: null, child: Text('Default')),
                 ...inputDevices.map(
-                  (d) => DropdownMenuItem(value: d, child: Text(d.label)),
+                  (d) => DropdownMenuItem(
+                    value: d,
+                    child: Text(d.label, overflow: TextOverflow.ellipsis),
+                  ),
                 ),
               ],
               onChanged: (v) =>
                   onConfigChanged(config.copyWith(device: (value: v))),
             ),
+            expand: true,
           ),
         row(
           'Encoder',

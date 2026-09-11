@@ -114,7 +114,13 @@ class MicRecorderDelegate extends RecorderDelegate {
   Future<void> _start(RecordConfig config, {bool isStream = false}) async {
     final mediaStream = await initMediaStream(config);
 
-    final effectiveConfig = adjustConfig(mediaStream, config, onConfigChanged);
+    // The worklet resamples and remixes to the requested format.
+    final effectiveConfig = adjustConfig(
+      mediaStream,
+      config,
+      canConvert: true,
+      onConfigChanged: onConfigChanged,
+    );
     final context = effectiveConfig.context;
     config = effectiveConfig.config;
 

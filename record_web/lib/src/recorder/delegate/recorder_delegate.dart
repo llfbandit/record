@@ -1,5 +1,6 @@
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
@@ -49,14 +50,19 @@ abstract class RecorderDelegate {
     return web.window.navigator.mediaDevices.getUserMedia(constraints).toDart;
   }
 
+  /// [canConvert]: whether the pipeline resamples and remixes to the requested format.
   AdjustedConfig adjustConfig(
     web.MediaStream mediaStream,
-    RecordConfig config, [
+    RecordConfig config, {
+    required bool canConvert,
     void Function(RecordConfig)? onConfigChanged,
-  ]) {
+  }) {
     final settings = _getTrackSettings(mediaStream);
     final context = _adjustContext(settings);
-    final numChannels = _adjustNumChannels(config, settings);
+    final sampleRate = canConvert
+        ? config.sampleRate
+        : context.sampleRate.toInt();
+    final numChannels = _adjustNumChannels(config, settings, canConvert);
     final autoGain = _adjustBoolSetting(
       'autoGainControl',
       config.autoGain,
@@ -75,14 +81,14 @@ abstract class RecorderDelegate {
 
     final changed =
         config.numChannels != numChannels ||
-        config.sampleRate != context.sampleRate.toInt() ||
+        config.sampleRate != sampleRate ||
         config.autoGain != autoGain ||
         config.echoCancel != echoCancel ||
         config.noiseSuppress != noiseSuppress;
 
     if (changed) {
       config = config.copyWith(
-        sampleRate: context.sampleRate.toInt(),
+        sampleRate: sampleRate,
         numChannels: numChannels,
         autoGain: autoGain,
         echoCancel: echoCancel,
@@ -148,11 +154,20 @@ abstract class RecorderDelegate {
         : web.AudioContext();
   }
 
-  int _adjustNumChannels(RecordConfig config, web.MediaTrackSettings settings) {
+  int _adjustNumChannels(
+    RecordConfig config,
+    web.MediaTrackSettings settings,
+    bool canConvert,
+  ) {
     // Check for channelCount support (i.e. Safari)
-    return settings.hasProperty('channelCount'.toJS).toDart
-        ? settings.channelCount
-        : config.numChannels;
+    if (!settings.hasProperty('channelCount'.toJS).toDart) {
+      return config.numChannels;
+    }
+
+    // Never more than the track has.
+    return canConvert
+        ? min(config.numChannels, settings.channelCount)
+        : settings.channelCount;
   }
 
   bool _adjustBoolSetting(
