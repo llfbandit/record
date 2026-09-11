@@ -9,7 +9,7 @@ import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
 import com.llfbandit.record.record.format.Format
 import java.util.LinkedList
-import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.min
 
 class MediaCodecEncoder(
@@ -31,9 +31,12 @@ class MediaCodecEncoder(
   private var mContainerSetup = false
   private var mPendingFormat: MediaFormat? = null
 
-  // Semaphore to signal the end of encoding
-  @Volatile private var mStoppedCompleter: Semaphore? = null
+  // Claimed atomically, so the last thread out answers stopEncoding() exactly once.
+  private val mOnStopped = AtomicReference<((Exception?) -> Unit)?>(null)
   @Volatile private var mStopped = false
+
+  // First failure seen on the codec thread.
+  private var mError: Exception? = null
 
   override fun encode(bytes: ByteArray) {
     if (mStopped) {
@@ -55,27 +58,39 @@ class MediaCodecEncoder(
     mHandler?.post { initEncoding() }
   }
 
-  override fun stopEncoding() {
+  override fun stopEncoding(done: (Exception?) -> Unit) {
     if (mStopped) {
+      // Already torn down by onError(): still surface what went wrong.
+      done(mError)
       return
     }
     mStopped = true
 
-    val completer = Semaphore(0)
-    mStoppedCompleter = completer
+    // Never started: nothing to drain or release.
+    val handler = mHandler
+    if (handler == null) {
+      done(null)
+      return
+    }
+    mOnStopped.set(done)
 
-    mHandler?.post {
-      if (mInputBufferIndex >= 0) {
+    // A codec that is already gone cannot drain an EOS.
+    val posted = handler.post {
+      if (mCodec == null) {
+        finishStop()
+      } else if (mInputBufferIndex >= 0) {
         processInputBuffer()
       }
     }
+    // The looper already quit (onError() won the race): nothing on it will answer.
+    if (!posted) finishStop()
+  }
 
-    try {
-      // Wait for the encoder to finish
-      completer.acquire()
-    } finally {
-      quitSafely()
-    }
+  // The EOS drained, or never will: let the thread go.
+  private fun finishStop() {
+    val done = mOnStopped.getAndSet(null) ?: return // Nobody waiting: onError() quits.
+    quitSafely()
+    done(mError)
   }
 
   private fun initEncoding() {
@@ -107,7 +122,7 @@ class MediaCodecEncoder(
       val s = mQueue.peekFirst()
       if (s == null) {
         // There's no more data to encode.
-        if (mStoppedCompleter != null) {
+        if (mOnStopped.get() != null) {
           // We're done, so send EOS
           codec.queueInputBuffer(
             mInputBufferIndex, 0, 0,
@@ -200,24 +215,40 @@ class MediaCodecEncoder(
   }
 
   private fun onError(e: Exception) {
+    // Before the flag: a reader that sees mStopped must also see why.
+    saveError(e)
     mStopped = true
     stopAndRelease()
     listener.onEncoderFailure(e)
+    quitSafely()
   }
 
+  private fun saveError(e: Exception) {
+    if (mError == null) mError = e
+  }
+
+  // Never throws: a teardown error is noted, and stopEncoding() answered last.
   private fun stopAndRelease() {
     try {
-      mCodec?.stop()
+      try {
+        mCodec?.stop()
+      } catch (e: Exception) {
+        saveError(e)
+      } finally {
+        mCodec?.release()
+        mCodec = null
+      }
+
+      try {
+        mContainer?.release()
+      } catch (e: Exception) {
+        saveError(e)
+      } finally {
+        mContainer = null
+      }
     } finally {
-      mCodec?.release()
-      mCodec = null
+      finishStop()
     }
-
-    mContainer?.release()
-    mContainer = null
-
-    mStoppedCompleter?.release()
-    mStoppedCompleter = null
   }
 
   private fun calculateInputRate() {

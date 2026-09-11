@@ -1,12 +1,11 @@
 package com.llfbandit.record
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import com.llfbandit.record.permission.PermissionManager
 import com.llfbandit.record.record.format.AudioFormats
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.util.DeviceUtils
+import com.llfbandit.record.record.util.MainThread
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -75,20 +74,21 @@ class MethodCallHandlerImpl(
   private class MainThreadResult(
     private val delegate: MethodChannel.Result
   ) : MethodChannel.Result {
-    companion object {
-      private val mainHandler = Handler(Looper.getMainLooper())
-    }
-    override fun success(result: Any?) { mainHandler.post { delegate.success(result) } }
+    override fun success(result: Any?) { MainThread.post { delegate.success(result) } }
     override fun error(code: String, message: String?, details: Any?) {
-      mainHandler.post { delegate.error(code, message, details) }
+      MainThread.post { delegate.error(code, message, details) }
     }
-    override fun notImplemented() { mainHandler.post { delegate.notImplemented() } }
+    override fun notImplemented() { MainThread.post { delegate.notImplemented() } }
   }
 
   private fun createRecorder(recorderId: String, result: MethodChannel.Result) {
+    if (recorders.containsKey(recorderId)) {
+      result.success(null)
+      return
+    }
+
     try {
-      val recorder = RecorderWrapper(appContext, recorderId, messenger)
-      recorders[recorderId] = recorder
+      recorders[recorderId] = RecorderWrapper(appContext, recorderId, messenger)
       result.success(null)
     } catch (e: Exception) {
       result.error("record", "Cannot create recorder.", e.message)
@@ -96,9 +96,8 @@ class MethodCallHandlerImpl(
   }
 
   private fun disposeRecorder(recorder: RecorderWrapper, recorderId: String, result: MethodChannel.Result?) {
-    recorder.dispose()
+    recorder.dispose(result)
     recorders.remove(recorderId)
-    result?.success(null)
   }
 
   private fun hasPermission(call: MethodCall, result: MethodChannel.Result) {

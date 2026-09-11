@@ -73,12 +73,7 @@ class RecordConfig(
         "voiceRecognition" -> MediaRecorder.AudioSource.VOICE_RECOGNITION
         "voiceCommunication" -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
         "remoteSubMix" -> MediaRecorder.AudioSource.REMOTE_SUBMIX
-        "unprocessed" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-          MediaRecorder.AudioSource.UNPROCESSED
-        } else {
-          MediaRecorder.AudioSource.DEFAULT
-        }
-
+        "unprocessed" -> MediaRecorder.AudioSource.UNPROCESSED
         "voicePerformance" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
           MediaRecorder.AudioSource.VOICE_PERFORMANCE
         } else {

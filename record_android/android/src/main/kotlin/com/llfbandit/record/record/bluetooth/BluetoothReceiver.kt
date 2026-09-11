@@ -90,12 +90,13 @@ class BluetoothReceiver(
     if (hasBluetoothSco && audioManager.isBluetoothScoAvailableOffCall) {
       startBluetoothSco(listener)
     } else {
-      listener.onBlScoNone()
+      // Stays registered, so another app's later SCO link must not look like ours starting.
+      notifyNone(listener)
     }
   }
 
   override fun onReceive(context: Context, intent: Intent) {
-    val state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1)
+    val state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, Int.MIN_VALUE)
     when (state) {
       AudioManager.SCO_AUDIO_STATE_CONNECTED -> {
         if (!startNotified) {
@@ -103,12 +104,16 @@ class BluetoothReceiver(
           listener?.onBlScoConnected()
         }
       }
+      // The link failed: answer now instead of waiting for a connect that never comes.
+      AudioManager.SCO_AUDIO_STATE_ERROR -> if (!startNotified) notifyNone(listener)
       AudioManager.SCO_AUDIO_STATE_DISCONNECTED -> listener?.onBlScoDisconnected()
     }
   }
 
+  // Every path must notify: prepare() waits on this.
   private fun startBluetoothSco(listener: BluetoothScoListener? = this.listener) {
     if (!audioManager.isBluetoothScoAvailableOffCall) {
+      notifyNone(listener)
       return
     }
 
@@ -123,15 +128,23 @@ class BluetoothReceiver(
           return
         }
       }
-      startNotified = true
-      listener?.onBlScoNone()
+      notifyNone(listener)
     } else {
       @Suppress("DEPRECATION")
-      if (!audioManager.isBluetoothScoOn()) {
+      if (audioManager.isBluetoothScoOn()) {
+        // Already up.
+        startNotified = true
+        listener?.onBlScoConnected()
+      } else {
         audioManager.startBluetoothSco()
         // async — onBlScoConnected will be called via ACTION_SCO_AUDIO_STATE_UPDATED broadcast
       }
     }
+  }
+
+  private fun notifyNone(listener: BluetoothScoListener?) {
+    startNotified = true
+    listener?.onBlScoNone()
   }
 
   private fun stopBluetoothSco() {

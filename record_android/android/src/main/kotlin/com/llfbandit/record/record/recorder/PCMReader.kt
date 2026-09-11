@@ -25,9 +25,10 @@ class PCMReader(
   private val bufferSize: Int = initBufferSize()
   private val readBuffer: ShortArray = ShortArray(bufferSize / 2)
   private val reader: AudioRecord = createReader()
-  private val effects: AudioEffectsManager =
-    AudioEffectsManager(reader.audioSessionId).also { it.apply(config) }
+  private val effects = AudioEffectsManager(reader.audioSessionId).also { it.apply(config) }
 
+  // Written by the capture loop, read from the control thread.
+  @Volatile
   private var amplitudeDb: Double = DEFAULT_AMPLITUDE_DB
 
   fun start() {

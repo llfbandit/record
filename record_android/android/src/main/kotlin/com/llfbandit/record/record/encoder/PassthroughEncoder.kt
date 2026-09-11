@@ -41,11 +41,16 @@ class PassthroughEncoder(
     mIsStarted = true
   }
 
-  override fun stopEncoding() {
-    if (mIsStarted) {
-      mIsStarted = false
+  override fun stopEncoding(done: (Exception?) -> Unit) {
+    // The container was opened in the constructor; release it even if never started.
+    mIsStarted = false
+    var error: Exception? = null
+    try {
       mContainer.release()
+    } catch (e: Exception) {
+      error = e
     }
+    done(error)
   }
 
   override fun encode(bytes: ByteArray) {

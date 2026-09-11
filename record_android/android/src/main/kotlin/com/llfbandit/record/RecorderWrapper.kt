@@ -1,205 +1,176 @@
 package com.llfbandit.record
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import com.llfbandit.record.record.bluetooth.BluetoothManager
+import android.util.Log
+import com.llfbandit.record.record.audio_manager.AndroidAudioEnvironment
+import com.llfbandit.record.record.audio_manager.AudioEnvironment
 import com.llfbandit.record.record.model.RecordConfig
-import com.llfbandit.record.record.recorder.AudioRecorder
-import com.llfbandit.record.record.recorder.IRecorder
-import com.llfbandit.record.record.recorder.MediaRecorder
+import com.llfbandit.record.record.model.RecordState
+import com.llfbandit.record.record.recorder.RecorderController
+import com.llfbandit.record.record.recorder.RecorderSink
+import com.llfbandit.record.record.recorder.engine.CaptureEngine
+import com.llfbandit.record.record.recorder.engine.CaptureEvent
+import com.llfbandit.record.record.recorder.engine.MediaCaptureEngine
+import com.llfbandit.record.record.recorder.engine.PcmCaptureEngine
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
 import com.llfbandit.record.record.stream.RecorderStateStreamHandler
+import com.llfbandit.record.record.util.MainThread
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
+/** Method-channel adapter for one recorder; delegates the work to [RecorderController]. */
 class RecorderWrapper(
-  private val context: Context,
+  context: Context,
   recorderId: String,
   messenger: BinaryMessenger,
 ) {
   companion object {
+    private val TAG = RecorderWrapper::class.java.simpleName
     const val EVENTS_STATE_CHANNEL = "com.llfbandit.record/events/"
     const val EVENTS_RECORD_CHANNEL = "com.llfbandit.record/eventsRecord/"
     const val CONFIG_CHANGED_CHANNEL = "com.llfbandit.record/configChanged/"
-    private val mainHandler = Handler(Looper.getMainLooper())
   }
 
-  // Owns this recorder's control-plane thread; isolated from other recorders.
   private val dispatcher = RecorderDispatcher()
   private val handler = dispatcher.handler
 
-  private var eventChannel: EventChannel?
-  private val recorderStateStreamHandler = RecorderStateStreamHandler()
-  private var eventRecordChannel: EventChannel?
-  private val recorderRecordStreamHandler = RecorderRecordStreamHandler()
-  private val configChangedChannel: MethodChannel
-  private var recorder: IRecorder? = null
-  private val bluetoothManager = BluetoothManager(context, handler)
+  private val stateStreamHandler = RecorderStateStreamHandler()
+  private val recordStreamHandler = RecorderRecordStreamHandler()
+  private var eventChannel: EventChannel? =
+    EventChannel(messenger, EVENTS_STATE_CHANNEL + recorderId)
+  private var eventRecordChannel: EventChannel? =
+    EventChannel(messenger, EVENTS_RECORD_CHANNEL + recorderId)
+  private val configChangedChannel =
+    MethodChannel(messenger, CONFIG_CHANGED_CHANNEL + recorderId)
+
+  private val environment: AudioEnvironment = AndroidAudioEnvironment(context, handler)
+
+  private val controller: RecorderController = RecorderController(
+    environment = environment,
+    engineFactory = { config ->
+      if (config.useLegacy) MediaCaptureEngine(context, config)
+      else PcmCaptureEngine(config, ::onCaptureEvent)
+    },
+    sink = object : RecorderSink {
+      override fun onState(state: RecordState) = stateStreamHandler.sendStateEvent(state)
+      override fun onError(error: Throwable) {
+        // The streams may have no listener; keep the cause visible in logcat.
+        Log.e(TAG, error.message ?: error.toString(), error)
+        val ex = error as? Exception ?: Exception(error)
+        stateStreamHandler.sendStateErrorEvent(ex)
+        recordStreamHandler.sendErrorEvent(ex)
+      }
+      override fun onConfigChanged(config: RecordConfig) = notifyConfigChanged(config)
+    },
+    post = dispatcher::post,
+  )
 
   init {
-    eventChannel = EventChannel(messenger, EVENTS_STATE_CHANNEL + recorderId)
-    eventChannel?.setStreamHandler(recorderStateStreamHandler)
-    eventRecordChannel = EventChannel(messenger, EVENTS_RECORD_CHANNEL + recorderId)
-    eventRecordChannel?.setStreamHandler(recorderRecordStreamHandler)
-    configChangedChannel = MethodChannel(messenger, CONFIG_CHANGED_CHANNEL + recorderId)
+    environment.onEvent = controller::onEnvironmentEvent
+    eventChannel?.setStreamHandler(stateStreamHandler)
+    eventRecordChannel?.setStreamHandler(recordStreamHandler)
   }
 
-  fun startRecordingToFile(config: RecordConfig, result: MethodChannel.Result) {
-    dispatcher.post { startRecording(config, result) }
+  // Raised from the engine's own threads.
+  private fun onCaptureEvent(source: CaptureEngine, event: CaptureEvent) {
+    when (event) {
+      is CaptureEvent.Chunk -> recordStreamHandler.sendRecordChunkEvent(event.bytes)
+      is CaptureEvent.Failed -> handler.post { controller.onCaptureFailure(source, event.cause) }
+    }
   }
+
+  fun startRecordingToFile(config: RecordConfig, result: MethodChannel.Result) =
+    startRecording(config, result)
 
   fun startRecordingToStream(config: RecordConfig, result: MethodChannel.Result) {
     if (config.useLegacy) {
-      throw Exception("Cannot stream audio while using the legacy recorder")
+      result.error("record", "Cannot stream audio while using the legacy recorder", null)
+      return
     }
-    dispatcher.post { startRecording(config, result) }
+    startRecording(config, result)
   }
 
-  fun dispose() {
+  private fun startRecording(config: RecordConfig, result: MethodChannel.Result) {
     dispatcher.post {
       try {
-        recorder?.dispose()
-      } catch (_: Exception) {
-      } finally {
-        bluetoothManager.stop()
-        recorder = null
+        controller.start(config) { error ->
+          if (error == null) result.success(null) else fail(result, error)
+        }
+      } catch (e: Exception) {
+        fail(result, e)
       }
     }
-    // Queued work above still runs before quit() actually stops the thread.
-    dispatcher.quit()
+  }
 
-    // Channel (de)registration stays on the platform thread dispose() runs on.
+  fun pause(result: MethodChannel.Result) = run(result) { controller.pause() }
+
+  fun resume(result: MethodChannel.Result) = run(result) { controller.resume() }
+
+  // Answered once the file is finalized.
+  fun stop(result: MethodChannel.Result) = runAsync(result) { controller.stop(it) }
+
+  fun cancel(result: MethodChannel.Result) = runAsync(result) { controller.cancel(it) }
+
+  fun isPaused(result: MethodChannel.Result) = run(result) { controller.isPaused }
+
+  fun isRecording(result: MethodChannel.Result) = run(result) { controller.isRecording }
+
+  fun getAmplitude(result: MethodChannel.Result) = run(result) {
+    val amplitude = controller.amplitude()
+    hashMapOf("current" to amplitude.current, "max" to amplitude.max)
+  }
+
+  /** Answers once the recorder is fully torn down. */
+  fun dispose(result: MethodChannel.Result?) {
+    dispatcher.post {
+      try {
+        controller.dispose {
+          result?.success(null)
+          dispatcher.quit()
+        }
+      } catch (e: Exception) {
+        result?.let { fail(it, e) }
+        dispatcher.quit()
+      }
+    }
+
     eventChannel?.setStreamHandler(null)
     eventChannel = null
-
     eventRecordChannel?.setStreamHandler(null)
     eventRecordChannel = null
   }
 
-  fun pause(result: MethodChannel.Result) {
+  // Runs on the control thread; the block's value (Unit for actions) answers the call.
+  private fun run(result: MethodChannel.Result, block: () -> Any?) {
     dispatcher.post {
       try {
-        recorder?.pause()
-        result.success(null)
+        val value = block()
+        result.success(if (value == Unit) null else value)
       } catch (e: Exception) {
-        result.error("record", e.message, e.cause)
+        fail(result, e)
       }
     }
   }
 
-  fun isPaused(result: MethodChannel.Result) {
-    dispatcher.post { result.success(recorder?.isPaused ?: false) }
-  }
-
-  fun isRecording(result: MethodChannel.Result) {
-    dispatcher.post { result.success(recorder?.isRecording ?: false) }
-  }
-
-  fun getAmplitude(result: MethodChannel.Result) {
-    dispatcher.post {
-      if (recorder != null) {
-        val amps = recorder!!.getAmplitude()
-        val amp: MutableMap<String, Any> = HashMap()
-        amp["current"] = amps[0]
-        amp["max"] = amps[1]
-        result.success(amp)
-      } else {
-        result.success(null)
-      }
-    }
-  }
-
-  fun resume(result: MethodChannel.Result) {
+  // Same, for a block that answers later.
+  private fun runAsync(result: MethodChannel.Result, block: ((Any?) -> Unit) -> Unit) {
     dispatcher.post {
       try {
-        recorder?.resume()
-        result.success(null)
+        block(result::success)
       } catch (e: Exception) {
-        result.error("record", e.message, e.cause)
+        fail(result, e)
       }
     }
   }
 
-  fun stop(result: MethodChannel.Result) {
-    dispatcher.post {
-      try {
-        if (recorder == null) {
-          result.success(null)
-        } else {
-          recorder?.stop(fun(path) = result.success(path))
-        }
-      } catch (e: Exception) {
-        result.error("record", e.message, e.cause)
-      }
-    }
+  // `details` must be codec-encodable; a Throwable is not.
+  private fun fail(result: MethodChannel.Result, error: Throwable) {
+    result.error("record", error.message ?: error.toString(), error.cause?.toString())
   }
 
-  fun cancel(result: MethodChannel.Result) {
-    dispatcher.post {
-      try {
-        recorder?.cancel()
-        result.success(null)
-      } catch (e: Exception) {
-        result.error("record", e.message, e.cause)
-      }
-
-      bluetoothManager.stop()
-    }
-  }
-
-  private fun startRecording(config: RecordConfig, result: MethodChannel.Result) {
-    try {
-      if (recorder == null) {
-        bluetoothManager.maybeStart(config) {
-          recorder = createRecorder(config)
-          start(config, result)
-        }
-      } else if (recorder!!.isRecording) {
-        // stopCb may run on the dying recorder's own thread.
-        recorder!!.stop(fun(_) = dispatcher.post {
-          bluetoothManager.maybeStart(config) {
-            start(config, result)
-          }
-        })
-      } else {
-        bluetoothManager.maybeStart(config) {
-          start(config, result)
-        }
-      }
-    } catch (e: Exception) {
-      result.error("record", e.message, e.cause)
-    }
-  }
-
-  private fun createRecorder(config: RecordConfig): IRecorder {
-    if (config.useLegacy) {
-      return MediaRecorder(context, recorderStateStreamHandler)
-    }
-
-    return AudioRecorder(
-      recorderStateStreamHandler,
-      recorderRecordStreamHandler,
-      context,
-      handler,
-    )
-  }
-
-  private fun start(config: RecordConfig, result: MethodChannel.Result) {
-    try {
-      val orig = config.copy()
-      recorder!!.start(config)
-      result.success(null)
-      if (config.isModified(orig)) notifyConfigChanged(config)
-    } catch (e: Exception) {
-      result.error("record", e.message, e.cause)
-    }
-  }
-
-  // invokeMethod requires the platform thread; we're on the dispatcher thread here.
   private fun notifyConfigChanged(config: RecordConfig) {
-    mainHandler.post {
+    MainThread.post {
       configChangedChannel.invokeMethod("onConfigChanged", config.toMap())
     }
   }

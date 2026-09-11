@@ -1,15 +1,12 @@
 package com.llfbandit.record.record.stream
 
-import android.os.Handler
-import android.os.Looper
+import com.llfbandit.record.record.util.MainThread
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 
 class RecorderRecordStreamHandler : EventChannel.StreamHandler {
   // Event producer
   private var eventSink: EventSink? = null
-
-  private val uiThreadHandler = Handler(Looper.getMainLooper())
 
   override fun onListen(arguments: Any?, events: EventSink?) {
     this.eventSink = events
@@ -20,14 +17,15 @@ class RecorderRecordStreamHandler : EventChannel.StreamHandler {
   }
 
   fun sendRecordChunkEvent(buffer: ByteArray) {
-    uiThreadHandler.post {
+    MainThread.post {
       eventSink?.success(buffer)
     }
   }
 
   fun sendErrorEvent(ex: Exception) {
-    uiThreadHandler.post {
-      eventSink?.error("-1", ex.message, ex)
+    MainThread.post {
+      // `details` must be codec-encodable; a Throwable is not.
+      eventSink?.error("-1", ex.message ?: ex.toString(), ex.cause?.toString())
     }
   }
 }

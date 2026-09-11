@@ -1,3 +1,10 @@
+## 2.2.0
+* refactor: Rebuild recorder as capture engine + controller.
+* refactor: Redirect recorder control onto one background thread.
+* fix: Legacy recorder now honors mute, audio mode, speakerphone and interruptions.
+* chore: minSDK is now 24 (Android 7), so the legacy recorder can pause and resume on audio interruptions.
+* fix: Improve Bluetooth SCO reliability. Recording no longer stalls when the link fails to connect.
+
 ## 2.1.2
 * fix: Throw for unsupported stream encoders.
 * fix: Flac regression from CSD changes.

@@ -8,13 +8,8 @@ interface IEncoder {
    */
   fun startEncoding()
 
-  /**
-   * Stop the encoder process.
-   * Release resources used by the encoder process.
-   *
-   * Can only be called if the encoder process is started.
-   */
-  fun stopEncoding()
+  /** Releases the encoder and answers with the failure that ended it; never throws. */
+  fun stopEncoding(done: (Exception?) -> Unit)
 
   /**
    * Encode bytes of audio to file

@@ -6,6 +6,8 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import com.llfbandit.record.record.model.AudioInterruption
 import com.llfbandit.record.record.model.RecordConfig
 
@@ -13,9 +15,10 @@ class AudioSessionManager(
   context: Context,
   private val handler: Handler,
   private val onFocusLoss: () -> Unit,
-  private val onFocusGain: (AudioInterruption) -> Unit,
+  private val onFocusGain: () -> Unit,
 ) {
   companion object {
+    private val TAG = AudioSessionManager::class.java.simpleName
     private val muteStreams = arrayOf(
       AudioManager.STREAM_ALARM,
       AudioManager.STREAM_DTMF,
@@ -47,10 +50,11 @@ class AudioSessionManager(
     prevSpeakerphone = audioManager.isSpeakerphoneOn
   }
 
+  /** Idempotent: a session already holding focus keeps its request. */
   @Suppress("DEPRECATION")
-  fun apply(config: RecordConfig, requestFocus: Boolean) {
-    if (requestFocus && config.audioInterruption != AudioInterruption.NONE) {
-      requestAudioFocus(config.audioInterruption)
+  fun apply(config: RecordConfig) {
+    if (config.audioInterruption != AudioInterruption.NONE) {
+      requestAudioFocus()
     }
     if (config.muteAudio) {
       setMuted(true)
@@ -65,16 +69,15 @@ class AudioSessionManager(
   }
 
   @Suppress("DEPRECATION")
-  fun restore(config: RecordConfig?) {
+  fun restore(config: RecordConfig) {
     abandonAudioFocus()
-    val conf = config ?: return
-    if (conf.muteAudio) {
+    if (config.muteAudio) {
       setMuted(false)
     }
-    if (conf.audioManagerMode != AudioManager.MODE_NORMAL) {
+    if (config.audioManagerMode != AudioManager.MODE_NORMAL) {
       audioManager.mode = prevAudioMode
     }
-    if (conf.speakerphone) {
+    if (config.speakerphone) {
       audioManager.isSpeakerphoneOn = prevSpeakerphone
     }
   }
@@ -83,26 +86,42 @@ class AudioSessionManager(
     muteStreams.forEach { stream ->
       val level = if (mute) AudioManager.ADJUST_MUTE
       else (prevMuteSettings[stream] ?: AudioManager.ADJUST_UNMUTE)
-      audioManager.setStreamVolume(stream, level, 0)
+      try {
+        audioManager.setStreamVolume(stream, level, 0)
+      } catch (e: SecurityException) {
+        // Do Not Disturb without notification-policy access; muting is best effort.
+        Log.w(TAG, "Cannot change volume of stream $stream: ${e.message}")
+      }
     }
   }
 
   @Suppress("DEPRECATION")
-  private fun requestAudioFocus(interruption: AudioInterruption) {
-    focusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-      if (focusChange in setOf(
-          AudioManager.AUDIOFOCUS_LOSS,
+  private fun requestAudioFocus() {
+    if (focusChangeListener != null) return
+
+    // Pre-26 delivers on the main thread; bounce over and drop events from a replaced request.
+    lateinit var listener: AudioManager.OnAudioFocusChangeListener
+    listener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+      runOnControlThread {
+        if (focusChangeListener !== listener) return@runOnControlThread
+
+        when (focusChange) {
+          AudioManager.AUDIOFOCUS_LOSS -> {
+            // Permanent: the framework dropped our request; forget it so apply() asks again.
+            abandonAudioFocus()
+            onFocusLoss()
+          }
+
           AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-          AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK
-        )
-      ) {
-        onFocusLoss()
-      } else if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
-        onFocusGain(interruption)
+          AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> onFocusLoss()
+
+          AudioManager.AUDIOFOCUS_GAIN -> onFocusGain()
+        }
       }
     }
+    focusChangeListener = listener
 
-    if (Build.VERSION.SDK_INT >= 26) {
+    val result = if (Build.VERSION.SDK_INT >= 26) {
       val audioAttrs = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
@@ -111,15 +130,24 @@ class AudioSessionManager(
       focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(audioAttrs)
         .setAcceptsDelayedFocusGain(true)
-        .setOnAudioFocusChangeListener(focusChangeListener!!, handler)
+        .setOnAudioFocusChangeListener(listener, handler)
         .build()
 
       audioManager.requestAudioFocus(focusRequest!!)
     } else {
       audioManager.requestAudioFocus(
-        focusChangeListener, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN
+        listener, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN
       )
     }
+
+    if (result == AudioManager.AUDIOFOCUS_REQUEST_FAILED) {
+      Log.w(TAG, "Audio focus refused; the next activate() will ask again.")
+      abandonAudioFocus()
+    }
+  }
+
+  private fun runOnControlThread(block: () -> Unit) {
+    if (Looper.myLooper() === handler.looper) block() else handler.post(block)
   }
 
   @Suppress("DEPRECATION")
