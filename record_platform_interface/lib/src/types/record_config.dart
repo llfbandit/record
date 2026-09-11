@@ -70,6 +70,16 @@ class RecordConfig {
   /// Platforms: Android & iOS.
   final AudioInterruptionMode audioInterruption;
 
+  /// What the recorder does when the input device in use goes away
+  /// (e.g. headset unplugged, Bluetooth/USB mic disconnected).
+  ///
+  /// Defaults to [AudioRouteChangeMode.pause], like [audioInterruption], so the
+  /// app keeps the recording and decides when to resume.
+  ///
+  /// Platforms: Android, iOS, macOS web & Windows.
+  /// Android's legacy recorder needs API 28.
+  final AudioRouteChangeMode audioRouteChange;
+
   /// Useful for those who need finer data when streaming.
   ///
   /// Underlying implementations may adjust to other value or throw exception if under miminum size required.
@@ -89,6 +99,7 @@ class RecordConfig {
     this.androidConfig = const AndroidRecordConfig(),
     this.iosConfig = const IosRecordConfig(),
     this.audioInterruption = AudioInterruptionMode.pause,
+    this.audioRouteChange = AudioRouteChangeMode.pause,
     this.streamBufferSize,
   });
 
@@ -104,6 +115,7 @@ class RecordConfig {
     AndroidRecordConfig? androidConfig,
     IosRecordConfig? iosConfig,
     AudioInterruptionMode? audioInterruption,
+    AudioRouteChangeMode? audioRouteChange,
     ({int? value})? streamBufferSize,
   }) {
     return RecordConfig(
@@ -118,8 +130,10 @@ class RecordConfig {
       androidConfig: androidConfig ?? this.androidConfig,
       iosConfig: iosConfig ?? this.iosConfig,
       audioInterruption: audioInterruption ?? this.audioInterruption,
-      streamBufferSize:
-          streamBufferSize != null ? streamBufferSize.value : this.streamBufferSize,
+      audioRouteChange: audioRouteChange ?? this.audioRouteChange,
+      streamBufferSize: streamBufferSize != null
+          ? streamBufferSize.value
+          : this.streamBufferSize,
     );
   }
 
@@ -141,6 +155,9 @@ class RecordConfig {
       audioInterruption:
           AudioInterruptionMode.values[map['audioInterruption'] as int? ??
               AudioInterruptionMode.pause.index],
+      audioRouteChange:
+          AudioRouteChangeMode.values[map['audioRouteChange'] as int? ??
+              AudioRouteChangeMode.pause.index],
       streamBufferSize: map['streamBufferSize'] as int?,
     );
   }
@@ -158,6 +175,7 @@ class RecordConfig {
       'androidConfig': androidConfig.toMap(),
       'iosConfig': iosConfig.toMap(),
       'audioInterruption': audioInterruption.index,
+      'audioRouteChange': audioRouteChange.index,
       'streamBufferSize': streamBufferSize,
     };
   }
@@ -174,6 +192,7 @@ class RecordConfig {
         '  echoCancel: $echoCancel,\n'
         '  noiseSuppress: $noiseSuppress,\n'
         '  audioInterruption: $audioInterruption,\n'
+        '  audioRouteChange: $audioRouteChange,\n'
         '  streamBufferSize: $streamBufferSize,\n'
         ')';
   }

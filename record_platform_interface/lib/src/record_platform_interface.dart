@@ -109,6 +109,9 @@ abstract class RecordEventChannelPlatformInterface {
 
   /// Sets a callback invoked when the platform adjusted the requested [RecordConfig].
   ///
+  /// Also called with a `null` device when a route change moves recording off
+  /// the selected device to the default one.
+  ///
   /// Called only when at least one field differs from what was requested.
   /// Pass [null] to unregister.
   void setOnConfigChanged(

@@ -100,6 +100,9 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   }
 
   /// Resumes recording session after [pause].
+  ///
+  /// Throws [RecordResumeNoDeviceException] when a route change took the
+  /// device and no other input is available.
   Future<void> resume() {
     return _safeCall(() {
       return _platform.resume(_recorderId);
@@ -108,6 +111,9 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
 
   /// Sets a callback invoked when the platform adjusted the requested [RecordConfig]
   /// to match hardware or codec constraints.
+  ///
+  /// Also called with a `null` device when a route change moves recording off
+  /// the selected device to the default one. See [RecordConfig.audioRouteChange].
   ///
   /// Only called when at least one field differs from what was requested.
   /// Pass [null] to unregister.

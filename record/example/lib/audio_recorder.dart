@@ -128,13 +128,13 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
     final isStopped = _recordState == RecordState.stop;
 
     return SafeArea(
-      child: Stack(
+      child: Column(
         children: [
-          if (isStopped)
-            Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Align(
+                alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 800),
                   child: DecoratedBox(
@@ -149,55 +149,53 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: _RecordConfigControls(
-                        config: _config,
-                        onConfigChanged: (v) => setState(() => _config = v),
-                        useStream: _useStream,
-                        onUseStreamChanged: (v) =>
-                            setState(() => _useStream = v),
-                        inputDevices: _inputDevices,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        spacing: 16,
+                        children: [
+                          if (isStopped)
+                            _RecordConfigControls(
+                              config: _config,
+                              onConfigChanged: (v) =>
+                                  setState(() => _config = v),
+                              useStream: _useStream,
+                              onUseStreamChanged: (v) =>
+                                  setState(() => _useStream = v),
+                              inputDevices: _inputDevices,
+                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            spacing: 20,
+                            children: <Widget>[
+                              _RecordStopControl(
+                                _recordState,
+                                onStart: _start,
+                                onStop: _stop,
+                              ),
+                              _PauseResumeControl(
+                                _recordState,
+                                onPause: _pause,
+                                onResume: _resume,
+                              ),
+                              _Timer(_recordState, _recordDuration),
+                            ],
+                          ),
+                          if (_amplitude != null)
+                            Column(
+                              children: [
+                                Text('Current: ${_amplitude?.current ?? 0.0}'),
+                                Text('Max: ${_amplitude?.max ?? 0.0}'),
+                              ],
+                            ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: _StatusBar(info: _statusBarContent),
           ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 40,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  spacing: 20,
-                  children: <Widget>[
-                    _RecordStopControl(
-                      _recordState,
-                      onStart: _start,
-                      onStop: _stop,
-                    ),
-                    _PauseResumeControl(
-                      _recordState,
-                      onPause: _pause,
-                      onResume: _resume,
-                    ),
-                    _Timer(_recordState, _recordDuration),
-                  ],
-                ),
-                if (_amplitude != null)
-                  Column(
-                    children: [
-                      Text('Current: ${_amplitude?.current ?? 0.0}'),
-                      Text('Max: ${_amplitude?.max ?? 0.0}'),
-                    ],
-                  ),
-              ],
-            ),
-          ),
+          _StatusBar(info: _statusBarContent),
         ],
       ),
     );
@@ -424,6 +422,30 @@ class _RecordConfigControls extends StatelessWidget {
                 .map((r) => DropdownMenuItem(value: r, child: Text('$r Hz')))
                 .toList(),
             onChanged: (v) => onConfigChanged(config.copyWith(sampleRate: v!)),
+          ),
+        ),
+        row(
+          'Interruption',
+          DropdownButton<AudioInterruptionMode>(
+            value: config.audioInterruption,
+            underline: const SizedBox.shrink(),
+            items: AudioInterruptionMode.values
+                .map((m) => DropdownMenuItem(value: m, child: Text(m.name)))
+                .toList(),
+            onChanged: (v) =>
+                onConfigChanged(config.copyWith(audioInterruption: v!)),
+          ),
+        ),
+        row(
+          'Route change',
+          DropdownButton<AudioRouteChangeMode>(
+            value: config.audioRouteChange,
+            underline: const SizedBox.shrink(),
+            items: AudioRouteChangeMode.values
+                .map((m) => DropdownMenuItem(value: m, child: Text(m.name)))
+                .toList(),
+            onChanged: (v) =>
+                onConfigChanged(config.copyWith(audioRouteChange: v!)),
           ),
         ),
       ],
