@@ -17,6 +17,11 @@ interface BluetoothScoListener {
   fun onBlScoNone()
 }
 
+/** Both carry a headset mic; LE Audio only exists from API 31. */
+internal fun isBluetoothHeadset(type: Int): Boolean =
+  type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && type == AudioDeviceInfo.TYPE_BLE_HEADSET)
+
 class BluetoothReceiver(
   private val context: Context,
   private val handler: Handler,
@@ -48,9 +53,7 @@ class BluetoothReceiver(
       override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
         devices.removeAll(DeviceUtils.filterSources(removedDevices.asList()).toSet())
 
-        val hasBluetoothSco = devices.any {
-          it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-        }
+        val hasBluetoothSco = devices.any { isBluetoothHeadset(it.type) }
         if (!hasBluetoothSco && audioManager.isBluetoothScoAvailableOffCall) {
           stopBluetoothSco()
         }
@@ -86,7 +89,7 @@ class BluetoothReceiver(
   }
 
   private fun maybeStartOrNotify(listener: BluetoothScoListener) {
-    val hasBluetoothSco = devices.any { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+    val hasBluetoothSco = devices.any { isBluetoothHeadset(it.type) }
     if (hasBluetoothSco && audioManager.isBluetoothScoAvailableOffCall) {
       startBluetoothSco(listener)
     } else {
@@ -118,17 +121,20 @@ class BluetoothReceiver(
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-      for (device in audioManager.availableCommunicationDevices) {
-        if (device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
-          audioManager.setCommunicationDevice(device)
-          // setCommunicationDevice is synchronous; the legacy SCO broadcast is not
-          // guaranteed to fire on API 31+, so notify the listener immediately.
-          startNotified = true
-          listener?.onBlScoConnected()
-          return
-        }
+      val available = audioManager.availableCommunicationDevices
+      // LE Audio wins over SCO if the headset offers both.
+      val device = available.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLE_HEADSET }
+        ?: available.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+
+      if (device == null) {
+        notifyNone(listener)
+      } else {
+        audioManager.setCommunicationDevice(device)
+        // setCommunicationDevice is synchronous; the legacy SCO broadcast is not
+        // guaranteed to fire on API 31+, so notify the listener immediately.
+        startNotified = true
+        listener?.onBlScoConnected()
       }
-      notifyNone(listener)
     } else {
       @Suppress("DEPRECATION")
       if (audioManager.isBluetoothScoOn()) {

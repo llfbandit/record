@@ -108,9 +108,7 @@ class BluetoothManagerTest {
   @Test
   @Config(sdk = [33])
   fun `a communication device answers without a broadcast`() {
-    val device = scoDevice()
-    shadowOf(audioManager).setInputDevices(listOf(device))
-    shadowOf(audioManager).setAvailableCommunicationDevices(listOf(device))
+    withCommunicationDevices(headsetDevice(AudioDeviceInfo.TYPE_BLUETOOTH_SCO))
 
     start()
 
@@ -119,13 +117,43 @@ class BluetoothManagerTest {
     assertEquals(1, readyCount)
   }
 
-  private fun withHeadset() {
-    shadowOf(audioManager).setInputDevices(listOf(scoDevice()))
+  @Test
+  @Config(sdk = [33])
+  fun `an LE Audio headset is taken over SCO`() {
+    withCommunicationDevices(
+      headsetDevice(AudioDeviceInfo.TYPE_BLUETOOTH_SCO),
+      headsetDevice(AudioDeviceInfo.TYPE_BLE_HEADSET),
+    )
+
+    start()
+
+    assertEquals(1, readyCount)
+    assertEquals(AudioDeviceInfo.TYPE_BLE_HEADSET, audioManager.communicationDevice?.type)
   }
 
-  private fun scoDevice(): AudioDeviceInfo {
+  @Test
+  @Config(sdk = [33])
+  fun `an LE Audio headset alone is still taken`() {
+    withCommunicationDevices(headsetDevice(AudioDeviceInfo.TYPE_BLE_HEADSET))
+
+    start()
+
+    assertEquals(1, readyCount)
+    assertEquals(AudioDeviceInfo.TYPE_BLE_HEADSET, audioManager.communicationDevice?.type)
+  }
+
+  private fun withHeadset() {
+    shadowOf(audioManager).setInputDevices(listOf(headsetDevice(AudioDeviceInfo.TYPE_BLUETOOTH_SCO)))
+  }
+
+  private fun withCommunicationDevices(vararg devices: AudioDeviceInfo) {
+    shadowOf(audioManager).setInputDevices(devices.toList())
+    shadowOf(audioManager).setAvailableCommunicationDevices(devices.toList())
+  }
+
+  private fun headsetDevice(type: Int): AudioDeviceInfo {
     val device = AudioDeviceInfoBuilder.newBuilder()
-      .setType(AudioDeviceInfo.TYPE_BLUETOOTH_SCO)
+      .setType(type)
       .build()
 
     // Left unset by the builder, so isSource() is false and filterSources() drops it.

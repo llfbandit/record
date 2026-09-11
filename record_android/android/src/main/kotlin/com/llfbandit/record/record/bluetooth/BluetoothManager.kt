@@ -1,7 +1,6 @@
 package com.llfbandit.record.record.bluetooth
 
 import android.content.Context
-import android.media.AudioDeviceInfo
 import android.os.Handler
 import com.llfbandit.record.record.model.RecordConfig
 
@@ -19,7 +18,7 @@ class BluetoothManager(private val context: Context, private val handler: Handle
       return
     }
 
-    if (config.device != null && config.device.type != AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+    if (config.device != null && !isBluetoothHeadset(config.device.type)) {
       stop()
       onDone()
       return
