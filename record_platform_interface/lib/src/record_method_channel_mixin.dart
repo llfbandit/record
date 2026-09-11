@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'types/exception/record_resume_exception.dart';
 import 'record_platform_interface.dart';
 import 'types/types.dart';
 
@@ -49,8 +50,15 @@ mixin RecordMethodChannel implements RecordMethodChannelPlatformInterface {
   }
 
   @override
-  Future<void> resume(String recorderId) {
-    return _methodChannel.invokeMethod('resume', {'recorderId': recorderId});
+  Future<void> resume(String recorderId) async {
+    try {
+      await _methodChannel.invokeMethod('resume', {'recorderId': recorderId});
+    } on PlatformException catch (e) {
+      if (e.code == noInputDeviceErrorCode) {
+        throw const RecordResumeNoDeviceException();
+      }
+      rethrow;
+    }
   }
 
   @override
