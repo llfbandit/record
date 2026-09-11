@@ -1,6 +1,6 @@
 name: record_web
 description: Web specific implementation for record package called by record_platform_interface.
-version: 2.1.2
+version: 2.1.3
 homepage: https://github.com/llfbandit/record/tree/main/record_web
 
 environment:

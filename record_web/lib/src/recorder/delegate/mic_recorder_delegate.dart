@@ -82,14 +82,15 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<Stream<Uint8List>> startStream(RecordConfig config) async {
-    await _recordStreamCtrl?.close();
+    // Not awaited: an unlistened controller never completes its close.
+    unawaited(_recordStreamCtrl?.close());
     _recordStreamCtrl = StreamController<Uint8List>();
 
     try {
       await _start(config, isStream: true);
     } catch (err) {
       debugPrint(err.toString());
-      await _recordStreamCtrl?.close();
+      unawaited(_recordStreamCtrl?.close());
       _recordStreamCtrl = null;
       rethrow;
     }
@@ -227,7 +228,7 @@ class MicRecorderDelegate extends RecorderDelegate {
     _maxAmplitude = kMinAmplitude;
     _amplitude = kMinAmplitude;
 
-    _recordStreamCtrl?.close();
+    unawaited(_recordStreamCtrl?.close());
     _recordStreamCtrl = null;
   }
 }

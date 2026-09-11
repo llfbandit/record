@@ -44,7 +44,7 @@ class Recorder {
           .toDart;
 
       final isGranted = permissionStatus.state == 'granted';
-      if (!isGranted && request) return _requestPermission();
+      if (!isGranted && request) return await _requestPermission();
 
       return isGranted;
     } catch (_) {
