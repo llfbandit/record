@@ -1,3 +1,6 @@
+## 2.2.0
+* feat: Add `AudioRouteChangeMode` / `RecordConfig.audioRouteChange` to control recorder behaviour (follow/pause/stop) when the input device becomes unavailable. Adds `RecordResumeNoDeviceException`.
+
 ## 2.1.0
 * feat: Improve InputDevice description with sample rates and type.
 * fix: codec/device caps and surface `onConfigChanged` to dart side.
