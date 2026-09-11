@@ -193,7 +193,9 @@ class MicRecorderDelegate extends RecorderDelegate {
     final output = (event.data as JSInt16Array?)?.toDart;
 
     if (output case final output?) {
-      _recordStreamCtrl?.add(output.buffer.asUint8List());
+      _recordStreamCtrl?.add(
+        output.buffer.asUint8List(output.offsetInBytes, output.lengthInBytes),
+      );
       _updateAmplitude(output);
     }
   }
