@@ -1,3 +1,9 @@
+## 2.2.0
+* refactor: Rebuild recorder as capture engine + controller.
+* fix: A recording paused by the user is no longer resumed when an interruption ends.
+* fix: A failed start no longer leaves its interruption observer registered.
+* fix: Device and encoder queries no longer need a recorder to be created first.
+
 ## 2.1.1
 * fix: Throw for unsupported stream encoders.
 

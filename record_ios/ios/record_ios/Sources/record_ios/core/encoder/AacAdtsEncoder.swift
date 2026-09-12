@@ -2,13 +2,14 @@ import AVFoundation
 
 class AacAdtsEncoder: AudioEnc {
   private var audioConverter: AudioConverterRef?
-  private var outputFormat: AVAudioFormat?
   private var pcmBuffer: [Int16] = []
   private var pcmBufferReadIndex = 0
   private let aacFramesPerPacket = 1024
   private let bufferLock = NSLock()
-  private var config: RecordConfig?
-  
+  // We keep only what the ADTS header needs, so encode() copies nothing per frame.
+  private var sampleRate: Int?
+
+
   func setup(config: RecordConfig, format: AVAudioFormat) throws {
     var srcFormat = AudioStreamBasicDescription(
       mSampleRate: format.sampleRate,
@@ -53,7 +54,7 @@ class AacAdtsEncoder: AudioEnc {
       &bitRate
     )
     
-    self.config = config
+    self.sampleRate = config.sampleRate
     audioConverter = converter
   }
   
@@ -86,7 +87,7 @@ class AacAdtsEncoder: AudioEnc {
         let framesToEncode = Array(pcmBuffer[pcmBufferReadIndex..<endIndex])
         pcmBufferReadIndex += samplesPerFrame
 
-        guard let sampleRate = config?.sampleRate else { break }
+        guard let sampleRate = self.sampleRate else { break }
         if let aacData = encode(
           pcmSamples: framesToEncode,
           converter: converter,
@@ -124,7 +125,7 @@ class AacAdtsEncoder: AudioEnc {
         mBuffers: inputBuffer
       )
       
-      // AAC-LC allows up to 6144 bits/channel; 8192 bytes comfortably covers all.
+      // AAC-LC allows up to 6144 bits per channel. 8192 bytes is enough for all cases.
       let outputBufferSize = 8192
       let outputBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: outputBufferSize)
       defer { outputBuffer.deallocate() }

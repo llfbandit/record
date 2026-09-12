@@ -1,11 +1,11 @@
 import AVFoundation
 
-/// Handles the audio processing pipeline for a stream recording session:
-/// PCM format conversion, amplitude tracking, and encoding (AAC or PCM16).
+/// Processes the audio of a stream recording:
+/// PCM conversion, amplitude, and encoding (AAC or PCM16).
 class AudioStreamProcessor {
   private let m_converter: AVAudioConverter
   private let m_encoder: AudioEnc
-  private var m_amplitude: Float = -160.0
+  private var m_amplitude: Float = silenceDb
 
   init(config: RecordConfig, srcFormat: AVAudioFormat) throws {
     guard let outputFormat = AVAudioFormat(
@@ -44,8 +44,8 @@ class AudioStreamProcessor {
   }
 
   /// Converts, tracks amplitude, and encodes one tap buffer.
-  /// Returns `nil` on unrecoverable conversion error (caller should stop recording).
-  /// Returns `[]` when the encoder is buffering (e.g. AAC waiting for a full frame).
+  /// Returns `nil` if conversion fails for good. The caller must stop recording.
+  /// Returns `[]` while the encoder waits for more data (AAC needs a full frame).
   func process(buffer: AVAudioPCMBuffer) -> [Data]? {
     guard let converted = convertBuffer(buffer) else { return nil }
     updateAmplitude(converted)
@@ -90,6 +90,6 @@ class AudioStreamProcessor {
       let s = abs(Float(ch0[i]))
       if s > maxSample { maxSample = s }
     }
-    m_amplitude = maxSample > 0 ? 20 * log10(maxSample / 32767.0) : -160.0
+    m_amplitude = maxSample > 0 ? 20 * log10(maxSample / 32767.0) : silenceDb
   }
 }
