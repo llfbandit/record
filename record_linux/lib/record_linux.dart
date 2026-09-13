@@ -10,9 +10,18 @@ const _parecordBin = 'parecord';
 const _ffmpegBin = 'ffmpeg';
 
 class RecordLinux extends RecordPlatform {
+  RecordLinux({
+    @visibleForTesting String parecordBin = _parecordBin,
+    @visibleForTesting String ffmpegBin = _ffmpegBin,
+  }) : _parecordExecutable = parecordBin,
+       _ffmpegExecutable = ffmpegBin;
+
   static void registerWith() {
     RecordPlatform.instance = RecordLinux();
   }
+
+  final String _parecordExecutable;
+  final String _ffmpegExecutable;
 
   RecordState _state = RecordState.stop;
   String? _path;
@@ -108,7 +117,8 @@ class RecordLinux extends RecordPlatform {
     // Step 1: Use parecord to capture raw PCM audio from the microphone
     // We always capture raw PCM (not encoded) so we can calculate amplitude
     final args = _getParecordArgs(adjustedConfig, path: null, canEncode: false);
-    _parecordProcess = await Process.start(_parecordBin, args);
+    _parecordProcess = await Process.start(_parecordExecutable, args);
+    _drain(_parecordProcess!.stderr);
 
     // Step 2: Pipe the raw PCM through amplitude monitoring to ffmpeg for encoding
     // parecord (capture) -> amplitude calculation -> ffmpeg (encode to file)
@@ -132,7 +142,8 @@ class RecordLinux extends RecordPlatform {
     final adjustedConfig = _adjustConfig(config);
 
     final args = _getParecordArgs(adjustedConfig);
-    _parecordProcess = await Process.start(_parecordBin, args);
+    _parecordProcess = await Process.start(_parecordExecutable, args);
+    _drain(_parecordProcess!.stderr);
 
     _updateState(RecordState.record);
 
@@ -430,6 +441,12 @@ class RecordLinux extends RecordPlatform {
     );
   }
 
+  /// Consumes and discards a child process output stream so the process is
+  /// never blocked on a full pipe.
+  void _drain(Stream<List<int>> output) {
+    output.listen((_) {}, onError: (_) {}, cancelOnError: true);
+  }
+
   void _updateState(RecordState state) {
     if (_state == state) return;
 
@@ -493,7 +510,13 @@ class RecordLinux extends RecordPlatform {
       ..._getFfmpegEncoderSettings(config.encoder, path, config.bitRate),
     ];
 
-    _ffmpegProcess = await Process.start(_ffmpegBin, ffmpegArgs);
+    _ffmpegProcess = await Process.start(_ffmpegExecutable, ffmpegArgs);
+    // ffmpeg reports progress on stderr for as long as it encodes. Nobody
+    // reads it, so once the pipe buffer is full ffmpeg blocks in write(),
+    // stops reading stdin and the recording silently stops growing; stop()
+    // then waits forever for the input pipe to drain.
+    _drain(_ffmpegProcess!.stdout);
+    _drain(_ffmpegProcess!.stderr);
 
     // Create a passthrough stream controller to intercept audio data
     _inputPcmController = StreamController<List<int>>();
