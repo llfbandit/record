@@ -1,3 +1,6 @@
+@TestOn('linux')
+library;
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -41,15 +44,28 @@ void main() {
       final ffmpeg = await writeScript(
         'ffmpeg',
         'for a; do out="\$a"; done\n'
-            'head -c 1048576 /dev/zero >&2\n'
+            'head -c 2097152 /dev/zero >&2\n'
             'cat > "\$out"\n',
       );
       final output = '${tempDir.path}/take.m4a';
 
+      // A hung stop() leaves the fake processes behind; the test's own
+      // timeout does not reach them.
+      addTearDown(() => Process.run('pkill', ['-f', tempDir.path]));
+
       final recorder = RecordLinux(parecordBin: parecord, ffmpegBin: ffmpeg);
       await recorder.start('r', const RecordConfig(), path: output);
-      // Give the fake parecord time to emit its input.
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      // Wait for the input to reach the encoder. Without the drain it never
+      // does: the output file is not even created, this deadline passes and
+      // stop() below hangs.
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (DateTime.now().isBefore(deadline)) {
+        if (File(output).existsSync() &&
+            File(output).lengthSync() >= 3200 * 1000) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
 
       final stopped = await recorder
           .stop('r')
