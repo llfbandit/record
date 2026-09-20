@@ -13,7 +13,11 @@ class PcmCaptureEngineTest {
   private val events = mutableListOf<CaptureEvent>()
 
   private fun engine(path: String? = "/tmp/record-test.wav") =
-    PcmCaptureEngine(testRecordConfig(path = path)) { _, event -> events += event }
+    PcmCaptureEngine(
+      testRecordConfig(path = path),
+      onEvent = { _, event -> events += event },
+      removals = { AutoCloseable {} },
+    )
 
   private fun stop(engine: PcmCaptureEngine, delete: Boolean = false): Throwable? {
     var error: Throwable? = null
