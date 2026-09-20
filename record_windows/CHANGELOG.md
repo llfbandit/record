@@ -1,3 +1,6 @@
+## 2.4.0
+* refactor: Rebuild recorder as capture engine, sink and controller.
+
 ## 2.3.0
 * refactor: redirect recorder control onto one background thread.
 

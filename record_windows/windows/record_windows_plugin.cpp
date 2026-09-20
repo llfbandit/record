@@ -55,6 +55,59 @@ namespace record_windows {
 		m_recorders.clear();
 	}
 
+	// Calls that read the machine, not a recorder. Returns false when not one of them.
+	bool RecordWindowsPlugin::HandleDeviceCall(
+		const std::string& method,
+		const EncodableMap* args,
+		MethodResult<EncodableValue>& result
+	) {
+		if (method.compare("hasPermission") == 0)
+		{
+			result.Success(EncodableValue(true));
+		}
+		else if (method.compare("isEncoderSupported") == 0)
+		{
+			std::string encoderName;
+			if (!GetValueFromEncodableMap(args, "encoder", encoderName))
+			{
+				result.Error("Bad arguments", "Expected encoder name.");
+				return true;
+			}
+
+			bool supported = false;
+			HRESULT hr = AudioDevice::IsEncoderSupported(encoderName, &supported);
+
+			if (SUCCEEDED(hr))
+			{
+				result.Success(EncodableValue(supported));
+			}
+			else
+			{
+				ErrorFromHR(hr, result);
+			}
+		}
+		else if (method.compare("listInputDevices") == 0)
+		{
+			EncodableList devices;
+			HRESULT hr = AudioDevice::ListInputDevices(devices);
+
+			if (SUCCEEDED(hr))
+			{
+				result.Success(EncodableValue(std::move(devices)));
+			}
+			else
+			{
+				ErrorFromHR(hr, result);
+			}
+		}
+		else
+		{
+			return false;
+		}
+
+		return true;
+	}
+
 	// Called when a method is called on this plugin's channel from Dart.
 	void RecordWindowsPlugin::HandleMethodCall(
 		const MethodCall<EncodableValue>& method_call,
@@ -64,6 +117,11 @@ namespace record_windows {
 		const auto* mapArgs = std::get_if<EncodableMap>(args);
 		if (!mapArgs) {
 			result->Error("Record", "Call missing parameters");
+			return;
+		}
+
+		// Answered before the recorder is looked up: these need none.
+		if (HandleDeviceCall(method_call.method_name(), mapArgs, *result)) {
 			return;
 		}
 
@@ -97,11 +155,7 @@ namespace record_windows {
 		SharedResult shared(std::move(result));
 		auto alive = m_alive;
 
-		if (method_call.method_name().compare("hasPermission") == 0)
-		{
-			shared->Success(EncodableValue(true));
-		}
-		else if (method_call.method_name().compare("isPaused") == 0)
+		if (method_call.method_name().compare("isPaused") == 0)
 		{
 			recorder->IsPaused([shared, alive](bool paused) {
 				if (*alive) shared->Success(EncodableValue(paused));
@@ -123,7 +177,7 @@ namespace record_windows {
 		}
 		else if (method_call.method_name().compare("start") == 0)
 		{
-			auto config = InitRecordConfig(mapArgs);
+			auto config = std::make_unique<RecordConfig>(RecordConfig::FromMap(*mapArgs));
 
 			std::string path;
 			GetValueFromEncodableMap(mapArgs, "path", path);
@@ -132,7 +186,7 @@ namespace record_windows {
 		}
 		else if (method_call.method_name().compare("startStream") == 0)
 		{
-			auto config = InitRecordConfig(mapArgs);
+			auto config = std::make_unique<RecordConfig>(RecordConfig::FromMap(*mapArgs));
 
 			recorder->StartStream(std::move(config), HrReply(shared, alive));
 		}
@@ -174,77 +228,6 @@ namespace record_windows {
 				);
 			});
 		}
-		else if (method_call.method_name().compare("isEncoderSupported") == 0)
-		{
-			std::string encoderName;
-			if (!GetValueFromEncodableMap(mapArgs, "encoder", encoderName))
-			{
-				shared->Error("Bad arguments", "Expected encoder name.");
-				return;
-			}
-
-			bool supported = false;
-			HRESULT hr = AudioDevice::IsEncoderSupported(encoderName, &supported);
-
-			if (SUCCEEDED(hr))
-			{
-				shared->Success(EncodableValue(supported));
-			}
-			else
-			{
-				ErrorFromHR(hr, *shared);
-			}
-		}
-		else if (method_call.method_name().compare("listInputDevices") == 0)
-		{
-			EncodableList devices;
-			HRESULT hr = AudioDevice::ListInputDevices(devices);
-			if (SUCCEEDED(hr)) {
-				shared->Success(EncodableValue(std::move(devices)));
-			} else {
-				ErrorFromHR(hr, *shared);
-			}
-		}
-	}
-
-	std::unique_ptr<RecordConfig> RecordWindowsPlugin::InitRecordConfig(const EncodableMap* args)
-	{
-		std::string path;
-		GetValueFromEncodableMap(args, "path", path);
-		std::string encoderName;
-		GetValueFromEncodableMap(args, "encoder", encoderName);
-		int bitRate;
-		GetValueFromEncodableMap(args, "bitRate", bitRate);
-		int sampleRate;
-		GetValueFromEncodableMap(args, "sampleRate", sampleRate);
-		int numChannels;
-		GetValueFromEncodableMap(args, "numChannels", numChannels);
-		EncodableMap device;
-		std::string deviceId;
-		if (GetValueFromEncodableMap(args, "device", device))
-		{
-			GetValueFromEncodableMap(&device, "id", deviceId);
-		}
-		bool autoGain;
-		GetValueFromEncodableMap(args, "autoGain", autoGain);
-		bool echoCancel;
-		GetValueFromEncodableMap(args, "echoCancel", echoCancel);
-		bool noiseSuppress;
-		GetValueFromEncodableMap(args, "noiseSuppress", noiseSuppress);
-
-		auto config = std::make_unique<RecordConfig>(
-			encoderName,
-			deviceId,
-			bitRate,
-			sampleRate,
-			numChannels,
-			autoGain,
-			echoCancel,
-			noiseSuppress,
-			*args
-		);
-
-		return config;
 	}
 
 	void RecordWindowsPlugin::CreateRecorder(std::string recorderId)

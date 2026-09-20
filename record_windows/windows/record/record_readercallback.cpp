@@ -9,80 +9,48 @@ namespace record_windows
 	{
 		AssertOnDispatcher();
 
-		if (FAILED(hrStatus))
-		{
-			auto errorText = std::system_category().message(hrStatus);
-			printf("Record: Error when reading sample (0x%X)\n%s\n", hrStatus, errorText.c_str());
-			Stop();
-			return;
-		}
+		HRESULT hr = hrStatus;
 
-		HRESULT hr = S_OK;
-
-		if (pSample)
+		if (SUCCEEDED(hr) && pSample)
 		{
 			hr = ProcessSample(dwStreamIndex, llTimestamp, pSample);
 		}
 
-		if (SUCCEEDED(hr) && m_pReader)
+		if (FAILED(hr))
 		{
-			m_pReader->ReadSample(
-				(DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, NULL, NULL, NULL, NULL);
+			// Asking for another sample would only stall: end the take instead.
+			auto errorText = std::system_category().message(hr);
+			printf("Record: Error on sample (0x%X)\n%s\n", hr, errorText.c_str());
+			Stop();
+			return;
 		}
-	}
 
-	void Recorder::RebaseTimestamp(LONGLONG& llTimestamp)
-	{
-		if (m_bFirstSample)
-		{
-			m_llBaseTime = llTimestamp;
-			m_bFirstSample = false;
-			m_dataWritten = 0;
-			if (m_bResuming)
-			{
-				// Paused before any sample arrived: treat as a fresh start.
-				m_bResuming = false;
-				UpdateState(RecordState::record);
-			}
-		}
-		else if (m_bResuming)
-		{
-			m_bResuming = false;
-			// Shift base so timestamps resume from the pause instead of jumping back.
-			m_llBaseTime = llTimestamp - (m_llLastTime - m_llBaseTime);
-			UpdateState(RecordState::record);
-		}
-		m_llLastTime = llTimestamp;
-		llTimestamp -= m_llBaseTime;
+		m_engine.RequestSample();
 	}
 
 	HRESULT Recorder::ProcessSample(DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample)
 	{
-		RebaseTimestamp(llTimestamp);
+		if (m_clock.Rebase(llTimestamp))
+		{
+			UpdateState(RecordState::record);
+		}
 
 		HRESULT hr = pSample->SetSampleTime(llTimestamp);
 		if (FAILED(hr)) return hr;
 
-		if (m_pWriter)
+		if (m_pSink)
 		{
-			hr = m_pWriter->WriteSample(dwStreamIndex, pSample);
+			hr = m_pSink->Write(dwStreamIndex, pSample);
 			if (FAILED(hr)) return hr;
 		}
 
-		return ProcessBuffer(pSample);
+		return TrackLevel(pSample);
 	}
 
-	HRESULT Recorder::ProcessBuffer(IMFSample* pSample)
+	// Also counts the bytes, to tell an empty take from a real one.
+	HRESULT Recorder::TrackLevel(IMFSample* pSample)
 	{
-		if (!m_pWriter && m_pStreamEncoder && m_callbacks.onChunk)
-		{
-			for (auto& packet : m_pStreamEncoder->Feed(pSample))
-			{
-				m_callbacks.onChunk(std::move(packet));
-			}
-		}
-
-		IMFMediaBuffer* pBuffer = NULL;
+		Microsoft::WRL::ComPtr<IMFMediaBuffer> pBuffer;
 		HRESULT hr = pSample->ConvertToContiguousBuffer(&pBuffer);
 		if (FAILED(hr)) return hr;
 
@@ -97,7 +65,6 @@ namespace record_windows
 			pBuffer->Unlock();
 		}
 
-		SafeRelease(pBuffer);
 		return hr;
 	}
 };

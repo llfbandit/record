@@ -4,14 +4,54 @@
 
 #include <gtest/gtest.h>
 
+#include <fstream>
 #include <future>
+#include <iterator>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace record_windows
 {
 	namespace
 	{
+		// A take is only playable if the RIFF and data sizes match the file.
+		void ExpectValidWavHeader(const std::wstring& path)
+		{
+			std::ifstream file(path.c_str(), std::ios::binary);
+			ASSERT_TRUE(file.is_open());
+
+			std::vector<uint8_t> bytes(
+				(std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			ASSERT_GT(bytes.size(), 12u);
+
+			auto u32 = [&bytes](size_t at) {
+				uint32_t value = 0;
+				memcpy(&value, bytes.data() + at, sizeof(value));
+				return value;
+			};
+
+			ASSERT_EQ(memcmp(bytes.data(), "RIFF", 4), 0);
+			ASSERT_EQ(memcmp(bytes.data() + 8, "WAVE", 4), 0);
+			EXPECT_EQ(u32(4), bytes.size() - 8);
+
+			// Walk to the data chunk, whose size is written the same way.
+			size_t offset = 12;
+			while (offset + 8 <= bytes.size())
+			{
+				const uint32_t chunkSize = u32(offset + 4);
+				if (memcmp(bytes.data() + offset, "data", 4) == 0)
+				{
+					EXPECT_EQ(chunkSize, bytes.size() - offset - 8);
+					EXPECT_GT(chunkSize, 0u);
+					return;
+				}
+				offset += 8 + chunkSize + (chunkSize & 1);
+			}
+
+			ADD_FAILURE() << "no data chunk";
+		}
+
 		// Recorder methods assert they run on the dispatcher, so hop and wait.
 		template <typename F>
 		auto Call(RecorderDispatcher& dispatcher, F f) -> decltype(f())
@@ -67,6 +107,7 @@ namespace record_windows
 		StopResult stopped = Call(*dispatcher, [&] { return recorder.Stop(); });
 		EXPECT_HRESULT_SUCCEEDED(stopped.hr);
 		EXPECT_FALSE(stopped.path.empty());
+		ExpectValidWavHeader(path);
 
 		Call(*dispatcher, [&] { return recorder.Dispose(); });
 		DeleteFileW(path.c_str());

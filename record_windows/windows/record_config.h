@@ -31,6 +31,11 @@ namespace record_windows
 		bool noiseSuppress = false;
 		flutter::EncodableMap rawArgs;
 
+		// Reads the Dart call arguments. A missing key keeps the default above.
+		static RecordConfig FromMap(const flutter::EncodableMap& args);
+
+		RecordConfig() = default;
+
 		RecordConfig(
 			const std::string& encoderName,
 			const std::string& deviceId,

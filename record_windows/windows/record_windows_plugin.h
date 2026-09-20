@@ -37,10 +37,12 @@ namespace record_windows {
 		void HandleMethodCall(const MethodCall<EncodableValue>& method_call,
 			std::unique_ptr<MethodResult<EncodableValue>> result);
 
+		// Calls that read the machine, not a recorder. Returns false when not one of them.
+		bool HandleDeviceCall(const std::string& method, const EncodableMap* args,
+			MethodResult<EncodableValue>& result);
+
 		void CreateRecorder(std::string recorderId);
 		RecorderWrapper* GetRecorder(std::string recorderId);
-
-		std::unique_ptr<RecordConfig> InitRecordConfig(const EncodableMap* args);
 
 		// Before the recorders: their teardown still posts here.
 		PlatformThread m_platform;

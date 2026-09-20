@@ -17,6 +17,7 @@ list(APPEND PLUGIN_SOURCES
   "record_windows_plugin.cpp"
   "record_windows_plugin.h"
   "record_config.h"
+  "record_config.cpp"
   "platform_thread.h"
   "platform_thread.cpp"
   "recorder_dispatcher.h"
@@ -27,6 +28,14 @@ list(APPEND PLUGIN_SOURCES
   "record/record_readercallback.cpp"
   "record/reader_callback.h"
   "record/reader_callback.cpp"
+  "record/capture_engine.h"
+  "record/capture_engine.cpp"
+  "record/timeline_clock.h"
+  "record/sink/record_sink.h"
+  "record/sink/file_sink.h"
+  "record/sink/file_sink.cpp"
+  "record/sink/stream_sink.h"
+  "record/sink/stream_sink.cpp"
   "encoder/stream_encoder.h"
   "encoder/codec_caps.h"
   "encoder/codec_caps.cpp"
@@ -104,6 +113,9 @@ if (include_${PROJECT_NAME}_tests)
     "test/reader_callback_test.cpp"
     "test/recorder_wrapper_test.cpp"
     "test/recorder_stop_test.cpp"
+    "test/record_config_test.cpp"
+    "test/timeline_clock_test.cpp"
+    "test/sink_test.cpp"
     ${PLUGIN_SOURCES}
   )
 

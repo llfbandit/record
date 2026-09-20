@@ -1,10 +1,6 @@
 #pragma once
 
 #include <windows.h>
-#include <mfidl.h>
-#include <mfapi.h>
-#include <mferror.h>
-#include <Mfreadwrite.h>
 
 #include <assert.h>
 #include <functional>
@@ -13,11 +9,11 @@
 #include <string>
 #include <vector>
 
-#include "utils.h"
 #include "record_config.h"
-#include "encoder/stream_encoder.h"
 #include "amplitude/amplitude_tracker.h"
-#include "record/reader_callback.h"
+#include "record/capture_engine.h"
+#include "record/sink/record_sink.h"
+#include "record/timeline_clock.h"
 #include "recorder_dispatcher.h"
 
 namespace record_windows
@@ -42,7 +38,8 @@ namespace record_windows
 		std::function<void(const RecordConfig&)> onConfigChanged;
 	};
 
-	// Media Foundation capture. Runs on the dispatcher thread, so nothing here is locked.
+	// Drives one take: what the config asks for, applied to a [CaptureEngine] and
+	// an [IRecordSink]. Runs on the dispatcher thread, so nothing here is locked.
 	class Recorder
 	{
 	public:
@@ -61,18 +58,14 @@ namespace record_windows
 		std::map<std::string, double> GetAmplitude();
 
 	private:
-		HRESULT CreateAudioCaptureDevice(LPCWSTR pszEndPointID);
-		HRESULT CreateSourceReaderAsync();
-		HRESULT CreateSinkWriter(std::wstring path);
-
-		HRESULT InitRecording(std::unique_ptr<RecordConfig> config);
+		HRESULT BeginTake(std::unique_ptr<RecordConfig> config, std::unique_ptr<IRecordSink> sink);
+		HRESULT OpenCaptureDevice(std::unique_ptr<RecordConfig> config);
 		void UpdateState(RecordState state);
-		HRESULT EndRecording();
+		HRESULT EndRecording(bool discard = false);
 
 		void    OnSample(HRESULT hrStatus, DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample);
-		void    RebaseTimestamp(LONGLONG& llTimestamp);
 		HRESULT ProcessSample(DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample);
-		HRESULT ProcessBuffer(IMFSample* pSample);
+		HRESULT TrackLevel(IMFSample* pSample);
 
 		void AssertOnDispatcher() const { assert(m_dispatcher->IsCurrentThread()); }
 
@@ -80,19 +73,10 @@ namespace record_windows
 		RecorderCallbacks m_callbacks;
 		bool m_disposed = false;
 
-		IMFMediaSource*            m_pSource;
-		IMFPresentationDescriptor* m_pPresentationDescriptor;
-		IMFSourceReader*           m_pReader;
-		ReaderCallback*            m_pReaderCallback;
-		IMFSinkWriter*             m_pWriter;
-		IMFMediaType*              m_pMediaType;
-		std::unique_ptr<IStreamEncoder> m_pStreamEncoder;
-		std::wstring               m_recordingPath;
+		CaptureEngine m_engine;
+		std::unique_ptr<IRecordSink> m_pSink;
 
-		bool     m_bFirstSample = true;
-		bool     m_bResuming    = false;
-		LONGLONG m_llBaseTime   = 0;
-		LONGLONG m_llLastTime   = 0;
+		TimelineClock m_clock;
 
 		AmplitudeTracker m_amplitude;
 		DWORD            m_dataWritten = 0;
