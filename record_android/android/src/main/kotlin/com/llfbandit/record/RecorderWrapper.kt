@@ -6,6 +6,7 @@ import com.llfbandit.record.record.audio_manager.AndroidAudioEnvironment
 import com.llfbandit.record.record.audio_manager.AudioEnvironment
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.model.RecordState
+import com.llfbandit.record.record.recorder.NoInputDeviceException
 import com.llfbandit.record.record.recorder.RecorderController
 import com.llfbandit.record.record.recorder.RecorderSink
 import com.llfbandit.record.record.recorder.engine.CaptureEngine
@@ -14,6 +15,7 @@ import com.llfbandit.record.record.recorder.engine.MediaCaptureEngine
 import com.llfbandit.record.record.recorder.engine.PcmCaptureEngine
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
 import com.llfbandit.record.record.stream.RecorderStateStreamHandler
+import com.llfbandit.record.record.util.DeviceUtils
 import com.llfbandit.record.record.util.MainThread
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
@@ -49,8 +51,8 @@ class RecorderWrapper(
   private val controller: RecorderController = RecorderController(
     environment = environment,
     engineFactory = { config ->
-      if (config.useLegacy) MediaCaptureEngine(context, config)
-      else PcmCaptureEngine(config, ::onCaptureEvent)
+      if (config.useLegacy) MediaCaptureEngine(context, config, ::onCaptureEvent)
+      else PcmCaptureEngine(config, ::onCaptureEvent, { DeviceUtils.watchInputRemovals(context, it) })
     },
     sink = object : RecorderSink {
       override fun onState(state: RecordState) = stateStreamHandler.sendStateEvent(state)
@@ -77,6 +79,7 @@ class RecorderWrapper(
     when (event) {
       is CaptureEvent.Chunk -> recordStreamHandler.sendRecordChunkEvent(event.bytes)
       is CaptureEvent.Failed -> handler.post { controller.onCaptureFailure(source, event.cause) }
+      is CaptureEvent.RouteLost -> handler.post { controller.onRouteLost(source) }
     }
   }
 
@@ -91,21 +94,13 @@ class RecorderWrapper(
     startRecording(config, result)
   }
 
-  private fun startRecording(config: RecordConfig, result: MethodChannel.Result) {
-    dispatcher.post {
-      try {
-        controller.start(config) { error ->
-          if (error == null) result.success(null) else fail(result, error)
-        }
-      } catch (e: Exception) {
-        fail(result, e)
-      }
-    }
-  }
+  private fun startRecording(config: RecordConfig, result: MethodChannel.Result) =
+    runUntilDone(result) { controller.start(config, it) }
 
   fun pause(result: MethodChannel.Result) = run(result) { controller.pause() }
 
-  fun resume(result: MethodChannel.Result) = run(result) { controller.resume() }
+  // Answer once capture runs again, since resume may first replace a lost device.
+  fun resume(result: MethodChannel.Result) = runUntilDone(result) { controller.resume(it) }
 
   // Answered once the file is finalized.
   fun stop(result: MethodChannel.Result) = runAsync(result) { controller.stop(it) }
@@ -164,9 +159,17 @@ class RecorderWrapper(
     }
   }
 
+  // Runs a block that answers later with an error, or null on success.
+  private fun runUntilDone(result: MethodChannel.Result, block: ((Throwable?) -> Unit) -> Unit) =
+    runAsync(result) {
+      block { error -> if (error == null) result.success(null) else fail(result, error) }
+    }
+
   // `details` must be codec-encodable; a Throwable is not.
   private fun fail(result: MethodChannel.Result, error: Throwable) {
-    result.error("record", error.message ?: error.toString(), error.cause?.toString())
+    // The Dart side turns this code back into a RecordResumeNoDeviceException.
+    val code = if (error is NoInputDeviceException) "no_input_device" else "record"
+    result.error(code, error.message ?: error.toString(), error.cause?.toString())
   }
 
   private fun notifyConfigChanged(config: RecordConfig) {

@@ -2,16 +2,43 @@ package com.llfbandit.record.record.util
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Build
 
 class DeviceUtils {
   companion object {
     fun listInputDevicesAsMap(context: Context): List<Map<String, Any>> {
       return listInputDevices(context).map { deviceInfoToMap(it) }
+    }
+
+    fun hasInputDevices(context: Context): Boolean = listInputDevices(context).isNotEmpty()
+
+    /** Finds [device] among current inputs by id, or by type and address after a re-plug changed its id. */
+    fun findInputDevice(context: Context, device: AudioDeviceInfo): AudioDeviceInfo? {
+      val inputs = listInputDevices(context)
+      inputs.firstOrNull { it.id == device.id }?.let { return it }
+
+      // The address only exists from API 28; an empty one could match any device of the type.
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || device.address.isEmpty()) return null
+      return inputs.firstOrNull { it.type == device.type && it.address == device.address }
+    }
+
+    /** Calls [onRemoved] with the ids of input devices as they are unplugged, until closed. */
+    fun watchInputRemovals(context: Context, onRemoved: (deviceIds: List<Int>) -> Unit): AutoCloseable {
+      val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      val callback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
+          onRemoved(removedDevices.filter { it.isSource }.map { it.id })
+        }
+      }
+      // With no handler, Android calls [onRemoved] on the main thread.
+      audioManager.registerAudioDeviceCallback(callback, null)
+      return AutoCloseable { audioManager.unregisterAudioDeviceCallback(callback) }
     }
 
     private fun listInputDevices(context: Context): List<AudioDeviceInfo> {
@@ -21,7 +48,7 @@ class DeviceUtils {
       return filterSources(devices.asList())
     }
 
-    private fun deviceInfoToMap(device: AudioDeviceInfo): Map<String, Any> {
+    fun deviceInfoToMap(device: AudioDeviceInfo): Map<String, Any> {
       return mapOf(
         "id" to "${device.id}",
         "label" to device.productName,

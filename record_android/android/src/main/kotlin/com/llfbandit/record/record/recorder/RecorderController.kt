@@ -1,9 +1,11 @@
 package com.llfbandit.record.record.recorder
 
+import android.media.AudioDeviceInfo
 import com.llfbandit.record.record.audio_manager.AudioEnvironment
 import com.llfbandit.record.record.audio_manager.AudioInterruptionPolicy
 import com.llfbandit.record.record.audio_manager.EnvironmentEvent
 import com.llfbandit.record.record.audio_manager.PolicyAction
+import com.llfbandit.record.record.model.AudioRouteChange
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.model.RecordState
 import com.llfbandit.record.record.recorder.engine.CaptureEngine
@@ -27,8 +29,12 @@ class RecorderController(
   private val post: (() -> Unit) -> Unit,
 ) {
   private class Session(val engine: CaptureEngine, var config: RecordConfig) {
+    // Resume pins this device again once it returns, even after reportDevice cleared config.device.
+    val requestedDevice = config.device
     var state = RecordState.STOP  // STOP until the engine has started
     var maxAmplitude = DEFAULT_AMPLITUDE_DB
+    // Set on a route loss, so resume reroutes capture before starting it again.
+    var routeLost = false
   }
 
   private var session: Session? = null
@@ -82,11 +88,28 @@ class RecorderController(
     moveTo(s, RecordState.PAUSE)
   }
 
-  fun resume() {
-    val s = session ?: return
-    if (s.state != RecordState.PAUSE || !s.engine.resume()) return
-    environment.activate(s.config)
-    moveTo(s, RecordState.RECORD)
+  /** Answers with [NoInputDeviceException] when the lost device has no replacement. */
+  fun resume(done: (error: Throwable?) -> Unit) {
+    val s = session ?: return done(null)
+    if (s.state != RecordState.PAUSE) return done(null)
+
+    if (!s.routeLost) {
+      takeAndResume(s)
+      return done(null)
+    }
+
+    // Put capture back on the selected device if it returned, or on whatever is there now.
+    val device = s.requestedDevice?.let { environment.findDevice(it) }
+    s.engine.reroute(device) { ok ->
+      post {
+        if (session !== s) return@post done(null)
+        if (!ok) return@post done(NoInputDeviceException())
+        reportDevice(s, device)
+        s.routeLost = false
+        takeAndResume(s)
+        done(null)
+      }
+    }
   }
 
   /** Answers with the recorded file path, or null if nothing was recording. */
@@ -117,15 +140,56 @@ class RecorderController(
     endSession(s, reported = cause) { sink.onError(cause) }
   }
 
+  /** Applies config.audioRouteChange once the engine loses its input device. */
+  fun onRouteLost(source: CaptureEngine) {
+    val s = session ?: return
+    if (source !== s.engine) return
+
+    when (s.config.audioRouteChange) {
+      AudioRouteChange.FOLLOW -> s.engine.reroute(null) { ok ->
+        post {
+          if (session !== s) return@post
+          // Capture is unpinned, so it is on Android's default device.
+          if (ok) reportDevice(s, null)
+          // No input is left, so fall back to pause and let a later resume try again.
+          else pauseForRouteLoss(s)
+        }
+      }
+
+      AudioRouteChange.PAUSE -> pauseForRouteLoss(s)
+
+      AudioRouteChange.STOP -> stop {}
+    }
+  }
+
   fun onEnvironmentEvent(event: EnvironmentEvent) {
     val s = session ?: return
     for (action in AudioInterruptionPolicy.react(s.config, event)) {
       when (action) {
         PolicyAction.Pause ->
           if (s.state == RecordState.RECORD && s.engine.pause()) moveTo(s, RecordState.PAUSE)
-        PolicyAction.Resume -> resume()
+        PolicyAction.Resume -> resume {}
       }
     }
+  }
+
+  /** Tells Dart which device capture is on after a reroute; null is the default one. */
+  private fun reportDevice(s: Session, device: AudioDeviceInfo?) {
+    if (device?.id == s.config.device?.id) return
+    s.config = s.config.copy(device = device)
+    sink.onConfigChanged(s.config)
+  }
+
+  // Pause like a user pause, so a focus regain cannot resume capture on another device.
+  private fun pauseForRouteLoss(s: Session) {
+    s.routeLost = true
+    pause()
+  }
+
+  private fun takeAndResume(s: Session) {
+    if (!s.engine.resume()) return
+    environment.activate(s.config)
+    moveTo(s, RecordState.RECORD)
   }
 
   private fun endThenDispose(delete: Boolean, done: (path: String?) -> Unit) {

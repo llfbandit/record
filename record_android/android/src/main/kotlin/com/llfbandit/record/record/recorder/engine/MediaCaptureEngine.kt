@@ -1,11 +1,14 @@
 package com.llfbandit.record.record.recorder.engine
 
 import android.content.Context
+import android.media.AudioDeviceInfo
+import android.media.AudioRouting
 import android.media.MediaRecorder
 import android.os.Build
 import android.util.Log
 import com.llfbandit.record.record.model.AudioEncoder
 import com.llfbandit.record.record.model.RecordConfig
+import com.llfbandit.record.record.util.DeviceUtils
 import com.llfbandit.record.record.util.Utils
 import kotlin.math.log10
 
@@ -13,13 +16,20 @@ import kotlin.math.log10
 class MediaCaptureEngine(
   private val context: Context,
   config: RecordConfig,
+  private val onEvent: (source: CaptureEngine, event: CaptureEvent) -> Unit,
 ) : CaptureEngine {
   companion object {
     private val TAG = MediaCaptureEngine::class.java.simpleName
   }
 
   private val config: RecordConfig = config.copy()
+
+  // The control thread writes it; the routing and unplug callbacks read it from other threads.
+  @Volatile
   private var recorder: MediaRecorder? = null
+  private var routingListener: AudioRouting.OnRoutingChangedListener? = null
+  private var unwatchRemovals: AutoCloseable? = null
+  private val route = RouteTracker()
 
   override val amplitude: Double
     get() {
@@ -31,6 +41,10 @@ class MediaCaptureEngine(
       }
       return if (peak == 0) DEFAULT_AMPLITUDE_DB else 20 * log10(peak / 32768.0)
     }
+
+  // MediaRecorder re-routes itself; all we need to check is that a device still exists.
+  override fun reroute(device: AudioDeviceInfo?, done: (ok: Boolean) -> Unit) =
+    done(recorder != null && DeviceUtils.hasInputDevices(context))
 
   override fun start(): RecordConfig {
     val r = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
@@ -58,7 +72,27 @@ class MediaCaptureEngine(
     }
 
     recorder = r
+    watchRoute(r)
     return config
+  }
+
+  // MediaRecorder only reports its route from API 28, so below that no route change is handled.
+  private fun watchRoute(r: MediaRecorder) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+
+    route.reset(r.routedDevice?.id)
+    val listener = AudioRouting.OnRoutingChangedListener {
+      // Ignore callbacks that arrive after stop() released the recorder.
+      recorder?.let { route.moved(it.routedDevice?.id) }
+    }
+    routingListener = listener
+    // Android may call the listener on any thread; it only reads volatile state.
+    r.addOnRoutingChangedListener(listener, null)
+
+    // Only an unplug is a loss: a route change alone may be a newly plugged device.
+    unwatchRemovals = DeviceUtils.watchInputRemovals(context) { deviceIds ->
+      if (recorder != null && route.lost(deviceIds)) onEvent(this, CaptureEvent.RouteLost)
+    }
   }
 
   override fun pause(): Boolean {
@@ -89,10 +123,16 @@ class MediaCaptureEngine(
     var error: Throwable? = null
 
     if (r != null) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        routingListener?.let { r.removeOnRoutingChangedListener(it) }
+      }
+      routingListener = null
+      unwatchRemovals?.close()
+      unwatchRemovals = null
       try {
         r.stop()
       } catch (_: RuntimeException) {
-        // Muted: stop() throws if no valid data was captured.
+        // stop() throws when nothing was captured, which is fine here.
       } finally {
         // Reported, never thrown: the caller still has a session to finish.
         try {
