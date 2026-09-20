@@ -26,6 +26,7 @@ class RecordConfig(
   val speakerphone: Boolean = false,
   val audioManagerMode: Int = AudioManager.MODE_NORMAL,
   audioInterruption: Int,
+  audioRouteChange: Int,
   val streamBufferSize: Int?,
   private val rawMap: Map<String, Any?> = emptyMap(),
 ) {
@@ -36,20 +37,28 @@ class RecordConfig(
     else -> AudioInterruption.PAUSE
   }
 
+  val audioRouteChange: AudioRouteChange = when (audioRouteChange) {
+    0 -> AudioRouteChange.FOLLOW
+    2 -> AudioRouteChange.STOP
+    else -> AudioRouteChange.PAUSE
+  }
+
   val encoder: AudioEncoder = AudioEncoder.from(encoder)
 
   fun toMap(): Map<String, Any?> = rawMap + mapOf(
     "sampleRate" to sampleRate,
     "numChannels" to numChannels,
     "bitRate" to bitRate,
+    // Report the device in use, not the requested one; null means the default device.
+    "device" to device?.let { DeviceUtils.deviceInfoToMap(it) },
   )
 
-  fun copy() = RecordConfig(
+  fun copy(device: AudioDeviceInfo? = this.device) = RecordConfig(
     path, encoder.value, bitRate, sampleRate, numChannels,
     device, autoGain, echoCancel, noiseSuppress,
     useLegacy, muteAudio, manageBluetoothSco, audioSource,
     speakerphone, audioManagerMode, audioInterruption.ordinal,
-    streamBufferSize, rawMap,
+    audioRouteChange.ordinal, streamBufferSize, rawMap,
   )
 
   fun isModified(other: RecordConfig): Boolean =
@@ -129,6 +138,10 @@ class RecordConfig(
           call.argument("audioInterruption"),
           AudioInterruption.PAUSE.ordinal
         ),
+        Utils.firstNonNull(
+          call.argument("audioRouteChange"),
+          AudioRouteChange.PAUSE.ordinal
+        ),
         call.argument("streamBufferSize"),
         rawMap,
       )
@@ -157,4 +170,10 @@ enum class AudioInterruption {
   NONE,
   PAUSE,
   PAUSE_RESUME
+}
+
+enum class AudioRouteChange {
+  FOLLOW,
+  PAUSE,
+  STOP
 }

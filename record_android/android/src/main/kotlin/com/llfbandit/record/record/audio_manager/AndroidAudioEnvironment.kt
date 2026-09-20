@@ -1,13 +1,15 @@
 package com.llfbandit.record.record.audio_manager
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.os.Handler
 import com.llfbandit.record.record.bluetooth.BluetoothManager
 import com.llfbandit.record.record.model.RecordConfig
+import com.llfbandit.record.record.util.DeviceUtils
 
 /** [AudioEnvironment] backed by the platform `AudioManager`. */
 class AndroidAudioEnvironment(
-  context: Context,
+  private val context: Context,
   handler: Handler,
 ) : AudioEnvironment {
   override var onEvent: (EnvironmentEvent) -> Unit = {}
@@ -30,4 +32,6 @@ class AndroidAudioEnvironment(
   override fun release(config: RecordConfig) = session.restore(config)
 
   override fun dispose() = bluetooth.stop()
+
+  override fun findDevice(device: AudioDeviceInfo) = DeviceUtils.findInputDevice(context, device)
 }
