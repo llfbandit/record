@@ -1,5 +1,6 @@
 package com.llfbandit.record.record.audio_manager
 
+import android.media.AudioDeviceInfo
 import com.llfbandit.record.record.model.RecordConfig
 
 /** A normalized fact about the device audio environment. */
@@ -24,4 +25,7 @@ interface AudioEnvironment {
 
   /** Tear down what outlives recordings (Bluetooth SCO). */
   fun dispose()
+
+  /** Finds [device] among current inputs, or null; a re-plugged device comes back under a new id. */
+  fun findDevice(device: AudioDeviceInfo): AudioDeviceInfo?
 }

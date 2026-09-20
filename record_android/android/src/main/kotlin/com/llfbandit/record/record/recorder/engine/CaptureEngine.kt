@@ -1,7 +1,9 @@
 package com.llfbandit.record.record.recorder.engine
 
+import android.media.AudioDeviceInfo
 import com.llfbandit.record.record.model.RecordConfig
 
+/** Amplitude for silence, and for when nothing is being captured at all. */
 const val DEFAULT_AMPLITUDE_DB = -160.0
 
 /** Something the engine did on its own initiative; may be raised from any thread. */
@@ -10,6 +12,9 @@ sealed interface CaptureEvent {
 
   /** Capture ended on its own; the engine has already released itself. */
   class Failed(val cause: Throwable) : CaptureEvent
+
+  /** The input device in use went away; the engine waits for a [CaptureEngine.reroute], pause or stop. */
+  data object RouteLost : CaptureEvent
 }
 
 /** Runs one recording end to end on the control thread; single-use, done after [stop]. */
@@ -28,4 +33,7 @@ interface CaptureEngine {
 
   /** Latest input level in dB; [DEFAULT_AMPLITUDE_DB] while nothing is captured. */
   val amplitude: Double
+
+  /** Moves capture to [device], or to Android's pick when null; false when there is nothing to capture from. */
+  fun reroute(device: AudioDeviceInfo?, done: (ok: Boolean) -> Unit)
 }
