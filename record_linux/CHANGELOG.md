@@ -1,5 +1,6 @@
 ## 2.1.2
 * fix: Drain parecord/ffmpeg output pipes to prevent stalled recordings and hanging `stop()`.
+* fix: Broken device selection.
 
 ## 2.1.1
 * fix: don't close ffmpeg stdin while pipe is bound.

@@ -33,6 +33,17 @@ Future<List<String>> _runPactl(List<String> arguments) async {
   return lines;
 }
 
+/// Reads a `key = "value"` property; parecord wants the value unquoted.
+String _propertyValue(String line) {
+  final value = line.substring(line.indexOf('=') + 1).trim();
+
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    return value.substring(1, value.length - 1);
+  }
+
+  return value;
+}
+
 // Output can be retrieved with `pactl list sources`
 // --- Example ---
 // Source #2325
@@ -85,7 +96,7 @@ List<InputDevice> parsePactlSources(List<String> output) {
       currentDeviceName = null;
       currentSampleRates = [];
     } else if (line.trim().startsWith('node.name')) {
-      currentDeviceId = line.split('=')[1].trim();
+      currentDeviceId = _propertyValue(line);
     } else if (line.trim().startsWith('Name:')) {
       currentDeviceName = line.substring(line.indexOf(':') + 1).trim();
     } else if (line.trim().startsWith('Description:')) {

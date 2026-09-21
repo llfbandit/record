@@ -27,6 +27,35 @@ void main() {
     expect(devices.single.label, isNot(startsWith('Monitor of')));
   });
 
+  test('skips a monitor the description does not name as one', () {
+    final devices = parsePactlSources(const [
+      'Source #0',
+      '\tDescription: Built-in Audio Analog Stereo',
+      '\t\tnode.name = "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor"',
+    ]);
+
+    expect(devices, isEmpty);
+  });
+
+  test('strips the quotes pactl puts around the id', () {
+    final devices = parsePactlSources(sources);
+
+    expect(
+      devices.single.id,
+      'alsa_input.usb-Blue_Microphones-00.analog-stereo',
+    );
+  });
+
+  test('keeps an equals sign inside the id', () {
+    final devices = parsePactlSources(const [
+      'Source #0',
+      '\tDescription: Headset',
+      '\t\tnode.name = "bluez_input.00:11:22=33"',
+    ]);
+
+    expect(devices.single.id, 'bluez_input.00:11:22=33');
+  });
+
   test('keeps colons in the label', () {
     final devices = parsePactlSources(sources);
 
