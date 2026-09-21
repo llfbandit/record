@@ -4,12 +4,11 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:record_linux/record_linux.dart';
+import 'package:record_linux/src/capture_pipeline.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 
-/// `RecordLinux` runs `parecord` and `ffmpeg` as child processes. These tests
-/// swap both for shell scripts so the process plumbing is exercised without a
-/// microphone or an encoder.
+/// `CapturePipeline` runs parecord and ffmpeg as child processes. These tests
+/// swap both for shell scripts, so no microphone or encoder is needed.
 void main() {
   late Directory tempDir;
 
@@ -59,11 +58,11 @@ void main() {
       );
       final output = '${tempDir.path}/take.m4a';
 
-      final recorder = RecordLinux.withExecutables(
+      final pipeline = CapturePipeline(
         parecordBin: parecord,
         ffmpegBin: ffmpeg,
       );
-      await recorder.start('r', const RecordConfig(), path: output);
+      await pipeline.startFile(const RecordConfig(), output);
 
       // Best effort: let most input reach the encoder before stop().
       final deadline = DateTime.now().add(const Duration(seconds: 5));
@@ -76,11 +75,8 @@ void main() {
       }
 
       // Without the drain, ffmpeg blocks on stderr and never returns.
-      final stopped = await recorder
-          .stop('r')
-          .timeout(const Duration(seconds: 10));
+      await pipeline.stop().timeout(const Duration(seconds: 10));
 
-      expect(stopped, output);
       expect(
         File(output).lengthSync(),
         3200 * 1000,
