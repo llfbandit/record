@@ -10,9 +10,14 @@ const _parecordBin = 'parecord';
 const _ffmpegBin = 'ffmpeg';
 
 class RecordLinux extends RecordPlatform {
-  RecordLinux({
-    @visibleForTesting String parecordBin = _parecordBin,
-    @visibleForTesting String ffmpegBin = _ffmpegBin,
+  RecordLinux()
+    : _parecordExecutable = _parecordBin,
+      _ffmpegExecutable = _ffmpegBin;
+
+  @visibleForTesting
+  RecordLinux.withExecutables({
+    required String parecordBin,
+    required String ffmpegBin,
   }) : _parecordExecutable = parecordBin,
        _ffmpegExecutable = ffmpegBin;
 

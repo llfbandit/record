@@ -1,6 +1,6 @@
 name: record_linux
 description: Linux specific implementation for record package called by record_platform_interface.
-version: 2.1.1
+version: 2.1.2
 homepage: https://github.com/llfbandit/record/tree/main/record_linux
 
 environment:

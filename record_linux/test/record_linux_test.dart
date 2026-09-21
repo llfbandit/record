@@ -17,13 +17,23 @@ void main() {
     tempDir = await Directory.systemTemp.createTemp('record_linux_test_');
   });
 
+  // A hung stop() leaves the fakes alive; the test timeout won't kill them.
   tearDown(() async {
+    for (final entry in tempDir.listSync().whereType<File>()) {
+      if (!entry.path.endsWith('.pid')) continue;
+      final pid = int.tryParse(entry.readAsStringSync().trim());
+      if (pid != null) Process.killPid(pid, ProcessSignal.sigkill);
+    }
+
     await tempDir.delete(recursive: true);
   });
 
+  // Scripts write their pid for teardown; `exec` keeps it valid.
   Future<String> writeScript(String name, String body) async {
     final file = File('${tempDir.path}/$name');
-    await file.writeAsString('#!/bin/sh\n$body');
+    await file.writeAsString(
+      '#!/bin/sh\necho \$\$ > "${file.path}.pid"\n$body',
+    );
     await Process.run('chmod', ['+x', file.path]);
     return file.path;
   }
@@ -49,15 +59,13 @@ void main() {
       );
       final output = '${tempDir.path}/take.m4a';
 
-      // A hung stop() leaves the fake processes behind; the test's own
-      // timeout does not reach them.
-      addTearDown(() => Process.run('pkill', ['-f', tempDir.path]));
-
-      final recorder = RecordLinux(parecordBin: parecord, ffmpegBin: ffmpeg);
+      final recorder = RecordLinux.withExecutables(
+        parecordBin: parecord,
+        ffmpegBin: ffmpeg,
+      );
       await recorder.start('r', const RecordConfig(), path: output);
-      // Wait for the input to reach the encoder. Without the drain it never
-      // does: the output file is not even created, this deadline passes and
-      // stop() below hangs.
+
+      // Best effort: let most input reach the encoder before stop().
       final deadline = DateTime.now().add(const Duration(seconds: 5));
       while (DateTime.now().isBefore(deadline)) {
         if (File(output).existsSync() &&
@@ -67,12 +75,17 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
 
+      // Without the drain, ffmpeg blocks on stderr and never returns.
       final stopped = await recorder
           .stop('r')
           .timeout(const Duration(seconds: 10));
 
       expect(stopped, output);
-      expect(File(output).lengthSync(), 3200 * 1000);
+      expect(
+        File(output).lengthSync(),
+        3200 * 1000,
+        reason: 'every captured byte should reach the encoder',
+      );
     },
   );
 }
