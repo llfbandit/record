@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 
 import 'src/amplitude_tracker.dart';
+import 'src/codec_caps.dart';
 import 'src/pactl_devices.dart';
+import 'src/process_args.dart';
 
 const _parecordBin = 'parecord';
 const _ffmpegBin = 'ffmpeg';
@@ -61,20 +63,8 @@ class RecordLinux extends RecordPlatform {
   }
 
   @override
-  Future<bool> isEncoderSupported(
-    String recorderId,
-    AudioEncoder encoder,
-  ) async {
-    switch (encoder) {
-      case AudioEncoder.aacLc:
-      case AudioEncoder.flac:
-      case AudioEncoder.opus:
-      case AudioEncoder.wav:
-      case AudioEncoder.pcm16bits:
-        return true;
-      default:
-        return false;
-    }
+  Future<bool> isEncoderSupported(String recorderId, AudioEncoder encoder) {
+    return Future.value(supportsEncoder(encoder));
   }
 
   @override
@@ -111,7 +101,7 @@ class RecordLinux extends RecordPlatform {
   }) async {
     await stop(recorderId);
 
-    await _supportedOrThrow(recorderId, config);
+    _supportedOrThrow(config);
 
     _deleteFile(path);
 
@@ -119,7 +109,7 @@ class RecordLinux extends RecordPlatform {
 
     // Step 1: Use parecord to capture raw PCM audio from the microphone
     // We always capture raw PCM (not encoded) so we can calculate amplitude
-    final args = _getParecordArgs(adjustedConfig, path: null, canEncode: false);
+    final args = parecordArgs(adjustedConfig, path: null, canEncode: false);
     _parecordProcess = await Process.start(_parecordExecutable, args);
     _drain(_parecordProcess!.stderr);
 
@@ -144,7 +134,7 @@ class RecordLinux extends RecordPlatform {
 
     final adjustedConfig = _adjustConfig(config);
 
-    final args = _getParecordArgs(adjustedConfig);
+    final args = parecordArgs(adjustedConfig);
     _parecordProcess = await Process.start(_parecordExecutable, args);
     _drain(_parecordProcess!.stderr);
 
@@ -226,96 +216,18 @@ class RecordLinux extends RecordPlatform {
     }
   }
 
-  Future<void> _supportedOrThrow(String recorderId, RecordConfig config) async {
-    final supported = await isEncoderSupported(recorderId, config.encoder);
-    if (!supported) {
+  void _supportedOrThrow(RecordConfig config) {
+    if (!supportsEncoder(config.encoder)) {
       throw Exception('${config.encoder} is not supported.');
     }
   }
 
-  List<String> _getParecordArgs(
-    RecordConfig config, {
-    String? path,
-    bool canEncode = false,
-  }) {
-    final args = [
-      '--raw',
-      '--format=s16le',
-      '--rate=${config.sampleRate}',
-      '--channels=${config.numChannels}',
-      '--latency-msec=100',
-      if (config.device != null) '--device=${config.device!.id}',
-      if (config.autoGain) '--property=auto_gain_control=1',
-      if (config.echoCancel) '--property=echo_cancellation=1',
-      if (config.noiseSuppress) '--property=noise_suppression=1',
-      if (canEncode) ...['--file-format=${config.encoder.name}', ?path],
-    ];
-
-    return args;
-  }
-
-  List<String> _getFfmpegEncoderSettings(
-    AudioEncoder encoder,
-    String path,
-    int bitRate,
-  ) {
-    switch (encoder) {
-      case AudioEncoder.aacLc:
-        return ['-c:a', 'aac', '-b:a', '${bitRate ~/ 1000}k', path];
-      case AudioEncoder.wav:
-        return ['-c:a', 'pcm_s16le', '-f', 'wav', path];
-      case AudioEncoder.flac:
-        return ['-c:a', 'flac', path];
-      case AudioEncoder.opus:
-        return ['-c:a', 'libopus', '-b:a', '${bitRate ~/ 1000}k', path];
-      case AudioEncoder.pcm16bits:
-        return ['-c:a', 'copy', '-f', 's16le', path];
-      default:
-        return [];
-    }
-  }
-
   RecordConfig _adjustConfig(RecordConfig config) {
-    final sampleRate = _adjustSampleRate(config.encoder, config.sampleRate);
-    final numChannels = config.numChannels.clamp(1, 2);
+    final adjusted = adjustConfig(config);
 
-    if (sampleRate == config.sampleRate && numChannels == config.numChannels) {
-      return config;
-    }
+    if (!identical(adjusted, config)) _configChangedHandler?.call(adjusted);
 
-    config = config.copyWith(sampleRate: sampleRate, numChannels: numChannels);
-
-    _configChangedHandler?.call(config);
-
-    return config;
-  }
-
-  int _adjustSampleRate(AudioEncoder encoder, int sampleRate) {
-    final List<int> validRates;
-    switch (encoder) {
-      case AudioEncoder.opus:
-        validRates = const [8000, 12000, 16000, 24000, 48000];
-      case AudioEncoder.aacLc:
-        validRates = const [
-          8000,
-          11025,
-          12000,
-          16000,
-          22050,
-          24000,
-          32000,
-          44100,
-          48000,
-          64000,
-          88200,
-          96000,
-        ];
-      default:
-        return sampleRate;
-    }
-    return validRates.reduce(
-      (a, b) => (a - sampleRate).abs() <= (b - sampleRate).abs() ? a : b,
-    );
+    return adjusted;
   }
 
   /// Consumes and discards a child process output stream so the process is
@@ -354,7 +266,7 @@ class RecordLinux extends RecordPlatform {
       '${config.numChannels}',
       '-i',
       '-',
-      ..._getFfmpegEncoderSettings(config.encoder, path, config.bitRate),
+      ...ffmpegEncoderArgs(config.encoder, path, config.bitRate),
     ];
 
     _ffmpegProcess = await Process.start(_ffmpegExecutable, ffmpegArgs);
