@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'package:record_platform_interface/record_platform_interface.dart';
 
+import 'src/amplitude_tracker.dart';
 import 'src/pactl_devices.dart';
 
 const _parecordBin = 'parecord';
@@ -36,8 +36,7 @@ class RecordLinux extends RecordPlatform {
   Process? _ffmpegProcess;
   StreamController<List<int>>? _inputPcmController;
   Future<void>? _ffmpegPipeDone;
-  double _currentAmplitude = -160.0;
-  double _maxAmplitude = -160.0;
+  final _amplitude = AmplitudeTracker();
   void Function(RecordConfig config)? _configChangedHandler;
 
   @override
@@ -53,9 +52,7 @@ class RecordLinux extends RecordPlatform {
 
   @override
   Future<Amplitude> getAmplitude(String recorderId) {
-    return Future.value(
-      Amplitude(current: _currentAmplitude, max: _maxAmplitude),
-    );
+    return Future.value(_amplitude.amplitude);
   }
 
   @override
@@ -156,7 +153,7 @@ class RecordLinux extends RecordPlatform {
     return _parecordProcess!.stdout.map((list) {
       final data = (list is Uint8List) ? list : Uint8List.fromList(list);
       // Calculate amplitude from PCM data
-      _calculateAmplitude(data);
+      _amplitude.update(data);
       return data;
     });
   }
@@ -187,9 +184,7 @@ class RecordLinux extends RecordPlatform {
 
     _path = null;
 
-    // Reset amplitude values
-    _currentAmplitude = -160.0;
-    _maxAmplitude = -160.0;
+    _amplitude.reset();
 
     _updateState(RecordState.stop);
 
@@ -339,36 +334,6 @@ class RecordLinux extends RecordPlatform {
     }
   }
 
-  void _calculateAmplitude(Uint8List data) {
-    if (data.isEmpty) return;
-
-    // Convert bytes to 16-bit signed integers (little-endian)
-    double maxSample = 0;
-    for (int i = 0; i < data.length - 1; i += 2) {
-      // Combine two bytes into a 16-bit signed integer (little-endian)
-      int sample = data[i] | (data[i + 1] << 8);
-      // Convert unsigned to signed
-      if (sample > 32767) sample -= 65536;
-
-      double absSample = sample.abs().toDouble();
-      if (absSample > maxSample) {
-        maxSample = absSample;
-      }
-    }
-
-    // Calculate dBFS
-    if (maxSample > 0) {
-      _currentAmplitude = 20 * (log(maxSample / 32767.0) / ln10);
-    } else {
-      _currentAmplitude = -160.0;
-    }
-
-    // Update max amplitude
-    if (_currentAmplitude > _maxAmplitude) {
-      _maxAmplitude = _currentAmplitude;
-    }
-  }
-
   /// Sets up ffmpeg to encode audio while monitoring amplitude.
   ///
   /// Audio flow: parecord (capture) -> amplitude calculation -> ffmpeg (encode)
@@ -408,7 +373,7 @@ class RecordLinux extends RecordPlatform {
     // 2. Forward the unchanged PCM data to our stream controller
     parecordProc.stdout.listen((data) {
       final typed = data is Uint8List ? data : Uint8List.fromList(data);
-      _calculateAmplitude(typed);
+      _amplitude.update(typed);
 
       if (_inputPcmController case final ctrl? when !ctrl.isClosed) {
         ctrl.add(typed);
