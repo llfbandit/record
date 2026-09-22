@@ -12,8 +12,10 @@ import 'package:record_web/src/recorder/delegate/recorder_delegate.dart';
 import 'package:record_web/src/recorder/recorder.dart';
 import 'package:web/web.dart' as web;
 
+/// Records WAVE and PCM through an AudioWorklet, to a file or a stream.
 class MicRecorderDelegate extends RecorderDelegate {
   final OnStateChanged onStateChanged;
+  @override
   final void Function(RecordConfig)? onConfigChanged;
 
   // Media stream get from getUserMedia
@@ -24,6 +26,7 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   StreamController<Uint8List>? _recordStreamCtrl;
   Encoder? _encoder;
+  RecordConfig? _config;
   // Amplitude
   double _maxAmplitude = kMinAmplitude;
   double _amplitude = kMinAmplitude;
@@ -61,18 +64,42 @@ class MicRecorderDelegate extends RecorderDelegate {
   @override
   Future<void> resume() async {
     final context = _context;
-    if (context != null && context.state == 'suspended') {
-      await context.resume().toDart;
+    if (context == null || context.state != 'suspended') return;
 
-      if (_workletNode != null) {
-        // Workaround for Chromium based browsers,
-        // Audio worklet node is disconnected
-        // when pause state is too long (> 12~15 secs)
-        _source?.connect(_workletNode!)?.connect(context.destination);
-      }
-
-      onStateChanged(RecordState.record);
+    // A removed device ends the paused track: move back to it or to the default one, or stay paused to retry.
+    if (isSourceDead(_mediaStream) && !await reattach()) {
+      throw const RecordResumeNoDeviceException();
     }
+
+    await context.resume().toDart;
+
+    // Chromium disconnects the worklet after a long pause (> 12~15 s).
+    if (_source case final source?) wireSource(source);
+
+    onStateChanged(RecordState.record);
+  }
+
+  @override
+  web.AudioContext? get audioContext => _context;
+
+  @override
+  web.MediaStream? get mediaStream => _mediaStream;
+
+  @override
+  web.MediaStreamAudioSourceNode? get source => _source;
+
+  @override
+  RecordConfig? get recordConfig => _config;
+
+  @override
+  void onSourceSwapped(
+    web.MediaStreamAudioSourceNode source,
+    web.MediaStream mediaStream,
+    RecordConfig config,
+  ) {
+    _source = source;
+    _mediaStream = mediaStream;
+    _config = config;
   }
 
   @override
@@ -100,6 +127,8 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<String?> stop() async {
+    if (takeRouteStop() case final stopped?) return stopped;
+
     await _reset(resetEncoder: false);
 
     final blob = _encoder?.finish();
@@ -128,8 +157,6 @@ class MicRecorderDelegate extends RecorderDelegate {
 
     final workletNode = await _createWorkletNode(context, config);
 
-    source.connect(workletNode)?.connect(context.destination);
-
     if (!isStream) {
       _encoder?.cleanup();
 
@@ -156,8 +183,23 @@ class MicRecorderDelegate extends RecorderDelegate {
     _workletNode = workletNode;
     _context = context;
     _mediaStream = mediaStream;
+    _config = config;
+    requestedDevice = config.device;
+
+    wireSource(source);
+    listenRouteChange(mediaStream);
 
     onStateChanged(RecordState.record);
+  }
+
+  /// Feeds [source] to the worklet; connecting twice is a no-op.
+  @override
+  void wireSource(web.MediaStreamAudioSourceNode source) {
+    final context = _context;
+    final workletNode = _workletNode;
+    if (context == null || workletNode == null) return;
+
+    source.connect(workletNode)?.connect(context.destination);
   }
 
   Future<web.AudioWorkletNode> _createWorkletNode(
@@ -224,9 +266,13 @@ class MicRecorderDelegate extends RecorderDelegate {
   }
 
   Future<void> _reset({bool resetEncoder = true}) async {
-    await resetContext(_context, _mediaStream);
+    // Clear the fields before awaiting `resetContext`, so an in-flight swap sees the take ended.
+    final context = _context;
+    final mediaStream = _mediaStream;
     _mediaStream = null;
     _context = null;
+    _config = null;
+    await resetContext(context, mediaStream);
 
     if (resetEncoder) {
       _encoder?.cleanup();

@@ -1,3 +1,6 @@
+## 2.2.0
+* feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
+
 ## 2.1.3
 * fix: `startStream` hang when `getUserMedia` fails.
 * fix: Lower WAVE and PCM memory footprint.
