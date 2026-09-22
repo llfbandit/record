@@ -10,6 +10,7 @@ import 'package:record_web/src/mime_types.dart';
 import 'package:record_web/src/recorder/delegate/recorder_delegate.dart';
 import 'package:record_web/src/recorder/recorder.dart';
 
+/// Records compressed formats with the browser's MediaRecorder.
 class MediaRecorderDelegate extends RecorderDelegate {
   // Media recorder object
   web.MediaRecorder? _mediaRecorder;
@@ -27,8 +28,12 @@ class MediaRecorderDelegate extends RecorderDelegate {
   web.AudioContext? _audioCtx;
   web.AnalyserNode? _analyser;
   web.MediaStreamAudioSourceNode? _source;
+  // MediaRecorder reads this node, so a new input swaps in without recreating it.
+  web.MediaStreamAudioDestinationNode? _destination;
+  RecordConfig? _config;
 
   final OnStateChanged onStateChanged;
+  @override
   final void Function(RecordConfig)? onConfigChanged;
 
   MediaRecorderDelegate({required this.onStateChanged, this.onConfigChanged});
@@ -52,14 +57,9 @@ class MediaRecorderDelegate extends RecorderDelegate {
   @override
   Future<void> pause() async {
     if (_mediaRecorder?.state == 'recording') {
+      // Keep the context running: suspended, it stops feeding `_destination` and the recorder counts the gap.
       _mediaRecorder?.pause();
       _elapsedTime.stop();
-
-      try {
-        await _audioCtx?.suspend().toDart;
-      } catch (e) {
-        debugPrint(e.toString());
-      }
 
       onStateChanged(RecordState.pause);
     }
@@ -67,24 +67,46 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<void> resume() async {
-    if (_mediaRecorder?.state == 'paused') {
-      _mediaRecorder?.resume();
-      _elapsedTime.start();
+    if (_mediaRecorder?.state != 'paused') return;
 
-      try {
-        await _audioCtx?.resume().toDart;
-
-        if (_analyser case final analyser?) {
-          // Browsers may disconnet analyzer. Force reconnection.
-          _source?.disconnect();
-          _source?.connect(analyser);
-        }
-      } catch (e) {
-        debugPrint(e.toString());
-      }
-
-      onStateChanged(RecordState.record);
+    // A removed device ends the paused track: move back to it or to the default one, or stay paused to retry.
+    if (isSourceDead(_mediaStream) && !await reattach()) {
+      throw const RecordResumeNoDeviceException();
     }
+
+    // The browser may have suspended the context: resume it before `_mediaRecorder`, or the recorder captures silence.
+    await _audioCtx?.resume().toDart;
+
+    // Browsers may disconnect the source during a pause, so reconnect it.
+    if (_source case final source?) wireSource(source);
+
+    _mediaRecorder?.resume();
+    _elapsedTime.start();
+
+    onStateChanged(RecordState.record);
+  }
+
+  @override
+  web.AudioContext? get audioContext => _audioCtx;
+
+  @override
+  web.MediaStream? get mediaStream => _mediaStream;
+
+  @override
+  web.MediaStreamAudioSourceNode? get source => _source;
+
+  @override
+  RecordConfig? get recordConfig => _config;
+
+  @override
+  void onSourceSwapped(
+    web.MediaStreamAudioSourceNode source,
+    web.MediaStream mediaStream,
+    RecordConfig config,
+  ) {
+    _source = source;
+    _mediaStream = mediaStream;
+    _config = config;
   }
 
   @override
@@ -110,8 +132,13 @@ class MediaRecorderDelegate extends RecorderDelegate {
         throw '${config.encoder} not supported.';
       }
 
+      final destination = effectiveConfig.context
+          .createMediaStreamDestination();
+      // The default 2 channels would upmix a mono mic, and later sources mix down to this count.
+      destination.channelCount = config.numChannels;
+
       final mediaRecorder = web.MediaRecorder(
-        mediaStream,
+        destination.stream,
         web.MediaRecorderOptions(
           audioBitsPerSecond: config.bitRate,
           bitsPerSecond: config.bitRate,
@@ -130,6 +157,13 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
       _mediaRecorder = mediaRecorder;
       _mediaStream = mediaStream;
+      _destination = destination;
+      _config = config;
+      requestedDevice = config.device;
+
+      if (_source case final source?) wireSource(source);
+
+      listenRouteChange(mediaStream);
 
       onStateChanged(RecordState.record);
     } catch (error) {
@@ -144,6 +178,8 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<String?> stop() async {
+    if (takeRouteStop() case final stopped?) return stopped;
+
     if (_isRecording()) {
       final completer = _onStopCompleter ??= Completer();
 
@@ -172,6 +208,14 @@ class MediaRecorderDelegate extends RecorderDelegate {
   bool _isRecording() {
     final state = _mediaRecorder?.state;
     return state == 'recording' || state == 'paused';
+  }
+
+  /// Connects [source] to `_analyser` and `_destination`, dropping stale links first.
+  @override
+  void wireSource(web.MediaStreamAudioSourceNode source) {
+    source.disconnect();
+    if (_analyser case final analyser?) source.connect(analyser);
+    if (_destination case final destination?) source.connect(destination);
   }
 
   void _onError(dynamic error) {
@@ -234,16 +278,22 @@ class MediaRecorderDelegate extends RecorderDelegate {
     _mediaRecorder = null;
     _maxAmplitude = kMinAmplitude;
 
-    await resetContext(_audioCtx, _mediaStream);
+    // Clear the fields before awaiting `resetContext`, so an in-flight swap sees the take ended.
+    final audioCtx = _audioCtx;
+    final mediaStream = _mediaStream;
     _mediaStream = null;
     _audioCtx = null;
 
     _source?.disconnect();
     _source = null;
 
+    _destination = null;
     _analyser = null;
+    _config = null;
 
     _chunks = [];
+
+    await resetContext(audioCtx, mediaStream);
   }
 
   void _setupAmplitudeAnalyser(
@@ -257,7 +307,6 @@ class MediaRecorderDelegate extends RecorderDelegate {
     final analyser = audioCtx.createAnalyser();
     analyser.fftSize = 1024;
     analyser.smoothingTimeConstant = 0.3; // Default 0.8 is way too high
-    source.connect(analyser);
 
     _audioCtx = audioCtx;
     _source = source;
