@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:math';
@@ -15,6 +16,7 @@ class AdjustedConfig {
   AdjustedConfig({required this.context, required this.config});
 }
 
+/// Base for the web recorders: shared stream setup and route-change handling.
 abstract class RecorderDelegate {
   Future<void> dispose();
 
@@ -48,6 +50,148 @@ abstract class RecorderDelegate {
     );
 
     return web.window.navigator.mediaDevices.getUserMedia(constraints).toDart;
+  }
+
+  // Each delegate exposes its capture graph so a route change can replace the input.
+  web.AudioContext? get audioContext;
+  web.MediaStream? get mediaStream;
+  web.MediaStreamAudioSourceNode? get source;
+  RecordConfig? get recordConfig;
+  void Function(RecordConfig)? get onConfigChanged;
+
+  /// Feeds [source] to the graph.
+  void wireSource(web.MediaStreamAudioSourceNode source);
+
+  /// Keeps the [source], [mediaStream] and [config] a route change moved capture to.
+  void onSourceSwapped(
+    web.MediaStreamAudioSourceNode source,
+    web.MediaStream mediaStream,
+    RecordConfig config,
+  );
+
+  // The device the take asked for: `reattach` goes back to it once it returns.
+  InputDevice? requestedDevice;
+
+  Future<bool>? _swap;
+  Future<String?>? _routeStop;
+
+  /// Gets a new stream for [config], after the device in use went away.
+  Future<web.MediaStream> reacquireMediaStream(RecordConfig config) {
+    return initMediaStream(config);
+  }
+
+  /// Moves capture to the default device; returns false when no device opens.
+  Future<bool> swapToDefaultDevice() => _oneSwap(() => _swapTo(null));
+
+  /// Moves capture back to [requestedDevice] if it returned, or else to the default one.
+  Future<bool> reattach() => _oneSwap(() async {
+    final requested = requestedDevice;
+    return (requested != null && await _swapTo(requested)) ||
+        await _swapTo(null);
+  });
+
+  // Overlapping swaps would each open a stream, and all but the last would leak.
+  Future<bool> _oneSwap(Future<bool> Function() swap) {
+    return _swap ??= swap().whenComplete(() => _swap = null);
+  }
+
+  Future<bool> _swapTo(InputDevice? device) async {
+    final context = audioContext;
+    final config = recordConfig;
+    if (context == null || config == null) return false;
+
+    web.MediaStream? newStream;
+    web.MediaStreamAudioSourceNode? newSource;
+    var swapped = false;
+    try {
+      newStream = await reacquireMediaStream(
+        config.copyWith(device: (value: device)),
+      );
+      // The take may end while getUserMedia waits, so give up when the context changed.
+      if (audioContext != context) return false;
+
+      // Firefox throws for a device at another sample rate, so create the source before dropping the old one.
+      newSource = context.createMediaStreamSource(newStream);
+      source?.disconnect();
+      await resetContext(null, mediaStream);
+      if (audioContext != context) return false;
+
+      wireSource(newSource);
+      onSourceSwapped(
+        newSource,
+        newStream,
+        reportDevice(config, device, onConfigChanged),
+      );
+      listenRouteChange(newStream);
+      swapped = true;
+      return true;
+    } catch (e) {
+      debugPrint(e.toString());
+      return false;
+    } finally {
+      // A stream left running would keep the mic indicator on.
+      if (!swapped) {
+        newSource?.disconnect();
+        await resetContext(null, newStream);
+      }
+    }
+  }
+
+  /// Reports the move when capture lands on another device than [config] names; null is the default one.
+  RecordConfig reportDevice(
+    RecordConfig config,
+    InputDevice? device,
+    void Function(RecordConfig)? onConfigChanged,
+  ) {
+    if (config.device?.id == device?.id) return config;
+
+    final moved = config.copyWith(device: (value: device));
+    onConfigChanged?.call(moved);
+    return moved;
+  }
+
+  /// Whether every track of [mediaStream] has ended, as after its device goes away.
+  bool isSourceDead(web.MediaStream? mediaStream) {
+    return mediaStream?.getAudioTracks().toDart.every(
+          (track) => track.readyState == 'ended',
+        ) ??
+        true;
+  }
+
+  /// Applies `audioRouteChange` when a track ends on its own; `track.stop()` in `resetContext` never fires `ended`.
+  void listenRouteChange(web.MediaStream stream) {
+    for (final track in stream.getAudioTracks().toDart) {
+      // Set `onended` rather than add a listener, so listening again replaces the old handler.
+      track.onended = ((web.Event _) {
+        unawaited(_onRouteChange());
+      }).toJS;
+    }
+  }
+
+  Future<void> _onRouteChange() async {
+    try {
+      switch (recordConfig?.audioRouteChange) {
+        case AudioRouteChangeMode.follow:
+          // Pause rather than stop when no device opens, so a later `resume()` can retry.
+          if (!await swapToDefaultDevice()) await pause();
+        case AudioRouteChangeMode.pause:
+          await pause();
+        case AudioRouteChangeMode.stop:
+          await (_routeStop = stop());
+        case null:
+          break;
+      }
+    } catch (e) {
+      // Nothing awaits the `ended` handler, so catch here or the error goes uncaught.
+      debugPrint(e.toString());
+    }
+  }
+
+  /// The take a route change stopped: its URL is the app's only way to it, so stop() hands it over.
+  Future<String?>? takeRouteStop() {
+    final stopped = _routeStop;
+    _routeStop = null;
+    return stopped;
   }
 
   /// [canConvert]: whether the pipeline resamples and remixes to the requested format.
@@ -117,6 +261,8 @@ abstract class RecorderDelegate {
     if (ms != null) {
       final tracks = ms.getAudioTracks();
       for (var track in tracks.toDart) {
+        // Clear `onended` so the stopped track keeps no reference to this delegate.
+        track.onended = null;
         track.stop();
         ms.removeTrack(track);
       }
