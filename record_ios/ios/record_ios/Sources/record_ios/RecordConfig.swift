@@ -90,6 +90,7 @@ public class Device {
 struct IosConfig {
   let categoryOptions: [AVAudioSession.CategoryOptions]
   let allowHapticsAndSystemSoundsDuringRecording: Bool
+  let restartOnEngineConfigurationChange: Bool
 
   init(map: [String: Any]) {
     let comps = map["categoryOptions"] as? String
@@ -98,6 +99,7 @@ struct IosConfig {
     }
     self.categoryOptions = options ?? []
     self.allowHapticsAndSystemSoundsDuringRecording = map["allowHapticsAndSystemSoundsDuringRecording"] as? Bool ?? false
+    self.restartOnEngineConfigurationChange = map["restartOnEngineConfigurationChange"] as? Bool ?? false
   }
 
   static func avCategory(from string: String) -> AVAudioSession.Category {
