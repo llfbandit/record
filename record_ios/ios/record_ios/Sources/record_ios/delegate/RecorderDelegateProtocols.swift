@@ -13,11 +13,13 @@ public enum RecordState: Int {
 
 public protocol AudioRecordingDelegate: AnyObject {
   var config: RecordConfig? { get }
+  var shouldResumeAfterInterruption: Bool { get }
 
   func stop() -> String?
   func cancel() throws
   func getAmplitude() -> Float
   func pause()
+  func pauseForInterruption()
   func resume() throws
   func dispose()
 }
