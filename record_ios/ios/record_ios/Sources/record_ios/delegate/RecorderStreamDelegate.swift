@@ -4,10 +4,12 @@ import Flutter
 
 class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
   var config: RecordConfig?
+  var shouldResumeAfterInterruption: Bool { m_interrupted }
 
   private var m_audioEngine: AVAudioEngine?
   private var m_processor: AudioStreamProcessor?
   private var m_isPaused = false
+  private var m_interrupted = false
   private let m_lock = NSLock()
   private let m_bus = 0
   private let m_queue: DispatchQueue
@@ -77,6 +79,7 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
 
     m_lock.withLock {
       m_isPaused = false
+      m_interrupted = false
       m_processor?.dispose()
       m_processor = nil
     }
@@ -92,9 +95,16 @@ class RecorderStreamDelegate: NSObject, AudioRecordingStreamDelegate {
     m_onPause()
   }
 
+  func pauseForInterruption() {
+    guard !m_lock.withLock({ m_isPaused }) else { return }
+    m_interrupted = true
+    pause()
+  }
+
   func resume() throws {
     try m_audioEngine?.start()
     m_lock.withLock { m_isPaused = false }
+    m_interrupted = false
     m_onRecord()
   }
 

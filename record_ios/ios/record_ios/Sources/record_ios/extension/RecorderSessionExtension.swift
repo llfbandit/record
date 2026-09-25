@@ -6,7 +6,7 @@ extension AudioRecordingDelegate {
     let session = AVAudioSession.sharedInstance()
 
     try applyPreferredSampleRate(config.sampleRate, session: session)
-    try applyInterruptionPreference(suppressAlerts: config.audioInterruption == AudioInterruptionMode.none, session: session)
+    try applyInterruptionPreference(suppressAlerts: config.audioInterruption != AudioInterruptionMode.pause, session: session)
 
     if manageAudioSession {
       try applyCategory(AVAudioSession.CategoryOptions(config.iosConfig.categoryOptions), session: session)
@@ -110,12 +110,12 @@ private extension AudioRecordingDelegate {
     switch type {
     case .began:
       if config.audioInterruption != AudioInterruptionMode.none {
-         pause()
+        pauseForInterruption()
       }
     case .ended:
+      // The system's shouldResume hint is intended for playback; resume only recordings this delegate paused.
       guard config.audioInterruption == AudioInterruptionMode.pauseResume,
-            let optValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt,
-            AVAudioSession.InterruptionOptions(rawValue: optValue).contains(.shouldResume) else { return }
+            shouldResumeAfterInterruption else { return }
       do {
         try AVAudioSession.sharedInstance().setActive(true)
         try resume()
