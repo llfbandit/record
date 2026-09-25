@@ -73,9 +73,17 @@ class RecorderFileDelegate: NSObject, AudioRecordingFileDelegate, AVAudioRecorde
   }
 
   func resume() throws {
-    guard let recorder = m_audioRecorder else { return }
-    guard !m_finishedDuringInterruption, recorder.record(), recorder.isRecording else {
+    guard let recorder = m_audioRecorder else {
+      throw RecorderError.error(message: "Failed to resume recording", details: "Recorder is unavailable")
+    }
+    guard !m_finishedDuringInterruption else {
+      throw RecorderError.error(message: "Failed to resume recording", details: "Recorder finished during interruption")
+    }
+    guard recorder.record() else {
       throw RecorderError.error(message: "Failed to resume recording", details: "Recorder did not restart after interruption")
+    }
+    guard recorder.isRecording else {
+      throw RecorderError.error(message: "Failed to resume recording", details: "Recorder did not enter recording state")
     }
     m_interrupted = false
     m_manuallyPaused = false
