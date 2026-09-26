@@ -47,7 +47,14 @@ class BluetoothReceiver(
 
     audioDeviceCallback = object : AudioDeviceCallback() {
       override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
+        val hadBluetoothSco = devices.any { isBluetoothHeadset(it.type) }
         devices.addAll(DeviceUtils.filterSources(addedDevices.asList()))
+
+        // The removal stopped SCO, and nothing else starts it again for the next take or a resume.
+        val hasBluetoothSco = devices.any { isBluetoothHeadset(it.type) }
+        if (startNotified && !hadBluetoothSco && hasBluetoothSco) {
+          startBluetoothSco()
+        }
       }
 
       override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {

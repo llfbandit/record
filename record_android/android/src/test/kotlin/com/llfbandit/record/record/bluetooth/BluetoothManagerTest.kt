@@ -9,6 +9,7 @@ import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.llfbandit.record.testRecordConfig
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -140,6 +141,26 @@ class BluetoothManagerTest {
 
     assertEquals(1, readyCount)
     assertEquals(AudioDeviceInfo.TYPE_BLE_HEADSET, audioManager.communicationDevice?.type)
+  }
+
+  @Test
+  @Config(sdk = [33])
+  fun `a headset back after a disconnect is taken again`() {
+    val headset = headsetDevice(AudioDeviceInfo.TYPE_BLUETOOTH_SCO)
+    withCommunicationDevices(headset)
+    start()
+
+    shadowOf(audioManager).removeInputDevice(headset, true)
+    ShadowLooper.idleMainLooper()
+    assertNull(audioManager.communicationDevice)
+
+    val back = headsetDevice(AudioDeviceInfo.TYPE_BLUETOOTH_SCO)
+    shadowOf(audioManager).setAvailableCommunicationDevices(listOf(back))
+    shadowOf(audioManager).addInputDevice(back, true)
+    ShadowLooper.idleMainLooper()
+
+    assertEquals(AudioDeviceInfo.TYPE_BLUETOOTH_SCO, audioManager.communicationDevice?.type)
+    assertEquals("prepare() was already answered", 1, readyCount)
   }
 
   private fun withHeadset() {
