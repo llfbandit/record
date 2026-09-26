@@ -49,6 +49,8 @@ namespace record_windows
 			args[EncodableValue("bitRate")]     = EncodableValue(cfg.bitRate);
 			args[EncodableValue("sampleRate")]  = EncodableValue(cfg.sampleRate);
 			args[EncodableValue("numChannels")] = EncodableValue(cfg.numChannels);
+			// Capture moved to the default device: Dart reads null as that one.
+			if (cfg.deviceId.empty()) args[EncodableValue("device")] = EncodableValue();
 			m_platform.Post([alive, configChannel, args = std::move(args)]() mutable {
 				if (*alive) configChannel->InvokeMethod("onConfigChanged",
 					std::make_unique<EncodableValue>(EncodableMap(std::move(args))));
