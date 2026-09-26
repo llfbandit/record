@@ -1,3 +1,6 @@
+## 7.2.0
+- chore: iOS and macOS now come from `record_darwin`, replacing `record_ios` and `record_macos`.
+
 ## 7.1.1
 - fix(ios): Guard ios specific calls to avoid "Recorder has not yet been created..." exception.
 

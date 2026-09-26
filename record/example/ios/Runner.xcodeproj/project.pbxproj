@@ -7,14 +7,23 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0658DB476173E46086B2B57C /* RecordConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F363EFF523113E2339B0A3D7 /* RecordConfigTests.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
+		160EE4FFF7A8CE06379E5B2E /* RecordFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7095BE4BB4842A2E26DAC0 /* RecordFileTests.swift */; };
+		1FF0B70044DB003B10712B46 /* CoreAudioDevicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0194C13D8A45279D8FEF3E9F /* CoreAudioDevicesTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		60B0034846F9B665D02B2DE3 /* RecorderControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A6466AA008C5D9BF466A10 /* RecorderControllerTests.swift */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
+		803449F8F2C20E7C5350796F /* CaptureOutputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6E495FFB98B84A285D54EE /* CaptureOutputTests.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		A8FB3082C5415C5407AD453C /* FormatPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13431835D1D9998FEFF87DD /* FormatPolicyTests.swift */; };
+		CED966F6D6210887D93D0FA8 /* EnvironmentPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20F60AEBD739C8EE6410A8EF /* EnvironmentPolicyTests.swift */; };
+		D64BBE81DBA9439E745F8CCA /* Fakes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA46CCD8A3ED03E12CADEAB /* Fakes.swift */; };
+		FDEF6B99399184B3EA7B1596 /* TestRecordConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41CAF4B4604B56855B9F5923 /* TestRecordConfig.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -41,10 +50,14 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0194C13D8A45279D8FEF3E9F /* CoreAudioDevicesTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CoreAudioDevicesTests.swift; path = ../../../record_darwin/darwin/Tests/CoreAudioDevicesTests.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
+		20F60AEBD739C8EE6410A8EF /* EnvironmentPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EnvironmentPolicyTests.swift; path = ../../../record_darwin/darwin/Tests/EnvironmentPolicyTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
+		41CAF4B4604B56855B9F5923 /* TestRecordConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TestRecordConfig.swift; path = ../../../record_darwin/darwin/Tests/TestRecordConfig.swift; sourceTree = "<group>"; };
+		6AA46CCD8A3ED03E12CADEAB /* Fakes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Fakes.swift; path = ../../../record_darwin/darwin/Tests/Fakes.swift; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -57,6 +70,11 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B13431835D1D9998FEFF87DD /* FormatPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FormatPolicyTests.swift; path = ../../../record_darwin/darwin/Tests/FormatPolicyTests.swift; sourceTree = "<group>"; };
+		B7A6466AA008C5D9BF466A10 /* RecorderControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecorderControllerTests.swift; path = ../../../record_darwin/darwin/Tests/RecorderControllerTests.swift; sourceTree = "<group>"; };
+		DC7095BE4BB4842A2E26DAC0 /* RecordFileTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecordFileTests.swift; path = ../../../record_darwin/darwin/Tests/RecordFileTests.swift; sourceTree = "<group>"; };
+		F363EFF523113E2339B0A3D7 /* RecordConfigTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecordConfigTests.swift; path = ../../../record_darwin/darwin/Tests/RecordConfigTests.swift; sourceTree = "<group>"; };
+		FE6E495FFB98B84A285D54EE /* CaptureOutputTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CaptureOutputTests.swift; path = ../../../record_darwin/darwin/Tests/CaptureOutputTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +107,7 @@
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
+				D77B4027FFC77D1E6657DEDB /* RunnerTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -116,6 +135,22 @@
 			);
 			path = Runner;
 			sourceTree = "<group>";
+		};
+		D77B4027FFC77D1E6657DEDB /* RunnerTests */ = {
+			isa = PBXGroup;
+			children = (
+				20F60AEBD739C8EE6410A8EF /* EnvironmentPolicyTests.swift */,
+				6AA46CCD8A3ED03E12CADEAB /* Fakes.swift */,
+				B13431835D1D9998FEFF87DD /* FormatPolicyTests.swift */,
+				F363EFF523113E2339B0A3D7 /* RecordConfigTests.swift */,
+				DC7095BE4BB4842A2E26DAC0 /* RecordFileTests.swift */,
+				B7A6466AA008C5D9BF466A10 /* RecorderControllerTests.swift */,
+				41CAF4B4604B56855B9F5923 /* TestRecordConfig.swift */,
+				FE6E495FFB98B84A285D54EE /* CaptureOutputTests.swift */,
+				0194C13D8A45279D8FEF3E9F /* CoreAudioDevicesTests.swift */,
+			);
+			name = RunnerTests;
+			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
 
@@ -190,7 +225,7 @@
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
-				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" */,
+				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */,
 			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
@@ -262,6 +297,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CED966F6D6210887D93D0FA8 /* EnvironmentPolicyTests.swift in Sources */,
+				D64BBE81DBA9439E745F8CCA /* Fakes.swift in Sources */,
+				A8FB3082C5415C5407AD453C /* FormatPolicyTests.swift in Sources */,
+				0658DB476173E46086B2B57C /* RecordConfigTests.swift in Sources */,
+				160EE4FFF7A8CE06379E5B2E /* RecordFileTests.swift in Sources */,
+				60B0034846F9B665D02B2DE3 /* RecorderControllerTests.swift in Sources */,
+				FDEF6B99399184B3EA7B1596 /* TestRecordConfig.swift in Sources */,
+				803449F8F2C20E7C5350796F /* CaptureOutputTests.swift in Sources */,
+				1FF0B70044DB003B10712B46 /* CoreAudioDevicesTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -348,7 +392,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = iphoneos;
@@ -475,7 +519,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -526,7 +570,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = iphoneos;
@@ -618,7 +662,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" */ = {
+		781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage;
 		};

@@ -23,8 +23,8 @@ External dependencies:
 | permission check | ✔️            |   ✔️             |  ✔️    |            |  ✔️   |
 | num of channels  | ✔️            |   ✔️             |  ✔️    |    ✔️      |  ✔️   |  ✔️
 | device selection | ✔️ 1 / 2      | (auto BT/mic)    |  ✔️    |    ✔️      |  ✔️   |  ✔️
-| auto gain        | ✔️ 2          | ✔️ 3             | ✔️      |            |  ✔️ 3     | 
-| echo cancel      | ✔️ 2          | ✔️ 3             | ✔️      |            |  ✔️ 3     | 
+| auto gain        | ✔️ 2          | ✔️             | ✔️      |            |  ✔️    | 
+| echo cancel      | ✔️ 2          | ✔️             | ✔️      |            |  ✔️     | 
 | noise suppresion | ✔️ 2          |                  | ✔️      |            |       | 
 
 ## File
@@ -32,10 +32,10 @@ External dependencies:
 |-----------------|----------------|---------|---------|---------|---------|---------
 | aacLc           | ✔️            |   ✔️    |  ?      |   ✔️    |  ✔️    |  ✔️ 
 | aacEld          | ✔️            |   ✔️    |   ?     |         |  ✔️    | 
-| aacHe           | ✔️            |         |   ?     |         |         |   
-| amrNb           | ✔️            |   ✔️     |  ?      |   ✔️    |         |  
+| aacHe           | ✔️            |   ✔️    |   ?     |         |  ✔️    |   
+| amrNb           | ✔️            |        |  ?      |   ✔️    |         |  
 | amrWb           | ✔️            |         |  ?      |          |        |  
-| opus            | ✔️            |   ✔️ 4    |  ?       |         |         |  ✔️ 
+| opus            | ✔️            |   ✔️ 3    |  ?       |         |  ✔️ 3   |  ✔️ 
 | wav             | ✔️ 2          |   ✔️    |   ✔️   |    ✔️    |   ✔️  |   ✔️ 
 | flac            | ✔️ 2          |    ✔️    |  ?     |  ✔️     |   ✔️   |   ✔️
 | pcm16bits       | ✔️ 2          |   ✔️    |  ✔️    |   ✔️    |  ✔️    |  ✔️
@@ -61,8 +61,7 @@ wav and pcm16bits are provided by the package directly.
 \* AAC is streamed with raw AAC with ADTS headers, so it's directly readable through a file!  
 1. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
 2. Unsupported on legacy Android recorder.
-3. Stream mode only.
-4. Opus in CAF container. This means that your file will be playable only on iOS platforms.
+3. Opus in CAF container. This means that your file may not be playable outside Apple platforms.
 
 ## Usage
 

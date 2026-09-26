@@ -1,1 +1,0 @@
-The example is located in the main record package.

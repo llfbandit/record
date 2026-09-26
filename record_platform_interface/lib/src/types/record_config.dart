@@ -42,6 +42,8 @@ class RecordConfig {
   /// The recorder will try to auto adjust recording volume in a limited range (if available on the device).
   ///
   /// Recording volume may be lowered by using this.
+  ///
+  /// On iOS and macOS, this also turns on echo cancellation.
   final bool autoGain;
 
   /// The recorder will try to reduce echo (if available on the device).
