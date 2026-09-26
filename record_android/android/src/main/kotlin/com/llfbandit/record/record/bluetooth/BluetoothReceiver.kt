@@ -1,5 +1,6 @@
 package com.llfbandit.record.record.bluetooth
 
+import android.annotation.TargetApi
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -34,6 +35,7 @@ class BluetoothReceiver(
   private var audioDeviceCallback: AudioDeviceCallback? = null
   private var mRegistered: Boolean = false
   private var startNotified: Boolean = false
+  private var communicationDeviceListener: AudioManager.OnCommunicationDeviceChangedListener? = null
 
   init {
     filter.addAction(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
@@ -79,6 +81,7 @@ class BluetoothReceiver(
   }
 
   fun unregister() {
+    stopWaitingForCommunicationDevice()
     stopBluetoothSco()
 
     if (audioDeviceCallback != null) {
@@ -136,11 +139,11 @@ class BluetoothReceiver(
       if (device == null) {
         notifyNone(listener)
       } else {
-        audioManager.setCommunicationDevice(device)
-        // setCommunicationDevice is synchronous; the legacy SCO broadcast is not
-        // guaranteed to fire on API 31+, so notify the listener immediately.
-        startNotified = true
-        listener?.onBlScoConnected()
+        waitForCommunicationDevice(device, listener)
+        if (!audioManager.setCommunicationDevice(device)) {
+          stopWaitingForCommunicationDevice()
+          notifyNone(listener)
+        }
       }
     } else {
       @Suppress("DEPRECATION")
@@ -153,6 +156,33 @@ class BluetoothReceiver(
         // async — onBlScoConnected will be called via ACTION_SCO_AUDIO_STATE_UPDATED broadcast
       }
     }
+  }
+
+  // The link takes a moment to come up: a take started before it records the phone mic.
+  @TargetApi(Build.VERSION_CODES.S)
+  private fun waitForCommunicationDevice(device: AudioDeviceInfo, listener: BluetoothScoListener?) {
+    stopWaitingForCommunicationDevice()
+    // Already in use: no change is coming to wait for.
+    if (audioManager.communicationDevice?.id == device.id) {
+      startNotified = true
+      listener?.onBlScoConnected()
+      return
+    }
+
+    val onChanged =AudioManager.OnCommunicationDeviceChangedListener { current ->
+      if (current?.id != device.id) return@OnCommunicationDeviceChangedListener
+      stopWaitingForCommunicationDevice()
+      startNotified = true
+      listener?.onBlScoConnected()
+    }
+    communicationDeviceListener = onChanged
+    audioManager.addOnCommunicationDeviceChangedListener({ handler.post(it) }, onChanged)
+  }
+
+  private fun stopWaitingForCommunicationDevice() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+    communicationDeviceListener?.let { audioManager.removeOnCommunicationDeviceChangedListener(it) }
+    communicationDeviceListener = null
   }
 
   private fun notifyNone(listener: BluetoothScoListener?) {

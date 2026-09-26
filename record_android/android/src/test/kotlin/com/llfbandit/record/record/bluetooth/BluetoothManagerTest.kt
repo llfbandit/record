@@ -105,17 +105,44 @@ class BluetoothManagerTest {
     assertEquals(1, readyCount)
   }
 
-  // API 31+ answers from setCommunicationDevice, with no broadcast involved.
+  // API 31+ answers once the communication device is in use, with no broadcast involved.
   @Test
   @Config(sdk = [33])
-  fun `a communication device answers without a broadcast`() {
+  fun `a communication device answers once it is in use`() {
     withCommunicationDevices(headsetDevice(AudioDeviceInfo.TYPE_BLUETOOTH_SCO))
 
     start()
+    assertEquals("the link is not up yet", 0, readyCount)
+
+    communicationDeviceInUse()
 
     assertEquals(1, readyCount)
     idlePastTimeout()
     assertEquals(1, readyCount)
+  }
+
+  @Test
+  @Config(sdk = [33])
+  fun `a communication device already in use answers at once`() {
+    val headset = headsetDevice(AudioDeviceInfo.TYPE_BLUETOOTH_SCO)
+    withCommunicationDevices(headset)
+    audioManager.setCommunicationDevice(headset)
+
+    start()
+
+    assertEquals(1, readyCount)
+  }
+
+  @Test
+  @Config(sdk = [33])
+  fun `another communication device does not answer`() {
+    withCommunicationDevices(headsetDevice(AudioDeviceInfo.TYPE_BLUETOOTH_SCO))
+    start()
+
+    shadowOf(audioManager).callOnCommunicationDeviceChangedListeners(null)
+    ShadowLooper.idleMainLooper()
+
+    assertEquals(0, readyCount)
   }
 
   @Test
@@ -127,6 +154,7 @@ class BluetoothManagerTest {
     )
 
     start()
+    communicationDeviceInUse()
 
     assertEquals(1, readyCount)
     assertEquals(AudioDeviceInfo.TYPE_BLE_HEADSET, audioManager.communicationDevice?.type)
@@ -138,6 +166,7 @@ class BluetoothManagerTest {
     withCommunicationDevices(headsetDevice(AudioDeviceInfo.TYPE_BLE_HEADSET))
 
     start()
+    communicationDeviceInUse()
 
     assertEquals(1, readyCount)
     assertEquals(AudioDeviceInfo.TYPE_BLE_HEADSET, audioManager.communicationDevice?.type)
@@ -149,6 +178,7 @@ class BluetoothManagerTest {
     val headset = headsetDevice(AudioDeviceInfo.TYPE_BLUETOOTH_SCO)
     withCommunicationDevices(headset)
     start()
+    communicationDeviceInUse()
 
     shadowOf(audioManager).removeInputDevice(headset, true)
     ShadowLooper.idleMainLooper()
@@ -186,6 +216,12 @@ class BluetoothManagerTest {
 
   private fun start() {
     manager.maybeStart(testRecordConfig()) { readyCount++ }
+    ShadowLooper.idleMainLooper()
+  }
+
+  // Robolectric sets the communication device but never reports it in use.
+  private fun communicationDeviceInUse() {
+    shadowOf(audioManager).callOnCommunicationDeviceChangedListeners(audioManager.communicationDevice)
     ShadowLooper.idleMainLooper()
   }
 
