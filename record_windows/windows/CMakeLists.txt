@@ -47,6 +47,8 @@ list(APPEND PLUGIN_SOURCES
   "mediatype/record_mediatype.cpp"
   "audio_device/record_audio_device.h"
   "audio_device/record_audio_device.cpp"
+  "device_notification/device_notification_client.h"
+  "device_notification/device_notification_client.cpp"
   "amplitude/amplitude_tracker.h"
   "amplitude/amplitude_tracker.cpp"
   "utils.h"
@@ -99,15 +101,22 @@ if (include_${PROJECT_NAME}_tests)
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
     URL_HASH SHA256=f179ec217f9b3b3f3c6e8b02d3e7eda997b49e4ce26d6b235c9053bec9c0bf9f
+    # Date the extracted files now, so a new URL rebuilds them.
+    DOWNLOAD_EXTRACT_TIMESTAMP FALSE
   )
   # Match the plugin's CRT.
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
   # Its install rules otherwise join the bundle step and fail it.
   set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+  # Nothing here mocks anything.
+  set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(googletest)
 
-  # Built straight in: the plugin's C API is no use for unit testing.
-  add_executable(${TEST_RUNNER}
+  # Build gtest only when the test runner links it.
+  set_target_properties(gtest gtest_main PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
+  # Build the plugin sources straight in, outside the default build: the C API can't be unit tested.
+  add_executable(${TEST_RUNNER} EXCLUDE_FROM_ALL
     "test/recorder_dispatcher_test.cpp"
     "test/platform_thread_test.cpp"
     "test/reader_callback_test.cpp"
@@ -116,6 +125,11 @@ if (include_${PROJECT_NAME}_tests)
     "test/record_config_test.cpp"
     "test/timeline_clock_test.cpp"
     "test/sink_test.cpp"
+    "test/device_notification_client_test.cpp"
+    "test/recorder_route_change_test.cpp"
+    "test/recorder_reattach_test.cpp"
+    "test/recorder_test_support.h"
+    "test/fake_capture_engine.h"
     ${PLUGIN_SOURCES}
   )
 

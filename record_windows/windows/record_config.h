@@ -19,6 +19,23 @@ namespace record_windows
 		static constexpr const char* wav       = "wav";
 	};
 
+	// Picks what the recorder does when the input device in use goes away.
+	enum class AudioRouteChange
+	{
+		follow = 0, pause = 1, stop = 2
+	};
+
+	// An unknown value (a newer Dart side) keeps the safe default.
+	constexpr AudioRouteChange ToAudioRouteChange(int value)
+	{
+		switch (value)
+		{
+		case 0:  return AudioRouteChange::follow;
+		case 2:  return AudioRouteChange::stop;
+		default: return AudioRouteChange::pause;
+		}
+	}
+
 	struct RecordConfig
 	{
 		std::string encoderName = AudioEncoder::aacLc;
@@ -29,6 +46,7 @@ namespace record_windows
 		bool autoGain = false;
 		bool echoCancel = false;
 		bool noiseSuppress = false;
+		AudioRouteChange audioRouteChange = AudioRouteChange::pause;
 		flutter::EncodableMap rawArgs;
 
 		// Reads the Dart call arguments. A missing key keeps the default above.
@@ -45,6 +63,7 @@ namespace record_windows
 			bool autoGain,
 			bool echoCancel,
 			bool noiseSuppress,
+			AudioRouteChange audioRouteChange,
 			flutter::EncodableMap rawArgs)
 			: encoderName(encoderName),
 			deviceId(deviceId),
@@ -54,6 +73,7 @@ namespace record_windows
 			autoGain(autoGain),
 			echoCancel(echoCancel),
 			noiseSuppress(noiseSuppress),
+			audioRouteChange(audioRouteChange),
 			rawArgs(std::move(rawArgs))
 		{
 		}

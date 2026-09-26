@@ -11,7 +11,10 @@ namespace AudioDevice {
 
 HRESULT ListInputDevices(flutter::EncodableList& devices);
 HRESULT IsEncoderSupported(const std::string& encoderName, bool* supported);
-HRESULT AdjustConfigToDeviceCaps(RecordConfig& config);
+// Returns the id an empty deviceId stands for.
+HRESULT GetDefaultInputDeviceId(std::string& deviceId);
+// Needs a real deviceId, because IMMDeviceEnumerator::GetDevice can't resolve an empty one.
+HRESULT AdjustConfigToDeviceCaps(RecordConfig& config, const std::string& deviceId);
 HRESULT AdjustConfigToCodecCaps(RecordConfig& config);
 void    WarmCodecCapsAsync();
 
