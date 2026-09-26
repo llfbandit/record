@@ -22,6 +22,12 @@ namespace record_windows
 			GetValueFromEncodableMap(&device, "id", config.deviceId);
 		}
 
+		int audioRouteChange = 0;
+		if (GetValueFromEncodableMap(&args, "audioRouteChange", audioRouteChange))
+		{
+			config.audioRouteChange = ToAudioRouteChange(audioRouteChange);
+		}
+
 		config.rawArgs = args;
 
 		return config;

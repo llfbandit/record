@@ -1,11 +1,10 @@
 #include "record/record.h"
-#include "audio_device/record_audio_device.h"
 #include "recorder_dispatcher.h"
+#include "test/recorder_test_support.h"
 
 #include <gtest/gtest.h>
 
 #include <fstream>
-#include <future>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -51,32 +50,6 @@ namespace record_windows
 
 			ADD_FAILURE() << "no data chunk";
 		}
-
-		// Recorder methods assert they run on the dispatcher, so hop and wait.
-		template <typename F>
-		auto Call(RecorderDispatcher& dispatcher, F f) -> decltype(f())
-		{
-			std::promise<decltype(f())> done;
-			auto value = done.get_future();
-			dispatcher.Post([&done, f]() mutable { done.set_value(f()); });
-			return value.get();
-		}
-
-		bool HasCaptureDevice()
-		{
-			CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-			flutter::EncodableList devices;
-			HRESULT hr = AudioDevice::ListInputDevices(devices);
-			CoUninitialize();
-			return SUCCEEDED(hr) && !devices.empty();
-		}
-
-		std::unique_ptr<RecordConfig> WavConfig()
-		{
-			return std::make_unique<RecordConfig>(
-				AudioEncoder::wav, "", 128000, 44100, 1, false, false, false,
-				flutter::EncodableMap());
-		}
 	}
 
 	// A take that wrote data must stop cleanly; MF teardown order used to leak
@@ -97,7 +70,7 @@ namespace record_windows
 		Recorder recorder(dispatcher, std::move(callbacks));
 
 		HRESULT started = Call(*dispatcher, [&] {
-			return recorder.Start(WavConfig(), path);
+			return recorder.Start(MakeConfig(AudioEncoder::wav, AudioRouteChange::pause), path);
 		});
 		ASSERT_HRESULT_SUCCEEDED(started);
 

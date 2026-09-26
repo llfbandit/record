@@ -2,6 +2,7 @@
 
 #include <assert.h>
 
+#include "audio_device/record_audio_device.h"
 #include "mediatype/record_mediatype.h"
 #include "utils.h"
 
@@ -16,6 +17,12 @@ namespace record_windows
 	CaptureEngine::~CaptureEngine()
 	{
 		Close();
+	}
+
+	std::unique_ptr<ICaptureEngine> MakeCaptureEngine(
+		std::shared_ptr<RecorderDispatcher> dispatcher, ICaptureEngine::SampleHandler onSample)
+	{
+		return std::make_unique<CaptureEngine>(std::move(dispatcher), std::move(onSample));
 	}
 
 	HRESULT CaptureEngine::Open(const RecordConfig& config, const std::string& deviceId)
@@ -60,6 +67,12 @@ namespace record_windows
 
 		m_pSource.Reset();
 		m_pPresentationDescriptor.Reset();
+		m_readPending = false;
+	}
+
+	HRESULT CaptureEngine::GetDefaultDeviceId(std::string& deviceId) const
+	{
+		return AudioDevice::GetDefaultInputDeviceId(deviceId);
 	}
 
 	HRESULT CaptureEngine::GetInputType(IMFMediaType** ppType) const
@@ -72,11 +85,16 @@ namespace record_windows
 	HRESULT CaptureEngine::RequestSample()
 	{
 		if (!m_pReader) return E_NOT_VALID_STATE;
+		if (m_readPending) return S_OK;
 
-		return m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
+		HRESULT hr = m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM,
 			0,
 			NULL, NULL, NULL, NULL
 		);
+
+		if (SUCCEEDED(hr)) m_readPending = true;
+
+		return hr;
 	}
 
 	HRESULT CaptureEngine::Start()
@@ -145,6 +163,7 @@ namespace record_windows
 		// Attach: the callback is born with one reference.
 		m_pReaderCallback.Attach(new ReaderCallback(m_dispatcher,
 			[this](HRESULT hrStatus, DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample) {
+				m_readPending = false;
 				if (m_onSample) m_onSample(hrStatus, dwStreamIndex, llTimestamp, pSample);
 			}));
 
