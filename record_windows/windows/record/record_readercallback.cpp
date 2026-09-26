@@ -21,17 +21,28 @@ namespace record_windows
 			// Asking for another sample would only stall: end the take instead.
 			auto errorText = std::system_category().message(hr);
 			printf("Record: Error on sample (0x%X)\n%s\n", hr, errorText.c_str());
-			Stop();
+
+			// The reader may see the lost device before the notification does.
+			if (IsDeviceLost(hr))
+			{
+				OnRouteLost();
+			}
+			else
+			{
+				Stop();
+			}
+
 			return;
 		}
 
-		m_engine.RequestSample();
+		m_engine->RequestSample();
 	}
 
 	HRESULT Recorder::ProcessSample(DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample)
 	{
 		if (m_clock.Rebase(llTimestamp))
 		{
+			// A follow move rebases while already recording; UpdateState() skips the repeated state.
 			UpdateState(RecordState::record);
 		}
 

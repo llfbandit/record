@@ -11,6 +11,14 @@ namespace record_windows {
 
 	static void ErrorFromHR(HRESULT hr, MethodResult<EncodableValue>& result)
 	{
+		// The Dart side turns this code back into a RecordResumeNoDeviceException.
+		if (hr == E_RECORD_NO_INPUT_DEVICE)
+		{
+			result.Error("no_input_device", "",
+				EncodableValue("No input device to resume the recording on."));
+			return;
+		}
+
 		_com_error err(hr);
 		std::string errorText = Utf8FromUtf16(err.ErrorMessage());
 

@@ -256,7 +256,35 @@ HRESULT IsEncoderSupported(const std::string& encoderName, bool* supported)
 	return hr;
 }
 
-HRESULT AdjustConfigToDeviceCaps(RecordConfig& config)
+HRESULT GetDefaultInputDeviceId(std::string& deviceId)
+{
+	IMMDeviceEnumerator* pEnumerator = NULL;
+	IMMDevice*           pDevice     = NULL;
+	LPWSTR               pwszId      = NULL;
+
+	HRESULT hr = CoCreateInstance(
+		__uuidof(MMDeviceEnumerator), NULL,
+		CLSCTX_ALL, IID_PPV_ARGS(&pEnumerator)
+	);
+
+	if (SUCCEEDED(hr))
+		// Windows reserves the eCommunications default for telephony.
+		hr = pEnumerator->GetDefaultAudioEndpoint(eCapture, eMultimedia, &pDevice);
+
+	if (SUCCEEDED(hr))
+		hr = pDevice->GetId(&pwszId);
+
+	if (SUCCEEDED(hr))
+		deviceId = Utf8FromUtf16(pwszId);
+
+	if (pwszId) CoTaskMemFree(pwszId);
+	SafeRelease(&pDevice);
+	SafeRelease(&pEnumerator);
+
+	return hr;
+}
+
+HRESULT AdjustConfigToDeviceCaps(RecordConfig& config, const std::string& deviceId)
 {
 	IMMDeviceEnumerator* pEnumerator = NULL;
 	IMMDevice*           pDevice     = NULL;
@@ -268,15 +296,7 @@ HRESULT AdjustConfigToDeviceCaps(RecordConfig& config)
 	);
 
 	if (SUCCEEDED(hr))
-	{
-		if (config.deviceId.empty())
-			hr = pEnumerator->GetDefaultAudioEndpoint(eCapture, eCommunications, &pDevice);
-		else
-		{
-			auto deviceId = std::wstring(config.deviceId.begin(), config.deviceId.end());
-			hr = pEnumerator->GetDevice(deviceId.c_str(), &pDevice);
-		}
-	}
+		hr = pEnumerator->GetDevice(Utf16FromUtf8(deviceId).c_str(), &pDevice);
 
 	if (SUCCEEDED(hr))
 		hr = pDevice->OpenPropertyStore(STGM_READ, &pProps);
