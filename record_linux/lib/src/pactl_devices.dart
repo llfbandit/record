@@ -5,9 +5,25 @@ import 'package:flutter/foundation.dart';
 
 import 'package:record_platform_interface/record_platform_interface.dart';
 
+/// The one device a machine without pactl can still record from: ALSA's
+/// `default`, which is also what ffmpeg captures when no device is named.
+const alsaDefaultInputDevice = InputDevice(
+  id: 'default',
+  label: 'Default input device',
+);
+
 /// Lists the input sources exposed by PulseAudio / PipeWire.
+///
+/// Falls back to [alsaDefaultInputDevice] where pactl cannot be run,
+/// which is every machine with no PulseAudio or PipeWire server. Such a
+/// machine can still record through [LinuxCaptureBackend.ffmpegAlsa], so
+/// reporting no device at all would be wrong.
 Future<List<InputDevice>> listPactlInputDevices() async {
-  return parsePactlSources(await _runPactl(['list', 'sources']));
+  try {
+    return parsePactlSources(await _runPactl(['list', 'sources']));
+  } on ProcessException {
+    return const [alsaDefaultInputDevice];
+  }
 }
 
 /// Runs pactl and returns its output, one entry per line.

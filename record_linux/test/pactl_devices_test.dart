@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:record_linux/src/pactl_devices.dart';
 
@@ -71,4 +73,25 @@ void main() {
   test('returns nothing for empty output', () {
     expect(parsePactlSources(const []), isEmpty);
   });
+
+  test('offers the ALSA default where pactl cannot be run', () async {
+    // No PulseAudio or PipeWire server: pactl is missing, but ffmpeg can
+    // still record from ALSA, so reporting no input at all would leave
+    // the app looking broken on a machine that works.
+    final devices = await listPactlInputDevices();
+
+    if (Platform.isLinux && await _hasPactl()) {
+      return; // This host has pactl; the parsing tests cover it.
+    }
+
+    expect(devices, [alsaDefaultInputDevice]);
+  });
+}
+
+Future<bool> _hasPactl() async {
+  try {
+    return (await Process.run('pactl', ['--version'])).exitCode == 0;
+  } on ProcessException {
+    return false;
+  }
 }

@@ -84,4 +84,90 @@ void main() {
       );
     },
   );
+
+  test('the ffmpeg backend captures without parecord', () async {
+    // A machine with no PulseAudio: parecord does not exist at all, so
+    // the pipeline must reach the microphone through ffmpeg instead.
+    // One script stands in for both ffmpeg roles; the first argument
+    // list asks for ALSA capture, the second encodes what it receives.
+    final ffmpeg = await writeScript(
+      'ffmpeg',
+      'case "\$*" in\n'
+          '  *"-f alsa"*) printf "captured-pcm"; exec sleep 1000 ;;\n'
+          '  *) for a; do out="\$a"; done; cat > "\$out" ;;\n'
+          'esac\n',
+    );
+    final output = '${tempDir.path}/take.wav';
+
+    final pipeline = CapturePipeline(
+      parecordBin: '/nonexistent/parecord',
+      ffmpegBin: ffmpeg,
+      backend: LinuxCaptureBackend.ffmpegAlsa,
+    );
+    await pipeline.startFile(const RecordConfig(), output);
+
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (DateTime.now().isBefore(deadline)) {
+      if (File(output).existsSync() && File(output).lengthSync() > 0) break;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+
+    await pipeline.stop().timeout(const Duration(seconds: 10));
+
+    expect(File(output).readAsStringSync(), 'captured-pcm');
+  });
+
+  test('falls back to ffmpeg when parecord cannot be run', () async {
+    // The same machine, with nothing configured: detection picks the
+    // backend that works rather than failing on a missing parecord.
+    final ffmpeg = await writeScript(
+      'ffmpeg',
+      'case "\$*" in\n'
+          '  *"-f alsa"*) printf "detected"; exec sleep 1000 ;;\n'
+          '  *) for a; do out="\$a"; done; cat > "\$out" ;;\n'
+          'esac\n',
+    );
+    final output = '${tempDir.path}/detected.wav';
+
+    final pipeline = CapturePipeline(
+      parecordBin: '/nonexistent/parecord',
+      ffmpegBin: ffmpeg,
+    );
+    await pipeline.startFile(const RecordConfig(), output);
+
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (DateTime.now().isBefore(deadline)) {
+      if (File(output).existsSync() && File(output).lengthSync() > 0) break;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+
+    await pipeline.stop().timeout(const Duration(seconds: 10));
+
+    expect(File(output).readAsStringSync(), 'detected');
+  });
+
+  test('prefers parecord when it can be run', () async {
+    final parecord = await writeScript(
+      'parecord',
+      'printf "from-parecord"\nexec sleep 1000\n',
+    );
+    final ffmpeg = await writeScript(
+      'ffmpeg',
+      'for a; do out="\$a"; done\ncat > "\$out"\n',
+    );
+    final output = '${tempDir.path}/pulse.wav';
+
+    final pipeline = CapturePipeline(parecordBin: parecord, ffmpegBin: ffmpeg);
+    await pipeline.startFile(const RecordConfig(), output);
+
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (DateTime.now().isBefore(deadline)) {
+      if (File(output).existsSync() && File(output).lengthSync() > 0) break;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+
+    await pipeline.stop().timeout(const Duration(seconds: 10));
+
+    expect(File(output).readAsStringSync(), 'from-parecord');
+  });
 }

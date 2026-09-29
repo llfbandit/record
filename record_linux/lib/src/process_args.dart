@@ -19,6 +19,37 @@ List<String> parecordArgs(
   ];
 }
 
+/// Returns the ffmpeg arguments that capture from ALSA and write raw
+/// signed 16-bit PCM to stdout, the same shape parecord produces.
+///
+/// [defaultDevice] is used when the config names no device: `default` is
+/// the ALSA device PipeWire and PulseAudio route to the system input, so
+/// this follows the user's system setting on machines that run either.
+List<String> ffmpegAlsaCaptureArgs(
+  RecordConfig config, {
+  required String defaultDevice,
+}) {
+  return [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    // Capture is driven by the plugin, never by a terminal; without this
+    // ffmpeg can consume the host's stdin.
+    '-nostdin',
+    '-f',
+    'alsa',
+    '-i',
+    config.device?.id ?? defaultDevice,
+    '-ar',
+    '${config.sampleRate}',
+    '-ac',
+    '${config.numChannels}',
+    '-f',
+    's16le',
+    '-',
+  ];
+}
+
 /// Returns the ffmpeg output arguments for [encoder].
 List<String> ffmpegEncoderArgs(AudioEncoder encoder, String path, int bitRate) {
   switch (encoder) {
