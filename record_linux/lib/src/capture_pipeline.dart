@@ -7,25 +7,51 @@ import 'package:record_platform_interface/record_platform_interface.dart';
 import 'amplitude_tracker.dart';
 import 'process_args.dart';
 
-/// Captures with parecord, and encodes with ffmpeg when recording to a file.
+/// Which program captures the microphone.
+enum LinuxCaptureBackend {
+  /// parecord, from pulseaudio-utils. Follows the PulseAudio/PipeWire
+  /// default source and exposes every source through `pactl`.
+  pulseAudio,
+
+  /// ffmpeg reading ALSA directly, for machines with no PulseAudio or
+  /// PipeWire server, and for apps that ship their own ffmpeg.
+  ffmpegAlsa,
+}
+
+/// Captures with parecord or ffmpeg, and encodes with ffmpeg when
+/// recording to a file.
 ///
-/// parecord (capture) -> amplitude -> ffmpeg (encode) -> file
+/// capture -> amplitude -> ffmpeg (encode) -> file
 class CapturePipeline {
-  CapturePipeline({this.parecordBin = 'parecord', this.ffmpegBin = 'ffmpeg'});
+  CapturePipeline({
+    this.parecordBin = 'parecord',
+    this.ffmpegBin = 'ffmpeg',
+    this.backend,
+    this.alsaDevice = 'default',
+  });
 
   final String parecordBin;
   final String ffmpegBin;
 
+  /// Null asks for the backend to be detected once, preferring
+  /// [LinuxCaptureBackend.pulseAudio] when parecord can be run.
+  final LinuxCaptureBackend? backend;
+
+  /// The ALSA device recorded from when the config names none.
+  final String alsaDevice;
+
+  LinuxCaptureBackend? _resolvedBackend;
+
   final amplitude = AmplitudeTracker();
 
-  Process? _parecord;
+  Process? _capture;
   Process? _ffmpeg;
   StreamController<List<int>>? _inputPcm;
   Future<void>? _pipeDone;
 
   /// Captures to [path], encoded by ffmpeg.
   Future<void> startFile(RecordConfig config, String path) async {
-    await _startParecord(config);
+    await _startCapture(config);
 
     final args = [
       '-f',
@@ -47,7 +73,7 @@ class CapturePipeline {
 
     _inputPcm = StreamController<List<int>>();
 
-    _parecord!.stdout.listen((data) {
+    _capture!.stdout.listen((data) {
       final typed = data is Uint8List ? data : Uint8List.fromList(data);
       amplitude.update(typed);
 
@@ -60,26 +86,26 @@ class CapturePipeline {
 
   /// Captures to the returned PCM stream, without ffmpeg.
   Future<Stream<Uint8List>> startStream(RecordConfig config) async {
-    await _startParecord(config);
+    await _startCapture(config);
 
-    return _parecord!.stdout.map((list) {
+    return _capture!.stdout.map((list) {
       final data = list is Uint8List ? list : Uint8List.fromList(list);
       amplitude.update(data);
       return data;
     });
   }
 
-  void pause() => _parecord?.kill(ProcessSignal.sigstop);
+  void pause() => _capture?.kill(ProcessSignal.sigstop);
 
-  void resume() => _parecord?.kill(ProcessSignal.sigcont);
+  void resume() => _capture?.kill(ProcessSignal.sigcont);
 
   Future<void> stop() async {
     await _inputPcm?.close();
     _inputPcm = null;
 
     // Kill the source first so the input pipe reaches its end.
-    _parecord?.kill();
-    _parecord = null;
+    _capture?.kill();
+    _capture = null;
 
     if (_ffmpeg case final process?) {
       try {
@@ -95,9 +121,46 @@ class CapturePipeline {
     amplitude.reset();
   }
 
-  Future<void> _startParecord(RecordConfig config) async {
-    _parecord = await Process.start(parecordBin, parecordArgs(config));
-    _drain(_parecord!.stderr);
+  Future<void> _startCapture(RecordConfig config) async {
+    _capture = switch (_backend()) {
+      LinuxCaptureBackend.pulseAudio => await Process.start(
+        parecordBin,
+        parecordArgs(config),
+      ),
+      LinuxCaptureBackend.ffmpegAlsa => await Process.start(
+        ffmpegBin,
+        ffmpegAlsaCaptureArgs(config, defaultDevice: alsaDevice),
+      ),
+    };
+
+    _drain(_capture!.stderr);
+  }
+
+  /// The configured backend, or parecord when it is installed and ffmpeg
+  /// otherwise. Detected once: every later recording reuses the answer.
+  LinuxCaptureBackend _backend() {
+    if (backend case final configured?) return configured;
+
+    if (_resolvedBackend case final resolved?) return resolved;
+
+    return _resolvedBackend = _hasParecord()
+        ? LinuxCaptureBackend.pulseAudio
+        : LinuxCaptureBackend.ffmpegAlsa;
+  }
+
+  /// Looks the binary up rather than running it: a capture program
+  /// started to ask its version would record, print, or block, depending
+  /// on the program.
+  bool _hasParecord() {
+    if (parecordBin.contains('/')) return File(parecordBin).existsSync();
+
+    for (final directory in (Platform.environment['PATH'] ?? '').split(':')) {
+      if (directory.isEmpty) continue;
+
+      if (File('$directory/$parecordBin').existsSync()) return true;
+    }
+
+    return false;
   }
 
   /// Discards a process output pipe, which would otherwise fill and block it.

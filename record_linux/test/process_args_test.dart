@@ -25,6 +25,34 @@ void main() {
     expect(args.where((a) => a.startsWith('--property=')), isEmpty);
   });
 
+  test('ffmpeg captures raw s16le from ALSA on stdout', () {
+    final args = ffmpegAlsaCaptureArgs(
+      const RecordConfig(sampleRate: 16000, numChannels: 1),
+      defaultDevice: 'default',
+    );
+
+    // The parecord path produces the same raw stream, so everything
+    // downstream (amplitude, the encoder) is untouched by the backend.
+    expect(args, containsAllInOrder(['-f', 'alsa', '-i', 'default']));
+    expect(args, containsAllInOrder(['-ar', '16000']));
+    expect(args, containsAllInOrder(['-ac', '1']));
+    expect(args, containsAllInOrder(['-f', 's16le', '-']));
+    // Capture is driven by the plugin; ffmpeg must not read the host stdin.
+    expect(args, contains('-nostdin'));
+  });
+
+  test('ffmpeg records the selected ALSA device', () {
+    final args = ffmpegAlsaCaptureArgs(
+      const RecordConfig(
+        device: InputDevice(id: 'hw:1,0', label: 'Blue'),
+      ),
+      defaultDevice: 'default',
+    );
+
+    expect(args, containsAllInOrder(['-i', 'hw:1,0']));
+    expect(args, isNot(contains('default')));
+  });
+
   test('adds a file format only when parecord encodes', () {
     final args = parecordArgs(
       const RecordConfig(encoder: AudioEncoder.wav),

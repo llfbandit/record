@@ -132,6 +132,27 @@ On Ubuntu 24.04.3 LTS, you can install them using:
 sudo apt install pulseaudio-utils ffmpeg
 ```
 
+#### Recording without PulseAudio
+
+`ffmpeg` alone can also capture, reading ALSA directly. This suits
+machines with no PulseAudio or PipeWire server, and apps that ship their
+own `ffmpeg` and cannot rely on what is installed.
+
+```dart
+import 'package:record_linux/record_linux.dart';
+
+RecordLinux.options = const RecordLinuxOptions(
+  backend: LinuxCaptureBackend.ffmpegAlsa,
+  // Optional: absolute paths, for a bundled binary.
+  ffmpegBin: '/opt/myapp/bin/ffmpeg',
+);
+```
+
+Leaving `backend` unset keeps the existing behaviour: `parecord` when it
+is installed, `ffmpeg` otherwise. With this backend, `listInputDevices()`
+still uses `pactl` where it exists, and reports the ALSA `default`
+device where it does not.
+
 ### Web
 
 `stop()` returns a blob URL that keeps the recording in memory. Revoke it with `URL.revokeObjectURL` once you are done with it.

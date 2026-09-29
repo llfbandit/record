@@ -1,3 +1,7 @@
+## 2.2.0
+* feat: Add an ffmpeg/ALSA capture backend, so recording works without PulseAudio and with a bundled ffmpeg (`RecordLinux.options`).
+* feat: `listInputDevices()` reports the ALSA default device where pactl is unavailable, instead of failing.
+
 ## 2.1.2
 * fix: Drain parecord/ffmpeg output pipes to prevent stalled recordings and hanging `stop()`.
 * fix: Broken device selection.

@@ -8,12 +8,61 @@ import 'src/capture_pipeline.dart';
 import 'src/codec_caps.dart';
 import 'src/pactl_devices.dart';
 
+export 'src/capture_pipeline.dart' show LinuxCaptureBackend;
+
+/// How Linux captures audio, for apps that cannot rely on what is
+/// installed on the user's machine.
+///
+/// The defaults keep the historical behaviour: parecord captures and
+/// ffmpeg encodes, both taken from PATH. An app that ships its own
+/// binaries, or that must work where no PulseAudio or PipeWire server
+/// exists, sets this once before recording:
+///
+/// ```dart
+/// RecordLinux.options = RecordLinuxOptions(
+///   backend: LinuxCaptureBackend.ffmpegAlsa,
+///   ffmpegBin: '/opt/myapp/bin/ffmpeg',
+/// );
+/// ```
+class RecordLinuxOptions {
+  const RecordLinuxOptions({
+    this.backend,
+    this.parecordBin = 'parecord',
+    this.ffmpegBin = 'ffmpeg',
+    this.alsaDevice = 'default',
+  });
+
+  /// Null detects once, preferring parecord when it can be run.
+  final LinuxCaptureBackend? backend;
+
+  /// The capture program for [LinuxCaptureBackend.pulseAudio].
+  final String parecordBin;
+
+  /// The encoder, and the capture program for
+  /// [LinuxCaptureBackend.ffmpegAlsa].
+  final String ffmpegBin;
+
+  /// The ALSA device recorded from when no device is selected.
+  final String alsaDevice;
+}
+
 class RecordLinux extends RecordPlatform {
   static void registerWith() {
     RecordPlatform.instance = RecordLinux();
   }
 
-  final _pipeline = CapturePipeline();
+  /// Applies to recordings started after it is set.
+  static RecordLinuxOptions options = const RecordLinuxOptions();
+
+  /// Built on first use so [options] can be set after registration,
+  /// which is when a plugin is registered for an app that configures it
+  /// in main().
+  late final _pipeline = CapturePipeline(
+    parecordBin: options.parecordBin,
+    ffmpegBin: options.ffmpegBin,
+    backend: options.backend,
+    alsaDevice: options.alsaDevice,
+  );
 
   RecordState _state = RecordState.stop;
   String? _path;
