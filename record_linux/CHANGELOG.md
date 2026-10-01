@@ -1,3 +1,8 @@
+## 2.2.0
+* feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
+* fix: `stop()` while paused leaves parecord running.
+* fix: `listInputDevices()` empty on plain PulseAudio, which has no `node.name`.
+
 ## 2.1.3
 * fix: Recorders no longer share one capture, so starting or disposing one stops no other (#631).
 

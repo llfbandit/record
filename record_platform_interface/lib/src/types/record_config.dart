@@ -76,7 +76,7 @@ class RecordConfig {
   /// Defaults to [AudioRouteChangeMode.pause], like [audioInterruption], so the
   /// app keeps the recording and decides when to resume.
   ///
-  /// Platforms: Android, iOS, macOS web & Windows.
+  /// Platforms: Android, iOS, macOS, web, Windows & Linux.
   /// Android's legacy recorder needs API 28.
   final AudioRouteChangeMode audioRouteChange;
 
