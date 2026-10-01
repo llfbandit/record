@@ -84,4 +84,59 @@ void main() {
       );
     },
   );
+
+  Future<void> waitForLength(String path, int length) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (DateTime.now().isBefore(deadline)) {
+      if (File(path).existsSync() && File(path).lengthSync() >= length) return;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+  }
+
+  test('a restarted capture keeps writing to the same file', () async {
+    final parecord = await writeScript(
+      'parecord',
+      'dd if=/dev/zero bs=3200 count=10 2>/dev/null\nexec sleep 1000\n',
+    );
+    final ffmpeg = await writeScript(
+      'ffmpeg',
+      'for a; do out="\$a"; done\ncat > "\$out"\n',
+    );
+    final output = '${tempDir.path}/take.wav';
+
+    final pipeline = CapturePipeline(parecordBin: parecord, ffmpegBin: ffmpeg);
+    await pipeline.startFile(const RecordConfig(), output);
+    await waitForLength(output, 32000);
+
+    await pipeline.restartCapture(const RecordConfig());
+    await waitForLength(output, 64000);
+
+    await pipeline.stop().timeout(const Duration(seconds: 10));
+
+    expect(File(output).lengthSync(), 64000);
+  });
+
+  test('stop ends a paused capture', () async {
+    // Handles SIGTERM like parecord does: a stopped process holds a handled
+    // signal until it continues, where a default one would kill it.
+    final parecord = await writeScript(
+      'parecord',
+      "trap 'exit 0' TERM\nwhile :; do sleep 0.1; done\n",
+    );
+    final ffmpeg = await writeScript('ffmpeg', 'exec cat > /dev/null\n');
+
+    final pipeline = CapturePipeline(parecordBin: parecord, ffmpegBin: ffmpeg);
+    await pipeline.startFile(const RecordConfig(), '${tempDir.path}/take.wav');
+    final pid = pipeline.capturePid!;
+
+    pipeline.pause();
+    await pipeline.stop().timeout(const Duration(seconds: 10));
+
+    final proc = Directory('/proc/$pid');
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (proc.existsSync() && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    expect(proc.existsSync(), isFalse, reason: 'parecord should exit');
+  });
 }
