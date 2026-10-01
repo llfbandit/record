@@ -68,6 +68,36 @@ void main() {
     expect(devices.single.sampleRates, [44100]);
   });
 
+  test('prefers node.name over the source name', () {
+    final devices = parsePactlSources(const [
+      'Source #0',
+      '\tName: pulse_name',
+      '\tDescription: Mic',
+      '\t\tnode.name = "pipewire_name"',
+    ]);
+
+    expect(devices.single.id, 'pipewire_name');
+  });
+
+  test('falls back to the source name on plain PulseAudio', () {
+    final devices = parsePactlSources(const [
+      'Source #1',
+      '\tName: RDPSink.monitor',
+      '\tDescription: Monitor of RDP Sink',
+      '\tProperties:',
+      '\t\tdevice.class = "monitor"',
+      'Source #2',
+      '\tName: RDPSource',
+      '\tDescription: RDP Source',
+      '\tSample Specification: s16le 1ch 44100Hz',
+      '\tProperties:',
+      '\t\tdevice.description = "RDP Source"',
+    ]);
+
+    expect(devices.single.id, 'RDPSource');
+    expect(devices.single.label, 'RDP Source');
+  });
+
   test('returns nothing for empty output', () {
     expect(parsePactlSources(const []), isEmpty);
   });
