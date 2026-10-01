@@ -1,3 +1,8 @@
+## 2.2.0
+* feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
+* fix: `stop()` while paused leaves parecord running.
+* fix: `listInputDevices()` empty on plain PulseAudio, which has no `node.name`.
+
 ## 2.1.2
 * fix: Drain parecord/ffmpeg output pipes to prevent stalled recordings and hanging `stop()`.
 * fix: Broken device selection.
