@@ -7,11 +7,18 @@ import 'package:record_platform_interface/record_platform_interface.dart';
 
 /// Lists the input sources exposed by PulseAudio / PipeWire.
 Future<List<InputDevice>> listPactlInputDevices() async {
-  return parsePactlSources(await _runPactl(['list', 'sources']));
+  return parsePactlSources(await runPactl(['list', 'sources']));
+}
+
+/// Lists the names of the input sources, which `--device` takes.
+///
+/// Reads `pactl list short sources`, which plain PulseAudio fills too.
+Future<Set<String>> listPactlSourceNames() async {
+  return parseShortSourceNames(await runPactl(['list', 'short', 'sources']));
 }
 
 /// Runs pactl and returns its output, one entry per line.
-Future<List<String>> _runPactl(List<String> arguments) async {
+Future<List<String>> runPactl(List<String> arguments) async {
   // LC_ALL=C keeps the output parseable under any user locale.
   final process = await Process.start(
     'pactl',
@@ -70,11 +77,14 @@ String _propertyValue(String line) {
 @visibleForTesting
 List<InputDevice> parsePactlSources(List<String> output) {
   final devices = <InputDevice>[];
-  String? currentDeviceId;
+  String? currentNodeName;
+  // Plain PulseAudio has no node.name, only this name.
+  String? currentSourceName;
   String? currentDeviceName;
   List<int> currentSampleRates = [];
 
   void commitDevice() {
+    final currentDeviceId = currentNodeName ?? currentSourceName;
     if (currentDeviceId != null &&
         currentDeviceName != null &&
         !currentDeviceId.endsWith('.monitor') &&
@@ -92,13 +102,15 @@ List<InputDevice> parsePactlSources(List<String> output) {
   for (final line in output) {
     if (line.startsWith('Source #')) {
       commitDevice();
-      currentDeviceId = null;
+      currentNodeName = null;
+      currentSourceName = null;
       currentDeviceName = null;
       currentSampleRates = [];
     } else if (line.trim().startsWith('node.name')) {
-      currentDeviceId = _propertyValue(line);
+      currentNodeName = _propertyValue(line);
     } else if (line.trim().startsWith('Name:')) {
-      currentDeviceName = line.substring(line.indexOf(':') + 1).trim();
+      currentSourceName = line.substring(line.indexOf(':') + 1).trim();
+      currentDeviceName = currentSourceName;
     } else if (line.trim().startsWith('Description:')) {
       currentDeviceName = line.substring(line.indexOf(':') + 1).trim();
     } else if (line.trim().startsWith('Sample Specification:')) {
@@ -112,4 +124,20 @@ List<InputDevice> parsePactlSources(List<String> output) {
   commitDevice();
 
   return devices;
+}
+
+// Output can be retrieved with `pactl list short sources`
+// --- Example ---
+// 54	alsa_input.pci-0000_00_1f.3.analog-stereo	PipeWire	s32le 2ch 48000Hz	SUSPENDED
+@visibleForTesting
+Set<String> parseShortSourceNames(List<String> output) {
+  return {
+    for (final line in output)
+      if (line.split('\t') case [
+        _,
+        final name,
+        ...,
+      ] when !name.endsWith('.monitor'))
+        name,
+  };
 }
