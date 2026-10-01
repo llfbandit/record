@@ -13,6 +13,7 @@
 * fix(macOS): Crash when an input device comes without an id or a label.
 * fix(macOS): FLAC files are native FLAC instead of FLAC inside an m4a.
 * fix(macOS): A device selected by its raw id now works when recording to a file, like it already did when streaming.
+* fix(macOS): A chosen input device that is not the system default now records. AVAudioEngine went back to the default device, so it recorded silence or failed to start.
 * fix(iOS): An incoming call no longer interrupts the recording until it is answered.
 * fix(iOS): A file recording keeps its audio through a phone call, and resumes in the same file with `pauseResume`.
 * fix(iOS): A pause asked during an interruption is no longer undone when it ends.

@@ -6,6 +6,29 @@ enum CaptureTarget {
   case file(path: String)
 }
 
+extension CaptureTarget {
+  func makeOutput(
+    settings: [String: Any],
+    config: RecordConfig,
+    srcFormat: AVAudioFormat,
+    onEvent: @escaping (CaptureEvent) -> Void
+  ) throws -> CaptureOutput {
+    switch self {
+    case .stream:
+      let processor = try AudioStreamProcessor(config: config, srcFormat: srcFormat)
+      return StreamOutput(processor: processor) { onEvent(.chunk($0)) }
+
+    case .file(let path):
+      // pcm16bits has no container. We write the raw stream bytes.
+      guard let fileType = FormatPolicy.fileType(for: config.encoder) else {
+        let processor = try AudioStreamProcessor(config: config, srcFormat: srcFormat)
+        return try RawFileOutput(path: path, processor: processor)
+      }
+      return try AudioFileOutput(path: path, settings: settings, fileType: fileType, srcFormat: srcFormat)
+    }
+  }
+}
+
 // Captures with AVAudioEngine and gives each buffer to an output.
 // File and stream takes use it, on iOS and macOS. The tap runs on its own thread, so we lock.
 final class AudioEngineCapture: CaptureEngine {
@@ -56,7 +79,7 @@ final class AudioEngineCapture: CaptureEngine {
 
       let negotiated = try FormatPolicy.negotiate(for: m_config, input: srcFormat)
       effective = negotiated.effective
-      output = try makeOutput(settings: negotiated.settings, config: effective, srcFormat: srcFormat)
+      output = try m_target.makeOutput(settings: negotiated.settings, config: effective, srcFormat: srcFormat, onEvent: m_onEvent)
 
       engine.inputNode.installTap(
         onBus: m_bus,
@@ -138,22 +161,6 @@ final class AudioEngineCapture: CaptureEngine {
 
   // MARK: - Private
 
-  private func makeOutput(settings: [String: Any], config: RecordConfig, srcFormat: AVAudioFormat) throws -> CaptureOutput {
-    switch m_target {
-    case .stream:
-      let processor = try AudioStreamProcessor(config: config, srcFormat: srcFormat)
-      return StreamOutput(processor: processor) { [m_onEvent] in m_onEvent(.chunk($0)) }
-
-    case .file(let path):
-      // pcm16bits has no container. We write the raw stream bytes.
-      guard let fileType = FormatPolicy.fileType(for: config.encoder) else {
-        let processor = try AudioStreamProcessor(config: config, srcFormat: srcFormat)
-        return try RawFileOutput(path: path, processor: processor)
-      }
-      return try AudioFileOutput(path: path, settings: settings, fileType: fileType, srcFormat: srcFormat)
-    }
-  }
-
   private func shutDown(_ engine: AVAudioEngine) {
     engine.inputNode.removeTap(onBus: m_bus)
     engine.stop()
@@ -209,7 +216,7 @@ final class AudioEngineCapture: CaptureEngine {
   }
 
   // The loudest sample of the first channel.
-  private static func peakDb(_ buffer: AVAudioPCMBuffer) -> Float {
+  static func peakDb(_ buffer: AVAudioPCMBuffer) -> Float {
     let frames = Int(buffer.frameLength)
     var peak: Float = 0
 
