@@ -261,6 +261,9 @@ class RecordLinux extends RecordPlatform {
     await _pipeline.restartCapture(moved);
     if (!identical(config, _config)) return false;
 
+    // A pause() during the move stopped the old parecord, not this one.
+    if (_state == RecordState.pause && !_routeLost) _pipeline.pause();
+
     _config = moved;
     if (config.device?.id != device?.id) _configChangedHandler?.call(moved);
     await _watchRoute();
