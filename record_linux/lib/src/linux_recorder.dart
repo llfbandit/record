@@ -176,7 +176,10 @@ class LinuxRecorder {
       switch (config.audioRouteChange) {
         case AudioRouteChangeMode.follow when _state == RecordState.record:
           // Pause rather than stop when no device is left, so resume() can retry.
-          if (!await _moveTo(null)) _suspendCapture();
+          // A stop() or start() while pactl runs ends this take: leave it be.
+          if (!await _moveTo(null) && identical(config, _config)) {
+            _suspendCapture();
+          }
         case AudioRouteChangeMode.follow || AudioRouteChangeMode.pause:
           _suspendCapture();
         case AudioRouteChangeMode.stop:
