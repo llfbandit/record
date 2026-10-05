@@ -16,6 +16,7 @@ fun testRecordConfig(
   audioInterruption: Int = AudioInterruption.PAUSE.ordinal,
   audioRouteChange: Int = AudioRouteChange.PAUSE.ordinal,
   streamBufferSize: Int? = null,
+  deviceMissing: Boolean = false,
 ): RecordConfig = RecordConfig(
   path = path,
   encoder = encoder,
@@ -28,4 +29,5 @@ fun testRecordConfig(
   audioInterruption = audioInterruption,
   audioRouteChange = audioRouteChange,
   streamBufferSize = streamBufferSize,
+  deviceMissing = deviceMissing,
 )

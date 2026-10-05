@@ -18,14 +18,17 @@ class DeviceUtils {
 
     fun hasInputDevices(context: Context): Boolean = listInputDevices(context).isNotEmpty()
 
-    /** Finds [device] among current inputs by id, or by type and address after a re-plug changed its id. */
+    /** The id Dart sees: type and address, which a re-plug keeps. Android's id without an address. */
+    fun deviceId(device: AudioDeviceInfo): String {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || device.address.isEmpty()) return "${device.id}"
+      return "${device.type}:${device.address}"
+    }
+
+    /** Finds [device] among current inputs, even after a re-plug. */
     fun findInputDevice(context: Context, device: AudioDeviceInfo): AudioDeviceInfo? {
       val inputs = listInputDevices(context)
-      inputs.firstOrNull { it.id == device.id }?.let { return it }
-
-      // The address only exists from API 28; an empty one could match any device of the type.
-      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || device.address.isEmpty()) return null
-      return inputs.firstOrNull { it.type == device.type && it.address == device.address }
+      return inputs.firstOrNull { it.id == device.id }
+        ?: inputs.firstOrNull { deviceId(it) == deviceId(device) }
     }
 
     /** Calls [onRemoved] with the ids of input devices as they are unplugged, until closed. */
@@ -50,7 +53,7 @@ class DeviceUtils {
 
     fun deviceInfoToMap(device: AudioDeviceInfo): Map<String, Any> {
       return mapOf(
-        "id" to "${device.id}",
+        "id" to deviceId(device),
         "label" to device.productName,
         "type" to typeToInputDeviceType(device.type),
         "sampleRates" to device.sampleRates.toList(),
@@ -80,11 +83,11 @@ class DeviceUtils {
     }
 
     fun deviceInfoFromMap(context: Context, device: Map<String, String>?): AudioDeviceInfo? {
-      if (device == null) return null
+      val id = device?.get("id") ?: return null
+      val inputs = listInputDevices(context)
 
-      return listInputDevices(context).firstOrNull {
-        it.id.toString() == device["id"]
-      }
+      // Apps may have saved Android's id.
+      return inputs.firstOrNull { deviceId(it) == id } ?: inputs.firstOrNull { "${it.id}" == id }
     }
 
     @SuppressLint("MissingPermission")
