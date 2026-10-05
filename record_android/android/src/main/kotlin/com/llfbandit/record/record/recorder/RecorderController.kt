@@ -10,6 +10,7 @@ import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.model.RecordState
 import com.llfbandit.record.record.recorder.engine.CaptureEngine
 import com.llfbandit.record.record.recorder.engine.DEFAULT_AMPLITUDE_DB
+import com.llfbandit.record.record.util.DeviceUtils
 
 /** User-visible output from the recording. */
 interface RecorderSink {
@@ -63,7 +64,8 @@ class RecorderController(
 
       try {
         val effective = s.engine.start()
-        if (effective.isModified(s.config)) sink.onConfigChanged(effective)
+        // A missing device fell back to the default one.
+        if (effective.isModified(s.config) || s.config.deviceMissing) sink.onConfigChanged(effective)
         s.config = effective
         environment.activate(effective)
         moveTo(s, RecordState.RECORD)
@@ -175,7 +177,8 @@ class RecorderController(
 
   /** Tells Dart which device capture is on after a reroute; null is the default one. */
   private fun reportDevice(s: Session, device: AudioDeviceInfo?) {
-    if (device?.id == s.config.device?.id) return
+    // A re-plug keeps the Dart id.
+    if (device?.let(DeviceUtils::deviceId) == s.config.device?.let(DeviceUtils::deviceId)) return
     s.config = s.config.copy(device = device)
     sink.onConfigChanged(s.config)
   }

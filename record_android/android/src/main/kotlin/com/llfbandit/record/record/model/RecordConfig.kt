@@ -29,6 +29,8 @@ class RecordConfig(
   audioRouteChange: Int,
   val streamBufferSize: Int?,
   private val rawMap: Map<String, Any?> = emptyMap(),
+  // Dart asked for a device that is not there. The take falls back to the default one.
+  val deviceMissing: Boolean = false,
 ) {
   val audioInterruption: AudioInterruption = when (audioInterruption) {
     0 -> AudioInterruption.NONE
@@ -58,7 +60,7 @@ class RecordConfig(
     device, autoGain, echoCancel, noiseSuppress,
     useLegacy, muteAudio, manageBluetoothSco, audioSource,
     speakerphone, audioManagerMode, audioInterruption.ordinal,
-    audioRouteChange.ordinal, streamBufferSize, rawMap,
+    audioRouteChange.ordinal, streamBufferSize, rawMap, deviceMissing,
   )
 
   fun isModified(other: RecordConfig): Boolean =
@@ -71,6 +73,8 @@ class RecordConfig(
       val rawMap = (call.arguments as Map<*, *>).entries
         .associate { (k, v) -> k.toString() to v }
       val map = call.argument("androidConfig") as Map<*, *>?
+      val requestedDevice = call.argument<Map<String, String>>("device")
+      val device = DeviceUtils.deviceInfoFromMap(context, requestedDevice)
 
       val audioSource: Int = when (map?.get("audioSource")) {
         "defaultSource" -> MediaRecorder.AudioSource.DEFAULT
@@ -124,7 +128,7 @@ class RecordConfig(
         Utils.firstNonNull(call.argument("bitRate"), 128000),
         Utils.firstNonNull(call.argument("sampleRate"), 44100),
         Utils.firstNonNull(call.argument("numChannels"), 2),
-        DeviceUtils.deviceInfoFromMap(context, call.argument("device")),
+        device,
         Utils.firstNonNull(call.argument("autoGain"), false),
         Utils.firstNonNull(call.argument("echoCancel"), false),
         Utils.firstNonNull(call.argument("noiseSuppress"), false),
@@ -144,6 +148,7 @@ class RecordConfig(
         ),
         call.argument("streamBufferSize"),
         rawMap,
+        deviceMissing = requestedDevice != null && device == null,
       )
     }
   }

@@ -2,6 +2,8 @@
 * feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
 * feat: `resume()` throws `RecordResumeNoDeviceException` when the lost device has no replacement.
 * fix: Audio captured while paused no longer leaks into the recording on resume.
+* fix: A device keeps its id when it is plugged in again, so a saved `InputDevice` still works.
+* fix: A missing device falls back to the default one, and `onConfigChanged` reports it with a null device.
 
 ## 2.2.0
 * refactor: Rebuild recorder as capture engine + controller.
