@@ -155,6 +155,14 @@ class RecorderControllerTest {
     assertTrue(sink.configChanges.isEmpty())
   }
 
+  @Test
+  fun `a missing device falls back to the default one and is reported`() {
+    startRecording(testRecordConfig(deviceMissing = true))
+
+    assertEquals(1, sink.configChanges.size)
+    assertNull(sink.configChanges.single().device)
+  }
+
   // --- pause / resume ---
 
   @Test
@@ -412,7 +420,20 @@ class RecorderControllerTest {
   }
 
   @Test
-  fun `a resume on the re-plugged device pins it and reports its new id`() {
+  fun `a resume on the re-plugged device pins it and reports nothing`() {
+    val buds = testAudioDevice(id = 7, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "24:29:34:AB:85:F1")
+    startRecording(testRecordConfig(device = buds, audioRouteChange = AudioRouteChange.PAUSE.ordinal))
+    controller.onRouteLost(engine)
+    env.plugged[buds.id] = testAudioDevice(id = 12, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "24:29:34:AB:85:F1")
+
+    controller.resume {}
+
+    assertEquals(listOf("reroute(12)", "resume"), engine.calls.drop(2))
+    assertTrue(sink.configChanges.isEmpty())
+  }
+
+  @Test
+  fun `a resume on a re-plugged device with no address reports its new id`() {
     startOnMic(AudioRouteChange.PAUSE)
     controller.onRouteLost(engine)
     env.plugged[mic.id] = testAudioDevice(id = 12)

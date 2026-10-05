@@ -46,6 +46,37 @@ class DeviceUtilsTest {
     assertNull(find(testAudioDevice(id = 7, AudioDeviceInfo.TYPE_USB_DEVICE)))
   }
 
+  @Test
+  fun `a re-plugged device keeps its Dart id`() {
+    val replugged = testAudioDevice(id = 12, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "24:29:34:AB:85:F1")
+    assertEquals(DeviceUtils.deviceId(buds), DeviceUtils.deviceId(replugged))
+  }
+
+  @Test
+  fun `a device without an address is known by Android's id`() {
+    assertEquals("12", DeviceUtils.deviceId(testAudioDevice(id = 12, AudioDeviceInfo.TYPE_USB_DEVICE)))
+  }
+
+  @Test
+  fun `a saved device is found again after a re-plug`() {
+    plugIn(testAudioDevice(id = 12, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "24:29:34:AB:85:F1"))
+    assertEquals(12, fromDart(DeviceUtils.deviceId(buds))?.id)
+  }
+
+  @Test
+  fun `Android's id still finds its device`() {
+    plugIn(buds)
+    assertEquals(7, fromDart("7")?.id)
+  }
+
+  @Test
+  fun `an unknown id finds nothing`() {
+    plugIn(buds)
+    assertNull(fromDart("${AudioDeviceInfo.TYPE_BLUETOOTH_SCO}:60:38:0E:B8:70:02"))
+  }
+
+  private fun fromDart(id: String) = DeviceUtils.deviceInfoFromMap(context, mapOf("id" to id))
+
   private fun plugIn(vararg devices: AudioDeviceInfo) =
     shadowOf(audioManager).setInputDevices(devices.toList())
 
