@@ -5,6 +5,7 @@ protocol RecorderPlatform: AnyObject {
   var supportedEncoders: Set<String> { get }
   var devices: DeviceRegistry { get }
   var environment: AudioEnvironment { get }
+  var inputRoute: InputRoute { get }
 
   func makeEngine(
     config: RecordConfig,
@@ -32,6 +33,6 @@ extension RecorderPlatform {
     target: CaptureTarget,
     onEvent: @escaping (CaptureEvent) -> Void
   ) -> CaptureEngine {
-    AudioEngineCapture(config: config, target: target, environment: environment, onEvent: onEvent)
+    AudioEngineCapture(config: config, target: target, route: inputRoute, onEvent: onEvent)
   }
 }

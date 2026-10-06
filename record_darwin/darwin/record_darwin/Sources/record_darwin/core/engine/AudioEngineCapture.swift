@@ -11,7 +11,7 @@ enum CaptureTarget {
 final class AudioEngineCapture: CaptureEngine {
   private let m_config: RecordConfig
   private let m_target: CaptureTarget
-  private let m_environment: AudioEnvironment
+  private let m_route: InputRoute
   private let m_onEvent: (CaptureEvent) -> Void
   private let m_bus = 0
   private let m_lock = NSLock()
@@ -27,12 +27,12 @@ final class AudioEngineCapture: CaptureEngine {
   init(
     config: RecordConfig,
     target: CaptureTarget,
-    environment: AudioEnvironment,
+    route: InputRoute,
     onEvent: @escaping (CaptureEvent) -> Void
   ) {
     m_config = config
     m_target = target
-    m_environment = environment
+    m_route = route
     m_onEvent = onEvent
   }
 
@@ -44,7 +44,7 @@ final class AudioEngineCapture: CaptureEngine {
     let effective: RecordConfig
 
     do {
-      try m_environment.bindInput(m_config.device, to: engine.inputNode)
+      try m_route.bind(m_config.device?.id, channels: m_config.numChannels, to: engine)
       // A new engine starts with voice processing off.
       if usesVoiceProcessing { try setVoiceProcessing(true, on: engine) }
 
@@ -121,6 +121,7 @@ final class AudioEngineCapture: CaptureEngine {
     }
     if let engine = m_audioEngine { shutDown(engine) }
     m_audioEngine = nil
+    m_route.release()
 
     let output = m_lock.withLock { () -> CaptureOutput? in
       let output = m_output
