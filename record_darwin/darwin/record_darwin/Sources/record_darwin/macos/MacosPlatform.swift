@@ -4,11 +4,9 @@ import Foundation
 
 // macOS: CoreAudio for inputs.
 final class MacosPlatform: RecorderPlatform {
-  private let macosDevices = MacosDeviceRegistry()
-  private let macosEnvironment = MacosAudioEnvironment()
-
-  var devices: DeviceRegistry { macosDevices }
-  var environment: AudioEnvironment { macosEnvironment }
+  let devices: DeviceRegistry = MacosDeviceRegistry()
+  let environment: AudioEnvironment = MacosAudioEnvironment()
+  let inputRoute: InputRoute = MacosInputRoute()
 }
 
 #endif

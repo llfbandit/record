@@ -1,4 +1,4 @@
-import AVFoundation
+import Foundation
 
 // Something that happened in the audio environment.
 enum EnvironmentEvent {
@@ -19,11 +19,4 @@ protocol AudioEnvironment: AnyObject {
 
   // Gives it back. prepare() starts the next take.
   func release()
-
-  // Points a running capture graph at the device.
-  func bindInput(_ device: Device?, to node: AVAudioInputNode) throws
-}
-
-extension AudioEnvironment {
-  func bindInput(_ device: Device?, to node: AVAudioInputNode) throws {}
 }
