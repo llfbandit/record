@@ -1,4 +1,4 @@
-import Foundation
+import AVFoundation
 
 @testable import record_darwin
 
@@ -86,6 +86,12 @@ final class FakeDeviceRegistry: DeviceRegistry {
   func isAvailable(_ device: Device) -> Bool { !missingIds.contains(device.id) }
 }
 
+// Only real engines bind an input. The engine is faked, so nothing calls it.
+final class FakeInputRoute: InputRoute {
+  func bind(_ deviceId: String?, channels: Int, to engine: AVAudioEngine) throws {}
+  func release() {}
+}
+
 final class FakePlatform: RecorderPlatform {
   var supportedEncoders: Set<String> = ["aacLc", "pcm16bits", "wav"]
 
@@ -94,6 +100,7 @@ final class FakePlatform: RecorderPlatform {
 
   var devices: DeviceRegistry { fakeDevices }
   var environment: AudioEnvironment { fakeEnvironment }
+  let inputRoute: InputRoute = FakeInputRoute()
 
   private(set) var engines: [FakeCaptureEngine] = []
   private(set) var fileEngineCount = 0

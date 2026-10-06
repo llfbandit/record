@@ -7,18 +7,11 @@ final class IosAudioEnvironment: AudioEnvironment {
   // When false, the app sets the category and activates itself.
   var manageAudioSession = true
 
-  private let m_devices: IosDeviceRegistry
   // Never nil. The observer thread may read it at any time.
   private var m_onEvent: (EnvironmentEvent) -> Void = { _ in }
   private var m_observer: NSObjectProtocol?
-  // The input we chose for this take. release() clears it.
-  private var m_preferredInputUid: String?
   // The app's value before the take. release() puts it back.
   private var m_appPrefersNoInterruptions: Bool?
-
-  init(devices: IosDeviceRegistry) {
-    m_devices = devices
-  }
 
   func bind(onEvent: @escaping (EnvironmentEvent) -> Void) {
     m_onEvent = onEvent
@@ -43,15 +36,10 @@ final class IosAudioEnvironment: AudioEnvironment {
   }
 
   func release() {
-    let session = AVAudioSession.sharedInstance()
-
-    // Only if it is still ours. The app may have changed it since.
-    if let uid = m_preferredInputUid {
-      m_preferredInputUid = nil
-      if session.preferredInput?.uid == uid { try? session.setPreferredInput(nil) }
-    }
+    // Only if still ours. The app may have changed it since.
     if #available(iOS 14.5, *), let appValue = m_appPrefersNoInterruptions {
       m_appPrefersNoInterruptions = nil
+      let session = AVAudioSession.sharedInstance()
       if session.prefersNoInterruptionsFromSystemAlerts { try? session.setPrefersNoInterruptionsFromSystemAlerts(appValue) }
     }
 
@@ -104,22 +92,6 @@ final class IosAudioEnvironment: AudioEnvironment {
     if #available(iOS 13.0, *) {
       try RecorderError.wrapping("setAllowHapticsAndSystemSoundsDuringRecording") {
         try session.setAllowHapticsAndSystemSoundsDuringRecording(iosConfig.allowHapticsAndSystemSoundsDuringRecording)
-      }
-    }
-
-    // Input first. It changes the route, and the channel limit depends on the route.
-    let port = try config.device.flatMap { device in
-      try m_devices.ports().first { $0.uid == device.id }
-    }
-    if let port {
-      try RecorderError.wrapping("setPreferredInput") { try session.setPreferredInput(port) }
-      m_preferredInputUid = port.uid
-    }
-
-    let channels = min(config.numChannels, session.maximumInputNumberOfChannels)
-    if channels > 0 {
-      try RecorderError.wrapping("setPreferredInputNumberOfChannels") {
-        try session.setPreferredInputNumberOfChannels(channels)
       }
     }
 
