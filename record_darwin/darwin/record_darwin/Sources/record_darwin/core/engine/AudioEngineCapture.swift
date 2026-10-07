@@ -6,21 +6,17 @@ enum CaptureTarget {
   case file(path: String)
 }
 
-// Captures with AVAudioEngine and gives each buffer to an output.
-// File and stream takes use it, on iOS and macOS. The tap runs on its own thread, so we lock.
+// Runs one take: an output fed by an EngineInput. File and stream takes use it, on iOS and macOS.
+// The tap runs on its own thread, so we lock.
 final class AudioEngineCapture: CaptureEngine {
   private let m_config: RecordConfig
   private let m_target: CaptureTarget
   private let m_route: InputRoute
   private let m_onEvent: (CaptureEvent) -> Void
-  private let m_bus = 0
   private let m_lock = NSLock()
 
-  private var m_audioEngine: AVAudioEngine?
-  private var m_configObserver: NSObjectProtocol?
+  private var m_engine: EngineInput?
   private var m_output: CaptureOutput?
-  // The format the tap was installed with.
-  private var m_tapFormat: AVAudioFormat?
   private var m_isPaused = false
   private var m_amplitude = silenceDb
 
@@ -39,71 +35,40 @@ final class AudioEngineCapture: CaptureEngine {
   func start() throws -> RecordConfig {
     if case .file(let path) = m_target { try RecordFile.delete(at: path) }
 
-    let engine = AVAudioEngine()
-    var output: CaptureOutput?
-    let effective: RecordConfig
-
     do {
-      try m_route.bind(m_config.device?.id, channels: m_config.numChannels, to: engine)
-      // A new engine starts with voice processing off.
-      if usesVoiceProcessing { try setVoiceProcessing(true, on: engine) }
+      let engine = try EngineInput.open(
+        on: m_config.device?.id,
+        config: m_config,
+        route: m_route,
+        onBuffer: { [weak self] in self?.handleTap($0) },
+        onStop: { [weak self] in self?.handleEngineStop() }
+      )
+      m_engine = engine
 
-      let srcFormat = engine.inputNode.inputFormat(forBus: m_bus)
-      // A tap on this format would crash the app.
-      guard srcFormat.sampleRate > 0, srcFormat.channelCount > 0 else {
-        throw RecorderError.startFailed("No audio input is available.")
-      }
+      let negotiated = try FormatPolicy.negotiate(for: m_config, input: engine.format)
+      let output = try makeOutput(settings: negotiated.settings, config: negotiated.effective, srcFormat: engine.format)
+      m_lock.withLock { m_output = output }
 
-      let negotiated = try FormatPolicy.negotiate(for: m_config, input: srcFormat)
-      effective = negotiated.effective
-      output = try makeOutput(settings: negotiated.settings, config: effective, srcFormat: srcFormat)
-
-      engine.inputNode.installTap(
-        onBus: m_bus,
-        bufferSize: AVAudioFrameCount(m_config.streamBufferSize ?? 1024),
-        format: srcFormat
-      ) { [weak self] buffer, _ in
-        self?.handleTap(buffer)
-      }
-      m_tapFormat = srcFormat
-
-      engine.prepare()
       try engine.start()
+      return negotiated.effective
     } catch {
-      // Leave nothing behind: no tap, no voice processing, no file.
-      shutDown(engine)
-      _ = output?.close(delete: true)
+      // Leave nothing behind: no engine, no file.
+      stop(delete: true)
       throw error
     }
-
-    m_audioEngine = engine
-    m_lock.withLock { m_output = output }
-
-    // The system stops the engine when the input changes (device unplugged, new route).
-    m_configObserver = NotificationCenter.default.addObserver(
-      forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
-    ) { [weak self, weak engine] _ in
-      guard let engine else { return }
-      self?.handleConfigurationChange(engine)
-    }
-    // It may have stopped before we started to listen.
-    handleConfigurationChange(engine)
-
-    return effective
   }
 
   func pause() {
     m_lock.withLock { m_isPaused = true }
-    m_audioEngine?.pause()
+    m_engine?.pause()
   }
 
   // Starts the engine again after a pause. It writes to the same file, so nothing is lost.
   func resume() throws {
-    guard let engine = m_audioEngine, let tapFormat = m_tapFormat else { return }
+    guard let engine = m_engine else { return }
 
     // The input changed during the pause. Starting with the old tap format would crash the app.
-    let input = engine.inputNode.inputFormat(forBus: m_bus)
-    if input.sampleRate != tapFormat.sampleRate || input.channelCount != tapFormat.channelCount {
+    guard engine.isCurrent else {
       let error = Self.inputChangedError
       terminate(error)
       throw error
@@ -115,12 +80,8 @@ final class AudioEngineCapture: CaptureEngine {
 
   @discardableResult
   func stop(delete: Bool) -> String? {
-    if let observer = m_configObserver {
-      NotificationCenter.default.removeObserver(observer)
-      m_configObserver = nil
-    }
-    if let engine = m_audioEngine { shutDown(engine) }
-    m_audioEngine = nil
+    m_engine?.close()
+    m_engine = nil
     m_route.release()
 
     let output = m_lock.withLock { () -> CaptureOutput? in
@@ -155,17 +116,10 @@ final class AudioEngineCapture: CaptureEngine {
     }
   }
 
-  private func shutDown(_ engine: AVAudioEngine) {
-    engine.inputNode.removeTap(onBus: m_bus)
-    engine.stop()
-    // Voice processing can only change on a stopped engine.
-    if usesVoiceProcessing { try? setVoiceProcessing(false, on: engine) }
-  }
-
   // The engine stopped by itself. End the take and keep the file.
   // A paused engine is never running, so resume() checks the input instead.
-  private func handleConfigurationChange(_ engine: AVAudioEngine) {
-    guard !engine.isRunning, !m_lock.withLock({ m_isPaused }) else { return }
+  private func handleEngineStop() {
+    guard !m_lock.withLock({ m_isPaused }) else { return }
     terminate(Self.inputChangedError)
   }
 
@@ -221,17 +175,5 @@ final class AudioEngineCapture: CaptureEngine {
     }
 
     return peak > 0 ? 20 * log10(peak) : silenceDb
-  }
-
-  private var usesVoiceProcessing: Bool { m_config.echoCancel || m_config.autoGain }
-
-  // Auto gain works only with voice processing on, and voice processing always cancels echo.
-  private func setVoiceProcessing(_ enabled: Bool, on engine: AVAudioEngine) throws {
-    guard #available(iOS 13.0, *) else { return }
-
-    try RecorderError.wrapping("setVoiceProcessingEnabled", failure: "Failed to setup voice processing") {
-      try engine.inputNode.setVoiceProcessingEnabled(enabled)
-    }
-    engine.inputNode.isVoiceProcessingAGCEnabled = enabled && m_config.autoGain
   }
 }
