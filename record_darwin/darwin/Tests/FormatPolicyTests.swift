@@ -30,15 +30,6 @@ final class FormatPolicyTests: XCTestCase {
     XCTAssertEqual(effective.numChannels, 1)
   }
 
-  // A graph with no input yet reports zeros. That must not clamp anything.
-  func testNoInputKeepsWhatWasAsked() throws {
-    let (_, effective) = try FormatPolicy.negotiate(
-      for: makeConfig(encoder: "pcm16bits", sampleRate: 16000, numChannels: 2), input: AVAudioFormat())
-
-    XCTAssertEqual(effective.numChannels, 2)
-    XCTAssertEqual(effective.sampleRate, 16000)
-  }
-
   // PCM is resampled by us, so any rate is fine.
   func testPcmKeepsTheRequestedRate() throws {
     let (settings, effective) = try FormatPolicy.negotiate(

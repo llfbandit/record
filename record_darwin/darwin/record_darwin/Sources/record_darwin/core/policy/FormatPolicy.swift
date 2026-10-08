@@ -4,21 +4,18 @@ import AVFoundation
 // https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers
 enum FormatPolicy {
   // The input format comes from the capture graph. It is what the hardware really gives.
+  // It is never a zero format: EngineInput fails before.
   static func negotiate(
     for config: RecordConfig,
     input: AVAudioFormat
   ) throws -> (settings: [String: Any], effective: RecordConfig) {
-    // Zero means the graph has no input yet. We treat it as unknown.
-    let inputChannels = input.channelCount > 0 ? Int(input.channelCount) : nil
-    let inputSampleRate = input.sampleRate > 0 ? input.sampleRate : nil
-
     // Never more channels than the input has.
-    let channels = max(1, min(config.numChannels, inputChannels ?? config.numChannels))
+    let channels = max(1, min(config.numChannels, Int(input.channelCount)))
 
     var settings = try initialSettings(for: config)
     settings[AVNumberOfChannelsKey] = channels
 
-    let inFormat = try AVAudioFormat.int16(sampleRate: inputSampleRate ?? Double(config.sampleRate), channels: channels)
+    let inFormat = try AVAudioFormat.int16(sampleRate: input.sampleRate, channels: channels)
     guard let outFormat = AVAudioFormat(settings: settings) else {
       throw RecorderError.startFailed("Output format initialization failure.")
     }
