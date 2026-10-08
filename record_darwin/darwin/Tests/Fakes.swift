@@ -83,7 +83,7 @@ final class FakeDeviceRegistry: DeviceRegistry {
   func list() throws -> [Device] { devices }
 
   var missingIds: Set<String> = []
-  func isAvailable(_ device: Device) -> Bool { !missingIds.contains(device.id) }
+  func isAvailable(_ deviceId: String) -> Bool { !missingIds.contains(deviceId) }
 }
 
 // Only real engines bind an input. The engine is faked, so nothing calls it.

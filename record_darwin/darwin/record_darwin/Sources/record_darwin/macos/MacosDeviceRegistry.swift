@@ -18,8 +18,8 @@ final class MacosDeviceRegistry: DeviceRegistry {
   }
 
   // Takes a UID or a raw device id, like MacosInputRoute does.
-  func isAvailable(_ device: Device) -> Bool {
-    CoreAudioDevices.id(forUid: device.id) != nil
+  func isAvailable(_ deviceId: String) -> Bool {
+    CoreAudioDevices.id(forUid: deviceId) != nil
   }
 }
 
