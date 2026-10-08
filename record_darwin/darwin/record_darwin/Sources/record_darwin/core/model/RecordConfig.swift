@@ -49,7 +49,7 @@ public struct Device {
   }
 }
 
-// What Dart asked for. The var fields are there for negotiated() and withDefaultDevice().
+// What Dart asked for. The var fields are there for negotiated() and withDevice().
 // We never change a config in place.
 public struct RecordConfig {
   let encoder: String
@@ -93,7 +93,7 @@ extension RecordConfig {
     map["sampleRate"] = sampleRate
     map["numChannels"] = numChannels
     // Nil means the default input for Dart too.
-    if device == nil { map.removeValue(forKey: "device") }
+    map["device"] = device?.toMap()
     return map
   }
 
@@ -106,10 +106,10 @@ extension RecordConfig {
     return config
   }
 
-  // Returns a new config that records from the default input.
-  func withDefaultDevice() -> RecordConfig {
+  // Returns a new config that records from the device. Nil is the default input.
+  func withDevice(_ device: Device?) -> RecordConfig {
     var config = self
-    config.device = nil
+    config.device = device
     return config
   }
 
