@@ -70,10 +70,18 @@ final class RecordConfigTests: XCTestCase {
   // Dart reads a missing device as "the default input".
   func testTheDefaultDeviceIsReportedAsNoDevice() {
     let config = makeConfig(device: Device(id: "usb-mic", label: "USB mic"))
-    let fallback = config.withDefaultDevice()
+    let fallback = config.withDevice(nil)
 
     XCTAssertTrue(fallback.isModified(from: config))
     XCTAssertNil(fallback.toMap()["device"])
     XCTAssertNotNil(config.toMap()["device"])
+  }
+
+  // The device a take moved to, not the one Dart asked for.
+  func testToMapSendsTheCurrentDevice() {
+    let asked = makeConfig(device: Device(id: "usb-mic", label: "USB mic"))
+    let moved = asked.withDevice(Device(id: "headset", label: "Headset"))
+
+    XCTAssertEqual((moved.toMap()["device"] as? [String: Any]).flatMap(Device.init(map:))?.id, "headset")
   }
 }

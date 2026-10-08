@@ -10,10 +10,10 @@ final class IosDeviceRegistry: DeviceRegistry {
     }
   }
 
-  func isAvailable(_ device: Device) -> Bool {
+  func isAvailable(_ deviceId: String) -> Bool {
     // We cannot list the inputs, so we keep what was asked.
     guard let ports = try? ports() else { return true }
-    return ports.contains { $0.uid == device.id }
+    return ports.contains { $0.uid == deviceId }
   }
 
   // The session must be able to record before it can list anything.
