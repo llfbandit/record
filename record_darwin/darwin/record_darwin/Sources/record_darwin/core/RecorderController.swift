@@ -138,10 +138,7 @@ final class RecorderController {
     try m_platform.environment.prepare(asked)
 
     // The device is gone, so we record from the default input. Dart is told below.
-    var config = asked
-    if let device = asked.device, !m_platform.devices.isAvailable(device) {
-      config = asked.withDefaultDevice()
-    }
+    let config = asked.withDevice(m_platform.devices.available(asked.device))
 
     m_lastTakeId += 1
     let engine = m_platform.makeEngine(config: config, target: target, onEvent: handler(forTake: m_lastTakeId))
