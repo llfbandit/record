@@ -18,8 +18,8 @@ final class RecorderController {
     // Stays .stop until the engine has started.
     var state: RecordState = .stop
     var maxAmplitude = silenceDb
-    // Paused by the policy, not the user. Only this one auto-resumes.
-    var pausedByPolicy = false
+    // Nil while the take records.
+    var pauseReason: PauseReason?
 
     init(id: Int, engine: CaptureEngine, config: RecordConfig) {
       self.id = id
@@ -87,13 +87,8 @@ final class RecorderController {
 
     guard let session = m_session else { return }
 
-    // The user owns the pause now. An interruption end must not undo it.
-    session.pausedByPolicy = false
-
-    guard session.state == .record else { return }
-
-    session.engine.pause()
-    moveTo(session, .pause)
+    // The user owns the pause now, so an interruption end cannot undo it.
+    pause(session, for: .user)
   }
 
   func resume() throws {
@@ -104,7 +99,7 @@ final class RecorderController {
     try m_platform.environment.activate()
     try session.engine.resume()
 
-    session.pausedByPolicy = false
+    session.pauseReason = nil
     moveTo(session, .record)
   }
 
@@ -207,27 +202,28 @@ final class RecorderController {
   }
 
   private func onEnvironmentEvent(_ event: EnvironmentEvent) {
-    guard let session = m_session else { return }
+    guard let session = m_session,
+          let action = TakePolicy.react(to: event, config: session.config, pausedFor: session.pauseReason) else { return }
 
-    switch EnvironmentPolicy.react(config: session.config, event: event) {
-    case nil:
-      break
-
-    case .pause:
-      guard session.state == .record else { return }
-      session.engine.pause()
-      session.pausedByPolicy = true
-      moveTo(session, .pause)
+    switch action {
+    case .pause(let reason):
+      pause(session, for: reason)
 
     case .resume:
-      // A take the user paused stays paused.
-      guard session.pausedByPolicy else { return }
       do {
         try resume()
       } catch {
         m_sink.onError(error)
       }
     }
+  }
+
+  private func pause(_ session: Session, for reason: PauseReason) {
+    session.pauseReason = reason
+
+    guard session.state == .record else { return }
+    session.engine.pause()
+    moveTo(session, .pause)
   }
 
   // The same state twice would look like a second take in Dart.
