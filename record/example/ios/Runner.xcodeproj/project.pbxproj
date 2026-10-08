@@ -21,7 +21,7 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A8FB3082C5415C5407AD453C /* FormatPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13431835D1D9998FEFF87DD /* FormatPolicyTests.swift */; };
-		CED966F6D6210887D93D0FA8 /* EnvironmentPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20F60AEBD739C8EE6410A8EF /* EnvironmentPolicyTests.swift */; };
+		CED966F6D6210887D93D0FA8 /* TakePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20F60AEBD739C8EE6410A8EF /* TakePolicyTests.swift */; };
 		D64BBE81DBA9439E745F8CCA /* Fakes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA46CCD8A3ED03E12CADEAB /* Fakes.swift */; };
 		FDEF6B99399184B3EA7B1596 /* TestRecordConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41CAF4B4604B56855B9F5923 /* TestRecordConfig.swift */; };
 /* End PBXBuildFile section */
@@ -53,7 +53,7 @@
 		0194C13D8A45279D8FEF3E9F /* CoreAudioDevicesTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CoreAudioDevicesTests.swift; path = ../../../record_darwin/darwin/Tests/CoreAudioDevicesTests.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
-		20F60AEBD739C8EE6410A8EF /* EnvironmentPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EnvironmentPolicyTests.swift; path = ../../../record_darwin/darwin/Tests/EnvironmentPolicyTests.swift; sourceTree = "<group>"; };
+		20F60AEBD739C8EE6410A8EF /* TakePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TakePolicyTests.swift; path = ../../../record_darwin/darwin/Tests/TakePolicyTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		41CAF4B4604B56855B9F5923 /* TestRecordConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TestRecordConfig.swift; path = ../../../record_darwin/darwin/Tests/TestRecordConfig.swift; sourceTree = "<group>"; };
@@ -139,7 +139,7 @@
 		D77B4027FFC77D1E6657DEDB /* RunnerTests */ = {
 			isa = PBXGroup;
 			children = (
-				20F60AEBD739C8EE6410A8EF /* EnvironmentPolicyTests.swift */,
+				20F60AEBD739C8EE6410A8EF /* TakePolicyTests.swift */,
 				6AA46CCD8A3ED03E12CADEAB /* Fakes.swift */,
 				B13431835D1D9998FEFF87DD /* FormatPolicyTests.swift */,
 				F363EFF523113E2339B0A3D7 /* RecordConfigTests.swift */,
@@ -297,7 +297,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CED966F6D6210887D93D0FA8 /* EnvironmentPolicyTests.swift in Sources */,
+				CED966F6D6210887D93D0FA8 /* TakePolicyTests.swift in Sources */,
 				D64BBE81DBA9439E745F8CCA /* Fakes.swift in Sources */,
 				A8FB3082C5415C5407AD453C /* FormatPolicyTests.swift in Sources */,
 				0658DB476173E46086B2B57C /* RecordConfigTests.swift in Sources */,
