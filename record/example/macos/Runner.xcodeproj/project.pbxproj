@@ -35,7 +35,7 @@
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		C40E83D9D00C955E5CD5277E /* RecordConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70DA2F034EBBD27CA9DD4924 /* RecordConfigTests.swift */; };
 		EB565C381470F6228AB8A8E1 /* Fakes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E68077010C2E2EEE03DA89D /* Fakes.swift */; };
-		F9EBB75A39963A4D308A7000 /* EnvironmentPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150D8EAB23B706A78E355875 /* EnvironmentPolicyTests.swift */; };
+		F9EBB75A39963A4D308A7000 /* TakePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150D8EAB23B706A78E355875 /* TakePolicyTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,7 +70,7 @@
 
 /* Begin PBXFileReference section */
 		0F519E5EE9ACE717D6AC69B9 /* FormatPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FormatPolicyTests.swift; path = ../../../record_darwin/darwin/Tests/FormatPolicyTests.swift; sourceTree = "<group>"; };
-		150D8EAB23B706A78E355875 /* EnvironmentPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EnvironmentPolicyTests.swift; path = ../../../record_darwin/darwin/Tests/EnvironmentPolicyTests.swift; sourceTree = "<group>"; };
+		150D8EAB23B706A78E355875 /* TakePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TakePolicyTests.swift; path = ../../../record_darwin/darwin/Tests/TakePolicyTests.swift; sourceTree = "<group>"; };
 		331C80D5294CF71000263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		333000ED22D3DE5D00554162 /* Warnings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Warnings.xcconfig; sourceTree = "<group>"; };
 		335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GeneratedPluginRegistrant.swift; sourceTree = "<group>"; };
@@ -187,7 +187,7 @@
 		6E43B766F6F25C22B484B3FE /* RunnerTests */ = {
 			isa = PBXGroup;
 			children = (
-				150D8EAB23B706A78E355875 /* EnvironmentPolicyTests.swift */,
+				150D8EAB23B706A78E355875 /* TakePolicyTests.swift */,
 				7E68077010C2E2EEE03DA89D /* Fakes.swift */,
 				0F519E5EE9ACE717D6AC69B9 /* FormatPolicyTests.swift */,
 				70DA2F034EBBD27CA9DD4924 /* RecordConfigTests.swift */,
@@ -370,7 +370,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F9EBB75A39963A4D308A7000 /* EnvironmentPolicyTests.swift in Sources */,
+				F9EBB75A39963A4D308A7000 /* TakePolicyTests.swift in Sources */,
 				EB565C381470F6228AB8A8E1 /* Fakes.swift in Sources */,
 				3F0E99A0A771BDFBEB18D254 /* FormatPolicyTests.swift in Sources */,
 				C40E83D9D00C955E5CD5277E /* RecordConfigTests.swift in Sources */,
