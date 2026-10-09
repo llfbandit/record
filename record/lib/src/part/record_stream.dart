@@ -19,6 +19,13 @@ mixin _StreamMixin {
           ctrl.addError(error, stackTrace);
         }
       },
+      // The platform may end capture on its own: end the caller's stream too.
+      onDone: () {
+        final ctrl = _recordStreamCtrl;
+        _recordStreamCtrl = null;
+        _recordStreamSubscription = null;
+        ctrl?.close();
+      },
     );
 
     return _recordStreamCtrl!.stream;

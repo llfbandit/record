@@ -73,6 +73,37 @@ void main() {
       expect(stream1Done, isTrue);
     });
 
+    test('closes when the platform stream ends on its own', () async {
+      final stream = await recorder.startStream(const RecordConfig());
+      var done = false;
+      stream.listen(null, onDone: () => done = true);
+
+      await fake.byteStreamCtrl!.close();
+      await pump();
+
+      expect(done, isTrue);
+    });
+
+    test(
+      'starts a new stream after the platform ended the previous one',
+      () async {
+        await recorder.startStream(const RecordConfig());
+        await fake.byteStreamCtrl!.close();
+        await pump();
+
+        final stream = await recorder.startStream(const RecordConfig());
+        final received = <Uint8List>[];
+        final sub = stream.listen(received.add);
+        addTearDown(sub.cancel);
+
+        final chunk = Uint8List.fromList([4, 5]);
+        fake.byteStreamCtrl!.add(chunk);
+        await pump();
+
+        expect(received, [chunk]);
+      },
+    );
+
     test('initialises state stream before platform call', () async {
       await recorder.startStream(const RecordConfig());
       await pump();
