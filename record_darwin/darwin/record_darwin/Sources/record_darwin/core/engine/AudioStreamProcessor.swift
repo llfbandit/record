@@ -5,7 +5,7 @@ class AudioStreamProcessor {
   // The encoders a stream can use.
   static let encoders: Set<String> = [AudioEncoder.aacLc.rawValue, AudioEncoder.pcm16bits.rawValue]
 
-  private let m_converter: AVAudioConverter
+  private var m_converter: AVAudioConverter
   private let m_encoder: AudioEnc
 
   init(config: RecordConfig, srcFormat: AVAudioFormat) throws {
@@ -23,7 +23,13 @@ class AudioStreamProcessor {
 
   // Converts and encodes one tap buffer. Returns `[]` while the encoder waits for more data.
   func process(buffer: AVAudioPCMBuffer) throws -> [Data] {
-    m_encoder.encode(buffer: try m_converter.convert(buffer))
+    guard m_converter.accepts(buffer) else { return [] }
+    return m_encoder.encode(buffer: try m_converter.convert(buffer))
+  }
+
+  // The capture moved to an input with this format. The chunks keep theirs.
+  func setInputFormat(_ format: AVAudioFormat) throws {
+    m_converter = try m_converter.withInput(format)
   }
 
   func dispose() { m_encoder.dispose() }
