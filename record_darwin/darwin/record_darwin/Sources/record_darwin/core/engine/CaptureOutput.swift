@@ -6,6 +6,9 @@ protocol CaptureOutput: AnyObject {
   // Takes one tap buffer, in the capture format.
   func write(_ buffer: AVAudioPCMBuffer) throws
 
+  // The capture moved to an input with this format. The output format stays the same.
+  func setInputFormat(_ format: AVAudioFormat) throws
+
   // Frees everything. Returns the file, if there is one.
   func close(delete: Bool) -> String?
 }
@@ -24,6 +27,10 @@ final class StreamOutput: CaptureOutput {
     for chunk in try m_processor.process(buffer: buffer) { m_onChunk(chunk) }
   }
 
+  func setInputFormat(_ format: AVAudioFormat) throws {
+    try m_processor.setInputFormat(format)
+  }
+
   func close(delete: Bool) -> String? {
     m_processor.dispose()
     return nil
@@ -33,7 +40,7 @@ final class StreamOutput: CaptureOutput {
 // Writes the file with AVAudioFile, which encodes it.
 final class AudioFileOutput: CaptureOutput {
   private let m_path: String
-  private let m_converter: AVAudioConverter
+  private var m_converter: AVAudioConverter
   private var m_file: AVAudioFile?
 
   init(path: String, settings: [String: Any], fileType: AudioFileTypeID, srcFormat: AVAudioFormat) throws {
@@ -62,12 +69,16 @@ final class AudioFileOutput: CaptureOutput {
   }
 
   func write(_ buffer: AVAudioPCMBuffer) throws {
-    guard let file = m_file else { return }
+    guard let file = m_file, m_converter.accepts(buffer) else { return }
 
     let converted = try m_converter.convert(buffer)
     try RecorderError.wrapping("AVAudioFile.write", failure: "Recording stopped") {
       try file.write(from: converted)
     }
+  }
+
+  func setInputFormat(_ format: AVAudioFormat) throws {
+    m_converter = try m_converter.withInput(format)
   }
 
   func close(delete: Bool) -> String? {
@@ -106,6 +117,10 @@ final class RawFileOutput: CaptureOutput {
     for chunk in try m_processor.process(buffer: buffer) where !chunk.isEmpty {
       try writeAll(chunk)
     }
+  }
+
+  func setInputFormat(_ format: AVAudioFormat) throws {
+    try m_processor.setInputFormat(format)
   }
 
   func close(delete: Bool) -> String? {
@@ -160,6 +175,16 @@ extension AVAudioConverter {
     }
     converter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
     return converter
+  }
+
+  // False for a late buffer from the old input, after a move. We drop it.
+  func accepts(_ buffer: AVAudioPCMBuffer) -> Bool {
+    buffer.format.sampleRate == inputFormat.sampleRate && buffer.format.channelCount == inputFormat.channelCount
+  }
+
+  // The same output, from another input.
+  func withInput(_ format: AVAudioFormat) throws -> AVAudioConverter {
+    try .make(from: format, to: outputFormat)
   }
 
   // Converts one whole tap buffer.
