@@ -1,3 +1,6 @@
+## 2.1.3
+* fix: Recorders no longer share one capture, so starting or disposing one stops no other (#631).
+
 ## 2.1.2
 * fix: Drain parecord/ffmpeg output pipes to prevent stalled recordings and hanging `stop()`.
 * fix: Broken device selection.
