@@ -1,3 +1,6 @@
+## 7.1.2
+- fix: The stream from `startStream()` now ends when the platform ends capture on its own (#632).
+
 ## 7.1.1
 - fix(ios): Guard ios specific calls to avoid "Recorder has not yet been created..." exception.
 
