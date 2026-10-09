@@ -25,15 +25,20 @@ final class CaptureOutputTests: XCTestCase {
     AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate, channels: 1, interleaved: false)!
   }
 
-  // Writes `seconds` of a 440 Hz tone, in tap-sized buffers.
-  private func write(_ seconds: Double, to output: CaptureOutput) throws {
-    let buffer = AVAudioPCMBuffer(pcmFormat: captureFormat, frameCapacity: 4800)!
-    buffer.frameLength = 4800
+  // What a Bluetooth headset gives: 16 kHz, but stereo to test the channel change too.
+  private let headsetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 2, interleaved: false)!
+
+  // Writes `seconds` of a 440 Hz tone, in tap-sized buffers of 0.1 s.
+  private func write(_ seconds: Double, to output: CaptureOutput, format: AVAudioFormat? = nil) throws {
+    let format = format ?? captureFormat
+    let frames = AVAudioFrameCount(format.sampleRate / 10)
+    let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames)!
+    buffer.frameLength = frames
     var phase: Float = 0
-    for _ in 0..<Int(seconds * rate / 4800) {
-      for i in 0..<4800 {
-        buffer.floatChannelData![0][i] = 0.5 * sin(phase)
-        phase += 2 * .pi * 440 / Float(rate)
+    for _ in 0..<Int(seconds * 10) {
+      for i in 0..<Int(frames) {
+        for channel in 0..<Int(format.channelCount) { buffer.floatChannelData![channel][i] = 0.5 * sin(phase) }
+        phase += 2 * .pi * 440 / Float(format.sampleRate)
       }
       try output.write(buffer)
     }
@@ -46,6 +51,11 @@ final class CaptureOutputTests: XCTestCase {
     let output = try AudioFileOutput(
       path: path, settings: settings, fileType: FormatPolicy.fileType(for: config.encoder)!, srcFormat: captureFormat)
     return (output, path)
+  }
+
+  private func rawOutput(_ config: RecordConfig, _ name: String) throws -> (RawFileOutput, String) {
+    let path = path(name)
+    return (try RawFileOutput(path: path, processor: AudioStreamProcessor(config: config, srcFormat: captureFormat)), path)
   }
 
   private func duration(_ path: String) -> Double {
@@ -85,6 +95,35 @@ final class CaptureOutputTests: XCTestCase {
 
     try write(1, to: output)
     try write(1, to: output)
+    _ = output.close(delete: false)
+
+    XCTAssertEqual(duration(path), 2, accuracy: 0.05)
+  }
+
+  // Like a route change. The input changes its format, and the file goes on in its own.
+  func testAFileGoesOnWhenTheInputChangesItsFormat() throws {
+    let (output, path) = try fileOutput("wav", "moved.wav")
+
+    try write(1, to: output)
+    try output.setInputFormat(headsetFormat)
+    try write(1, to: output, format: headsetFormat)
+    _ = output.close(delete: false)
+
+    let file = try AVAudioFile(forReading: URL(fileURLWithPath: path))
+    XCTAssertEqual(file.fileFormat.sampleRate, rate)
+    XCTAssertEqual(file.fileFormat.channelCount, 1)
+    // The resamplers hold back a few frames.
+    XCTAssertEqual(duration(path), 2, accuracy: 0.05)
+  }
+
+  // After a move, the old engine can still send a buffer. It is dropped, not an error.
+  func testAFileDropsABufferFromTheOldInput() throws {
+    let (output, path) = try fileOutput("wav", "late.wav")
+
+    try write(1, to: output)
+    try output.setInputFormat(headsetFormat)
+    try write(0.1, to: output)
+    try write(1, to: output, format: headsetFormat)
     _ = output.close(delete: false)
 
     XCTAssertEqual(duration(path), 2, accuracy: 0.05)
@@ -144,9 +183,7 @@ final class CaptureOutputTests: XCTestCase {
 
   // 16 bit mono at 16 kHz: 32000 bytes per second, and no header.
   func testPcm16bitsIsRawSamples() throws {
-    let config = makeConfig(encoder: "pcm16bits", sampleRate: 16000, numChannels: 1)
-    let path = path("take.pcm")
-    let output = try RawFileOutput(path: path, processor: AudioStreamProcessor(config: config, srcFormat: captureFormat))
+    let (output, path) = try rawOutput(makeConfig(encoder: "pcm16bits", sampleRate: 16000, numChannels: 1), "take.pcm")
 
     try write(1, to: output)
     XCTAssertEqual(output.close(delete: false), path)
@@ -155,5 +192,31 @@ final class CaptureOutputTests: XCTestCase {
     // The resampler holds back a few frames.
     XCTAssertEqual(Double(size), 32000, accuracy: 32000 * 0.02)
     XCTAssertNotEqual(header(path), "RIFF")
+  }
+
+  // A stream, or a raw file, keeps its format when the input changes.
+  func testRawPcmGoesOnWhenTheInputChangesItsFormat() throws {
+    let (output, path) = try rawOutput(makeConfig(encoder: "pcm16bits", sampleRate: 16000, numChannels: 1), "moved.pcm")
+
+    try write(1, to: output)
+    try output.setInputFormat(headsetFormat)
+    try write(1, to: output, format: headsetFormat)
+    _ = output.close(delete: false)
+
+    let size = FileManager.default.contents(atPath: path)?.count ?? 0
+    XCTAssertEqual(Double(size), 64000, accuracy: 64000 * 0.02)
+  }
+
+  func testRawPcmDropsABufferFromTheOldInput() throws {
+    let (output, path) = try rawOutput(makeConfig(encoder: "pcm16bits", sampleRate: 16000, numChannels: 1), "late.pcm")
+
+    try write(1, to: output)
+    try output.setInputFormat(headsetFormat)
+    try write(0.1, to: output)
+    try write(1, to: output, format: headsetFormat)
+    _ = output.close(delete: false)
+
+    let size = FileManager.default.contents(atPath: path)?.count ?? 0
+    XCTAssertEqual(Double(size), 64000, accuracy: 64000 * 0.02)
   }
 }
