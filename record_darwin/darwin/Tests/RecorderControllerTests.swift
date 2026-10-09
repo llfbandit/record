@@ -51,13 +51,27 @@ final class RecorderControllerTests: XCTestCase {
   func testAFailedEngineStartLeavesNothingBehind() {
     h.platform.prepareEngine = { $0.startError = TestError.boom }
 
-    XCTAssertThrowsError(try h.startRecording())
+    XCTAssertThrowsError(try h.startRecording()) { XCTAssertEqual($0 as? TestError, .boom) }
 
     h.run {
       XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [true])
       XCTAssertEqual(h.platform.fakeEnvironment.releaseCount, 1)
       XCTAssertEqual(h.sink.states, [])
       XCTAssertFalse(h.controller.isRecording)
+    }
+  }
+
+  // Dart reads no_input_device only from resume(). A start without input is a start failure.
+  func testAStartWithNoInputIsAStartFailure() {
+    h.platform.prepareEngine = { $0.startError = RecorderError.noInputDevice }
+
+    let assertStartFailed = { (error: Error) in
+      guard case RecorderError.error(_, let details) = error else { return XCTFail("Got \(error)") }
+      XCTAssertEqual(details, "No audio input is available.")
+    }
+    XCTAssertThrowsError(try h.startRecording(), "file") { assertStartFailed($0) }
+    XCTAssertThrowsError(try h.run { try h.controller.startStream(config: makeConfig(encoder: "pcm16bits")) }, "stream") {
+      assertStartFailed($0)
     }
   }
 

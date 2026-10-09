@@ -102,6 +102,10 @@ final class RecorderChannel<P: RecorderPlatform> {
       }
     } catch let RecorderError.error(message, details) {
       DispatchQueue.main.async { result(FlutterError(code: "record", message: message, details: details)) }
+    } catch RecorderError.noInputDevice {
+      DispatchQueue.main.async {
+        result(FlutterError(code: "no_input_device", message: "No input device available.", details: nil))
+      }
     } catch {
       DispatchQueue.main.async { result(FlutterError(code: "record", message: error.localizedDescription, details: nil)) }
     }
