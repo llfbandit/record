@@ -157,6 +157,8 @@ final class RecorderController {
       m_session = nil
       engine.stop(delete: true)
       m_platform.environment.release()
+      // Dart reads noInputDevice only from resume(). A start without input is a start failure.
+      if case RecorderError.noInputDevice = error { throw RecorderError.startFailed("No audio input is available.") }
       throw error
     }
   }
