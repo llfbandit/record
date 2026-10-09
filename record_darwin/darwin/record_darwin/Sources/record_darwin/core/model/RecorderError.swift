@@ -2,6 +2,8 @@ import Foundation
 
 public enum RecorderError: Error {
   case error(message: String, details: String?)
+  // Dart turns it into RecordResumeNoDeviceException.
+  case noInputDevice
 }
 
 extension RecorderError {

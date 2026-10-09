@@ -31,9 +31,7 @@ final class EngineInput {
 
       let format = engine.inputNode.inputFormat(forBus: bus)
       // A tap on this format would crash the app.
-      guard format.sampleRate > 0, format.channelCount > 0 else {
-        throw RecorderError.startFailed("No audio input is available.")
-      }
+      guard format.sampleRate > 0, format.channelCount > 0 else { throw RecorderError.noInputDevice }
 
       engine.inputNode.installTap(
         onBus: bus,
