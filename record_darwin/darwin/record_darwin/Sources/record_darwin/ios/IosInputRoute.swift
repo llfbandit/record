@@ -16,24 +16,38 @@ final class IosInputRoute: InputRoute {
     release()
   }
 
-  func bind(_ deviceId: String?, channels: Int, to engine: AVAudioEngine) throws {
+  func bind(_ deviceId: String?, channels: Int, to engine: AVAudioEngine) throws -> String? {
     let session = AVAudioSession.sharedInstance()
 
     // Input first. It changes the route, and the channel limit depends on the route.
-    let port = try deviceId.flatMap { deviceId in
-      try m_devices.ports().first { $0.uid == deviceId }
+    let port = try deviceId.map { deviceId in
+      guard let port = try m_devices.ports().first(where: { $0.uid == deviceId }) else {
+        throw RecorderError.noInputDevice
+      }
+      return port
     }
     if let port {
-      try RecorderError.wrapping("setPreferredInput") { try session.setPreferredInput(port) }
+      // Each session call is a round trip to the audio server, so we skip the ones that change nothing.
+      if session.preferredInput?.uid != port.uid {
+        try RecorderError.wrapping("setPreferredInput") { try session.setPreferredInput(port) }
+      }
       m_preferredInputUid = port.uid
+    } else {
+      // Else a device we left would take the route back when it returns.
+      release()
     }
 
     let channels = min(channels, session.maximumInputNumberOfChannels)
-    if channels > 0 {
+    if channels > 0 && channels != session.preferredInputNumberOfChannels {
       try RecorderError.wrapping("setPreferredInputNumberOfChannels") {
         try session.setPreferredInputNumberOfChannels(channels)
       }
     }
+    return port?.uid ?? Self.currentUid()
+  }
+
+  func captures(from uid: String, engine: AVAudioEngine) -> Bool? {
+    Self.currentUid().map { $0 == uid }
   }
 
   // Only if it is still ours. The app may have changed it since.
@@ -43,6 +57,12 @@ final class IosInputRoute: InputRoute {
 
     let session = AVAudioSession.sharedInstance()
     if session.preferredInput?.uid == uid { try? session.setPreferredInput(nil) }
+  }
+
+  // MARK: - Private
+
+  private static func currentUid() -> String? {
+    AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid
   }
 }
 
