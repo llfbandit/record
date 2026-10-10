@@ -25,6 +25,53 @@ final class CoreAudioDevicesTests: XCTestCase {
     XCTAssertEqual(CoreAudioDevices.id(forUid: String(deviceId)), deviceId)
   }
 
+  // AVAudioEngine can put the input in an aggregate it makes. The input must still be found inside.
+  func testAnAggregateNamesTheDevicesInside() throws {
+    let inputUid = try XCTUnwrap(CoreAudioDevices.captureDevices().first?.uniqueID)
+    let input = try XCTUnwrap(CoreAudioDevices.id(forUid: inputUid))
+    let aggregate = makeAggregate("record.test.aggregate", around: inputUid, isPrivate: true)
+    defer { AudioHardwareDestroyAggregateDevice(aggregate) }
+
+    XCTAssertEqual(CoreAudioDevices.uids(of: aggregate), ["record.test.aggregate", inputUid])
+    XCTAssertEqual(CoreAudioDevices.uids(of: input), [inputUid])
+  }
+
+  // A private aggregate, like the one AVAudioEngine makes, is not an input for the app. A public one is.
+  func testOnlyPublicAggregatesAreListed() throws {
+    let inputUid = try XCTUnwrap(CoreAudioDevices.captureDevices().first?.uniqueID)
+
+    for isPrivate in [true, false] {
+      let uid = "record.test.aggregate.\(isPrivate ? "private" : "public")"
+      let aggregate = makeAggregate(uid, around: inputUid, isPrivate: isPrivate)
+      let listed = CoreAudioDevices.captureDevices().contains { $0.uniqueID == uid }
+      destroy(aggregate, uid: uid)
+
+      XCTAssertEqual(listed, !isPrivate, uid)
+    }
+  }
+
+  // CoreAudio drops it a moment after. Other tests read the list.
+  private func destroy(_ aggregate: AudioDeviceID, uid: String) {
+    AudioHardwareDestroyAggregateDevice(aggregate)
+    let end = Date().addingTimeInterval(3)
+    while Date() < end, CoreAudioDevices.captureDevices().contains(where: { $0.uniqueID == uid }) {
+      RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+  }
+
+  private func makeAggregate(_ uid: String, around inputUid: String, isPrivate: Bool) -> AudioDeviceID {
+    let desc: [String: Any] = [
+      kAudioAggregateDeviceUIDKey: uid,
+      kAudioAggregateDeviceNameKey: "Record test",
+      kAudioAggregateDeviceIsPrivateKey: isPrivate ? 1 : 0,
+      kAudioAggregateDeviceSubDeviceListKey: [[kAudioSubDeviceUIDKey: inputUid]],
+    ]
+    var aggregate = AudioDeviceID(0)
+    XCTAssertEqual(AudioHardwareCreateAggregateDevice(desc as CFDictionary, &aggregate), noErr)
+    RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+    return aggregate
+  }
+
   func testAnUnknownDeviceIsNotFound() {
     XCTAssertNil(CoreAudioDevices.id(forUid: "no.such.device"))
     XCTAssertNil(CoreAudioDevices.id(forUid: "999999"))

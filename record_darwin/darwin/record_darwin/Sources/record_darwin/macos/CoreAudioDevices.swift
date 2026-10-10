@@ -15,7 +15,12 @@ enum CoreAudioDevices {
       deviceTypes: deviceTypes,
       mediaType: .audio,
       position: .unspecified
-    ).devices
+    ).devices.filter { input in
+      // AVCaptureDevice still lists a device for a moment after it goes.
+      guard let deviceId = id(forUid: input.uniqueID) else { return false }
+      // A private aggregate belongs to the code that made it, e.g. the one AVAudioEngine makes for a take.
+      return !isPrivateAggregate(deviceId)
+    }
   }
 
   // Matches the device UID, or a raw device id.
@@ -37,6 +42,12 @@ enum CoreAudioDevices {
   static func deviceUid(of deviceId: AudioDeviceID) -> String? {
     let uid: Unmanaged<CFString>?? = property(kAudioDevicePropertyDeviceUID, of: deviceId, initial: nil)
     return uid??.takeRetainedValue() as String?
+  }
+
+  // The device UID. For an aggregate, also the UIDs of the devices inside it.
+  static func uids(of deviceId: AudioDeviceID) -> [String] {
+    let inside = properties(kAudioAggregateDevicePropertyActiveSubDeviceList, of: deviceId, initial: AudioObjectID(kAudioObjectUnknown))
+    return ([deviceId] + inside).compactMap(deviceUid(of:))
   }
 
   static func transportType(of deviceId: AudioDeviceID) -> String {
@@ -71,6 +82,12 @@ enum CoreAudioDevices {
   private static func address(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
     AudioObjectPropertyAddress(
       mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+  }
+
+  private static func isPrivateAggregate(_ deviceId: AudioDeviceID) -> Bool {
+    let composition: Unmanaged<CFDictionary>?? = property(kAudioAggregateDevicePropertyComposition, of: deviceId, initial: nil)
+    let dict = composition??.takeRetainedValue() as? [String: Any]
+    return (dict?[kAudioAggregateDeviceIsPrivateKey] as? Int) == 1
   }
 
   // Reads one fixed-size value. Nil if CoreAudio fails.

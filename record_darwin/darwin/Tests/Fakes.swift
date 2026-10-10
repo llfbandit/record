@@ -88,7 +88,8 @@ final class FakeDeviceRegistry: DeviceRegistry {
 
 // Only real engines bind an input. The engine is faked, so nothing calls it.
 final class FakeInputRoute: InputRoute {
-  func bind(_ deviceId: String?, channels: Int, to engine: AVAudioEngine) throws {}
+  func bind(_ deviceId: String?, channels: Int, to engine: AVAudioEngine) throws -> String? { nil }
+  func captures(from uid: String, engine: AVAudioEngine) -> Bool? { nil }
   func release() {}
 }
 

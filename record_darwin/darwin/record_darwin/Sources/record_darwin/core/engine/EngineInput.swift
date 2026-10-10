@@ -25,7 +25,7 @@ final class EngineInput {
     let usesVoiceProcessing = config.echoCancel || config.autoGain
 
     do {
-      try route.bind(deviceId, channels: config.numChannels, to: engine)
+      _ = try route.bind(deviceId, channels: config.numChannels, to: engine)
       // A new engine starts with voice processing off.
       if usesVoiceProcessing { try setVoiceProcessing(true, autoGain: config.autoGain, on: engine) }
 
