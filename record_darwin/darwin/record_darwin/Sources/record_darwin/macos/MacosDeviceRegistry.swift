@@ -21,6 +21,11 @@ final class MacosDeviceRegistry: DeviceRegistry {
   func isAvailable(_ deviceId: String) -> Bool {
     CoreAudioDevices.id(forUid: deviceId) != nil
   }
+
+  // A device can go without the input telling us, e.g. an aggregate device.
+  func watch(_ onChange: @escaping () -> Void) -> () -> Void {
+    CoreAudioDevices.watchDevices(onChange)
+  }
 }
 
 #endif

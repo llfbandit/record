@@ -30,10 +30,14 @@
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		34C977E9E8BBC85F7BE44A84 /* RecordFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4076A94C83F194DEAD40EC8 /* RecordFileTests.swift */; };
 		3F0E99A0A771BDFBEB18D254 /* FormatPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F519E5EE9ACE717D6AC69B9 /* FormatPolicyTests.swift */; };
+		4162989FB924D48A8B18CA14 /* IosDeviceRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDB32A233501351FB2CAF5AE /* IosDeviceRegistryTests.swift */; };
 		48501717367778ED622E0FED /* CoreAudioDevicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6363B32603E60D4D0B730095 /* CoreAudioDevicesTests.swift */; };
+		498CED28D68203A9ED5989C0 /* IosAudioEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46D954174AF03F1632A90608 /* IosAudioEnvironmentTests.swift */; };
 		58CE03C9DE6362BFB93A5638 /* RecorderControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C7E22D52F2EAA49C2661A3 /* RecorderControllerTests.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		C40E83D9D00C955E5CD5277E /* RecordConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70DA2F034EBBD27CA9DD4924 /* RecordConfigTests.swift */; };
+		CC2E8CB72EFCF4DCD46F383A /* AudioEngineCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3598A1C3E3226A3E67F3A41E /* AudioEngineCaptureTests.swift */; };
+		CD31C663C1808EF3BD274452 /* HalInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F05A86766756DEAAB51B2640 /* HalInputTests.swift */; };
 		EB565C381470F6228AB8A8E1 /* Fakes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E68077010C2E2EEE03DA89D /* Fakes.swift */; };
 		F9EBB75A39963A4D308A7000 /* TakePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150D8EAB23B706A78E355875 /* TakePolicyTests.swift */; };
 /* End PBXBuildFile section */
@@ -86,6 +90,8 @@
 		33E51913231747F40026EE4D /* DebugProfile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DebugProfile.entitlements; sourceTree = "<group>"; };
 		33E51914231749380026EE4D /* Release.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = Release.entitlements; sourceTree = "<group>"; };
 		33E5194F232828860026EE4D /* AppInfo.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppInfo.xcconfig; sourceTree = "<group>"; };
+		3598A1C3E3226A3E67F3A41E /* AudioEngineCaptureTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AudioEngineCaptureTests.swift; path = ../../../record_darwin/darwin/Tests/AudioEngineCaptureTests.swift; sourceTree = "<group>"; };
+		46D954174AF03F1632A90608 /* IosAudioEnvironmentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = IosAudioEnvironmentTests.swift; path = ../../../record_darwin/darwin/Tests/IosAudioEnvironmentTests.swift; sourceTree = "<group>"; };
 		6363B32603E60D4D0B730095 /* CoreAudioDevicesTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CoreAudioDevicesTests.swift; path = ../../../record_darwin/darwin/Tests/CoreAudioDevicesTests.swift; sourceTree = "<group>"; };
 		70DA2F034EBBD27CA9DD4924 /* RecordConfigTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecordConfigTests.swift; path = ../../../record_darwin/darwin/Tests/RecordConfigTests.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
@@ -94,6 +100,8 @@
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		9BD10BD77E7A62C3329006DD /* TestRecordConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TestRecordConfig.swift; path = ../../../record_darwin/darwin/Tests/TestRecordConfig.swift; sourceTree = "<group>"; };
 		B0C7E22D52F2EAA49C2661A3 /* RecorderControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecorderControllerTests.swift; path = ../../../record_darwin/darwin/Tests/RecorderControllerTests.swift; sourceTree = "<group>"; };
+		EDB32A233501351FB2CAF5AE /* IosDeviceRegistryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = IosDeviceRegistryTests.swift; path = ../../../record_darwin/darwin/Tests/IosDeviceRegistryTests.swift; sourceTree = "<group>"; };
+		F05A86766756DEAAB51B2640 /* HalInputTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HalInputTests.swift; path = ../../../record_darwin/darwin/Tests/HalInputTests.swift; sourceTree = "<group>"; };
 		F4076A94C83F194DEAD40EC8 /* RecordFileTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecordFileTests.swift; path = ../../../record_darwin/darwin/Tests/RecordFileTests.swift; sourceTree = "<group>"; };
 		FC1B29AA6DE6C456A679602C /* CaptureOutputTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CaptureOutputTests.swift; path = ../../../record_darwin/darwin/Tests/CaptureOutputTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -196,6 +204,10 @@
 				9BD10BD77E7A62C3329006DD /* TestRecordConfig.swift */,
 				FC1B29AA6DE6C456A679602C /* CaptureOutputTests.swift */,
 				6363B32603E60D4D0B730095 /* CoreAudioDevicesTests.swift */,
+				F05A86766756DEAAB51B2640 /* HalInputTests.swift */,
+				EDB32A233501351FB2CAF5AE /* IosDeviceRegistryTests.swift */,
+				46D954174AF03F1632A90608 /* IosAudioEnvironmentTests.swift */,
+				3598A1C3E3226A3E67F3A41E /* AudioEngineCaptureTests.swift */,
 			);
 			name = RunnerTests;
 			sourceTree = SOURCE_ROOT;
@@ -379,6 +391,10 @@
 				25FE42DECC803F1FFD123CE3 /* TestRecordConfig.swift in Sources */,
 				12C88933F7A2767B18B692AE /* CaptureOutputTests.swift in Sources */,
 				48501717367778ED622E0FED /* CoreAudioDevicesTests.swift in Sources */,
+				CD31C663C1808EF3BD274452 /* HalInputTests.swift in Sources */,
+				4162989FB924D48A8B18CA14 /* IosDeviceRegistryTests.swift in Sources */,
+				498CED28D68203A9ED5989C0 /* IosAudioEnvironmentTests.swift in Sources */,
+				CC2E8CB72EFCF4DCD46F383A /* AudioEngineCaptureTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

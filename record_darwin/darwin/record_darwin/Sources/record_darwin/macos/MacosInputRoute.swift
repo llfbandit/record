@@ -1,31 +1,21 @@
 #if os(macOS)
 
-import AVFoundation
+import Foundation
 
-// Sets the CoreAudio device of the engine's input unit.
+// Finds the CoreAudio input. HalInput opens its unit on it.
 final class MacosInputRoute: InputRoute {
-  // macOS has no channel preference to set.
-  func bind(_ deviceId: String?, channels: Int, to engine: AVAudioEngine) throws -> String? {
-    // The engine follows the system default, so we cannot name it.
-    guard let deviceId else { return nil }
-    guard let target = CoreAudioDevices.id(forUid: deviceId) else { throw RecorderError.noInputDevice }
-
-    try RecorderError.wrapping("setDeviceID(\(deviceId))") {
-      try engine.inputNode.auAudioUnit.setDeviceID(target)
-    }
-    return CoreAudioDevices.deviceUid(of: target)
+  // The default input is bound by its UID too: a rebuild comes back to it, and its loss is seen.
+  func bind(_ deviceId: String?, channels: Int) throws -> String? {
+    let device = if let deviceId { CoreAudioDevices.id(forUid: deviceId) } else { CoreAudioDevices.defaultInputId() }
+    guard let device else { throw RecorderError.noInputDevice }
+    // Without a UID, the raw id works too.
+    return CoreAudioDevices.deviceUid(of: device) ?? String(device)
   }
 
-  func captures(from uid: String, engine: AVAudioEngine) -> Bool? {
-    // With voice processing, the unit gives the output device. So we cannot tell.
-    guard !engine.inputNode.isVoiceProcessingEnabled else { return nil }
-    // The engine can wrap the input and the output in its own aggregate device (e.g. with Bluetooth buds).
-    // Then the input is one of the devices inside.
-    let uids = CoreAudioDevices.uids(of: engine.inputNode.auAudioUnit.deviceID)
-    return uids.isEmpty ? nil : uids.contains(uid)
-  }
+  // A HAL unit stays on its device.
+  func captures(from uid: String) -> Bool? { nil }
 
-  // The device is set on each engine only, so nothing stays on the system.
+  // Nothing stays on the system.
   func release() {}
 }
 

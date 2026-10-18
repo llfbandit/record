@@ -1,6 +1,6 @@
 #if os(iOS)
 
-import Foundation
+import AVFoundation
 
 // iOS: AVAudioSession for state and inputs.
 final class IosPlatform: RecorderPlatform {
@@ -14,6 +14,16 @@ final class IosPlatform: RecorderPlatform {
     let devices = IosDeviceRegistry()
     self.devices = devices
     inputRoute = IosInputRoute(devices: devices)
+  }
+
+  // The route set the session's input. The engine captures from it.
+  func openInput(
+    on uid: String?,
+    config: RecordConfig,
+    onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
+    onChange: @escaping () -> Void
+  ) throws -> CaptureInput {
+    try EngineInput.open(config: config, onBuffer: onBuffer, onChange: onChange)
   }
 }
 

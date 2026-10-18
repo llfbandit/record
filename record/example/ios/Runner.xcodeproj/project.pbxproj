@@ -8,9 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		0658DB476173E46086B2B57C /* RecordConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F363EFF523113E2339B0A3D7 /* RecordConfigTests.swift */; };
+		11C184A8F3589604AC5FCBB2 /* IosAudioEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04F6B4039A56CD00C268132E /* IosAudioEnvironmentTests.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		160EE4FFF7A8CE06379E5B2E /* RecordFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7095BE4BB4842A2E26DAC0 /* RecordFileTests.swift */; };
 		1FF0B70044DB003B10712B46 /* CoreAudioDevicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0194C13D8A45279D8FEF3E9F /* CoreAudioDevicesTests.swift */; };
+		2659171A493448F48F831BB4 /* AudioEngineCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 818C8ABA57C640DCB1D16DAE /* AudioEngineCaptureTests.swift */; };
+		347F834065DC9378D7F0C8DA /* IosDeviceRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B8A9DC96C99225D22211A8 /* IosDeviceRegistryTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		60B0034846F9B665D02B2DE3 /* RecorderControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A6466AA008C5D9BF466A10 /* RecorderControllerTests.swift */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
@@ -20,6 +23,7 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		99F667FD26885B9AEC6E2530 /* HalInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F416D850D86C7193AFEC543 /* HalInputTests.swift */; };
 		A8FB3082C5415C5407AD453C /* FormatPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13431835D1D9998FEFF87DD /* FormatPolicyTests.swift */; };
 		CED966F6D6210887D93D0FA8 /* TakePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20F60AEBD739C8EE6410A8EF /* TakePolicyTests.swift */; };
 		D64BBE81DBA9439E745F8CCA /* Fakes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA46CCD8A3ED03E12CADEAB /* Fakes.swift */; };
@@ -51,18 +55,22 @@
 
 /* Begin PBXFileReference section */
 		0194C13D8A45279D8FEF3E9F /* CoreAudioDevicesTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CoreAudioDevicesTests.swift; path = ../../../record_darwin/darwin/Tests/CoreAudioDevicesTests.swift; sourceTree = "<group>"; };
+		04F6B4039A56CD00C268132E /* IosAudioEnvironmentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = IosAudioEnvironmentTests.swift; path = ../../../record_darwin/darwin/Tests/IosAudioEnvironmentTests.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		20F60AEBD739C8EE6410A8EF /* TakePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TakePolicyTests.swift; path = ../../../record_darwin/darwin/Tests/TakePolicyTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		41CAF4B4604B56855B9F5923 /* TestRecordConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TestRecordConfig.swift; path = ../../../record_darwin/darwin/Tests/TestRecordConfig.swift; sourceTree = "<group>"; };
+		62B8A9DC96C99225D22211A8 /* IosDeviceRegistryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = IosDeviceRegistryTests.swift; path = ../../../record_darwin/darwin/Tests/IosDeviceRegistryTests.swift; sourceTree = "<group>"; };
 		6AA46CCD8A3ED03E12CADEAB /* Fakes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Fakes.swift; path = ../../../record_darwin/darwin/Tests/Fakes.swift; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
+		818C8ABA57C640DCB1D16DAE /* AudioEngineCaptureTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AudioEngineCaptureTests.swift; path = ../../../record_darwin/darwin/Tests/AudioEngineCaptureTests.swift; sourceTree = "<group>"; };
+		8F416D850D86C7193AFEC543 /* HalInputTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HalInputTests.swift; path = ../../../record_darwin/darwin/Tests/HalInputTests.swift; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -148,6 +156,10 @@
 				41CAF4B4604B56855B9F5923 /* TestRecordConfig.swift */,
 				FE6E495FFB98B84A285D54EE /* CaptureOutputTests.swift */,
 				0194C13D8A45279D8FEF3E9F /* CoreAudioDevicesTests.swift */,
+				8F416D850D86C7193AFEC543 /* HalInputTests.swift */,
+				62B8A9DC96C99225D22211A8 /* IosDeviceRegistryTests.swift */,
+				04F6B4039A56CD00C268132E /* IosAudioEnvironmentTests.swift */,
+				818C8ABA57C640DCB1D16DAE /* AudioEngineCaptureTests.swift */,
 			);
 			name = RunnerTests;
 			sourceTree = SOURCE_ROOT;
@@ -306,6 +318,10 @@
 				FDEF6B99399184B3EA7B1596 /* TestRecordConfig.swift in Sources */,
 				803449F8F2C20E7C5350796F /* CaptureOutputTests.swift in Sources */,
 				1FF0B70044DB003B10712B46 /* CoreAudioDevicesTests.swift in Sources */,
+				99F667FD26885B9AEC6E2530 /* HalInputTests.swift in Sources */,
+				347F834065DC9378D7F0C8DA /* IosDeviceRegistryTests.swift in Sources */,
+				11C184A8F3589604AC5FCBB2 /* IosAudioEnvironmentTests.swift in Sources */,
+				2659171A493448F48F831BB4 /* AudioEngineCaptureTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

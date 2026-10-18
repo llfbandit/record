@@ -18,7 +18,7 @@ enum CoreAudioDevices {
     ).devices.filter { input in
       // AVCaptureDevice still lists a device for a moment after it goes.
       guard let deviceId = id(forUid: input.uniqueID) else { return false }
-      // A private aggregate belongs to the code that made it, e.g. the one AVAudioEngine makes for a take.
+      // A private aggregate belongs to the code that made it, e.g. the one voice processing makes.
       return !isPrivateAggregate(deviceId)
     }
   }
@@ -38,16 +38,21 @@ enum CoreAudioDevices {
     return status == noErr && deviceId != kAudioObjectUnknown ? deviceId : nil
   }
 
+  // The input the system uses now. Nil if there is none.
+  static func defaultInputId() -> AudioDeviceID? {
+    if let deviceId = property(kAudioHardwarePropertyDefaultInputDevice, of: systemObject, initial: AudioDeviceID(kAudioObjectUnknown)),
+       deviceId != kAudioObjectUnknown, deviceUid(of: deviceId) != nil {
+      return deviceId
+    }
+
+    // Right after the default input goes, the system can still name it. Then any other input does.
+    return captureDevices().first.flatMap { id(forUid: $0.uniqueID) }
+  }
+
   // The UID CoreAudio gives this device.
   static func deviceUid(of deviceId: AudioDeviceID) -> String? {
     let uid: Unmanaged<CFString>?? = property(kAudioDevicePropertyDeviceUID, of: deviceId, initial: nil)
     return uid??.takeRetainedValue() as String?
-  }
-
-  // The device UID. For an aggregate, also the UIDs of the devices inside it.
-  static func uids(of deviceId: AudioDeviceID) -> [String] {
-    let inside = properties(kAudioAggregateDevicePropertyActiveSubDeviceList, of: deviceId, initial: AudioObjectID(kAudioObjectUnknown))
-    return ([deviceId] + inside).compactMap(deviceUid(of:))
   }
 
   static func transportType(of deviceId: AudioDeviceID) -> String {
@@ -75,13 +80,62 @@ enum CoreAudioDevices {
     return rates.sorted()
   }
 
+  // The rate the device runs at. Nil if CoreAudio fails.
+  static func sampleRate(of deviceId: AudioDeviceID) -> Double? {
+    property(kAudioDevicePropertyNominalSampleRate, of: deviceId, initial: Float64(0))
+  }
+
+  // The most frames the device can give in one render. Nil if CoreAudio fails.
+  static func maxBufferFrames(of deviceId: AudioDeviceID) -> UInt32? {
+    property(kAudioDevicePropertyBufferFrameSizeRange, of: deviceId, initial: AudioValueRange()).map { UInt32($0.mMaximum) }
+  }
+
+  // The channels the device captures. 0 if it has none, or if CoreAudio fails.
+  static func inputChannels(of deviceId: AudioDeviceID) -> Int {
+    var addr = address(kAudioDevicePropertyStreamConfiguration, scope: kAudioObjectPropertyScopeInput)
+    var size: UInt32 = 0
+    guard AudioObjectGetPropertyDataSize(deviceId, &addr, 0, nil, &size) == noErr, size > 0 else { return 0 }
+
+    let raw = UnsafeMutableRawPointer.allocate(byteCount: Int(size), alignment: MemoryLayout<AudioBufferList>.alignment)
+    defer { raw.deallocate() }
+    guard AudioObjectGetPropertyData(deviceId, &addr, 0, nil, &size, raw) == noErr else { return 0 }
+
+    let buffers = UnsafeMutableAudioBufferListPointer(raw.assumingMemoryBound(to: AudioBufferList.self))
+    return buffers.reduce(0) { $0 + Int($1.mNumberChannels) }
+  }
+
+  // Calls onChange, on another thread, when a device comes or goes. Returns what stops it.
+  static func watchDevices(_ onChange: @escaping () -> Void) -> () -> Void {
+    watch(kAudioHardwarePropertyDevices, of: systemObject, onChange)
+  }
+
+  // Calls onChange, on another thread, when this property of the object changes. Returns what stops it.
+  static func watch(
+    _ selector: AudioObjectPropertySelector,
+    scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+    of objectId: AudioObjectID,
+    _ onChange: @escaping () -> Void
+  ) -> () -> Void {
+    var addr = address(selector, scope: scope)
+    let queue = DispatchQueue.global(qos: .userInitiated)
+    let listener: AudioObjectPropertyListenerBlock = { _, _ in onChange() }
+
+    guard AudioObjectAddPropertyListenerBlock(objectId, &addr, queue, listener) == noErr else { return {} }
+    return {
+      var addr = address(selector, scope: scope)
+      AudioObjectRemovePropertyListenerBlock(objectId, &addr, queue, listener)
+    }
+  }
+
   // MARK: - Private
 
   private static let systemObject = AudioObjectID(kAudioObjectSystemObject)
 
-  private static func address(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
-    AudioObjectPropertyAddress(
-      mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+  private static func address(
+    _ selector: AudioObjectPropertySelector,
+    scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal
+  ) -> AudioObjectPropertyAddress {
+    AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
   }
 
   private static func isPrivateAggregate(_ deviceId: AudioDeviceID) -> Bool {

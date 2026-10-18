@@ -4,7 +4,7 @@ import AVFoundation
 // https://developer.apple.com/documentation/coreaudiotypes/coreaudiotype_constants/1572096-audio_data_format_identifiers
 enum FormatPolicy {
   // The input format comes from the capture graph. It is what the hardware really gives.
-  // It is never a zero format: EngineInput fails before.
+  // It is never a zero format: the input fails before.
   static func negotiate(
     for config: RecordConfig,
     input: AVAudioFormat

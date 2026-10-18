@@ -3,7 +3,7 @@ import AVFoundation
 // Sends the captured audio to Dart or to a file.
 // Called under the capture lock, so never from two threads at once.
 protocol CaptureOutput: AnyObject {
-  // Takes one tap buffer, in the capture format.
+  // Takes one tap buffer, in the input format.
   func write(_ buffer: AVAudioPCMBuffer) throws
 
   // The capture moved to an input with this format. The output format stays the same.
@@ -69,7 +69,7 @@ final class AudioFileOutput: CaptureOutput {
   }
 
   func write(_ buffer: AVAudioPCMBuffer) throws {
-    guard let file = m_file, m_converter.accepts(buffer) else { return }
+    guard let file = m_file else { return }
 
     let converted = try m_converter.convert(buffer)
     try RecorderError.wrapping("AVAudioFile.write", failure: "Recording stopped") {
@@ -154,6 +154,11 @@ final class RawFileOutput: CaptureOutput {
 }
 
 extension AVAudioFormat {
+  // Same rate and channels. Else a buffer in this format cannot go where the other is expected.
+  func hasSameLayout(as other: AVAudioFormat) -> Bool {
+    sampleRate == other.sampleRate && channelCount == other.channelCount
+  }
+
   // PCM 16 bit, not interleaved: what our encoders read.
   static func int16(sampleRate: Double, channels: Int) throws -> AVAudioFormat {
     guard let format = AVAudioFormat(
@@ -175,11 +180,6 @@ extension AVAudioConverter {
     }
     converter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
     return converter
-  }
-
-  // False for a late buffer from the old input, after a move. We drop it.
-  func accepts(_ buffer: AVAudioPCMBuffer) -> Bool {
-    buffer.format.sampleRate == inputFormat.sampleRate && buffer.format.channelCount == inputFormat.channelCount
   }
 
   // The same output, from another input.
