@@ -16,7 +16,7 @@ final class IosInputRoute: InputRoute {
     release()
   }
 
-  func bind(_ deviceId: String?, channels: Int, to engine: AVAudioEngine) throws -> String? {
+  func bind(_ deviceId: String?, channels: Int) throws -> String? {
     let session = AVAudioSession.sharedInstance()
 
     // Input first. It changes the route, and the channel limit depends on the route.
@@ -46,7 +46,7 @@ final class IosInputRoute: InputRoute {
     return port?.uid ?? Self.currentUid()
   }
 
-  func captures(from uid: String, engine: AVAudioEngine) -> Bool? {
+  func captures(from uid: String) -> Bool? {
     Self.currentUid().map { $0 == uid }
   }
 

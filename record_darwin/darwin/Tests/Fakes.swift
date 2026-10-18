@@ -9,12 +9,15 @@ final class FakeCaptureEngine: CaptureEngine {
   var effectiveConfig: RecordConfig?
   var startError: Error?
   var resumeError: Error?
+  var inputState = InputState.ok
+  var restartError: Error?
   var amplitudeValue = silenceDb
   var recordedPath: String? = "/tmp/take.m4a"
 
   private(set) var startCount = 0
   private(set) var pauseCount = 0
   private(set) var resumeCount = 0
+  private(set) var restartCount = 0
   private(set) var stopDeleteFlags: [Bool] = []
 
   init(config: RecordConfig, onEvent: @escaping (CaptureEvent) -> Void) {
@@ -35,6 +38,13 @@ final class FakeCaptureEngine: CaptureEngine {
   func resume() throws {
     resumeCount += 1
     if let resumeError { throw resumeError }
+    if inputState == .lost { throw RecorderError.noInputDevice }
+  }
+
+  func restart() throws {
+    restartCount += 1
+    if let restartError { throw restartError }
+    inputState = .ok
   }
 
   @discardableResult
@@ -50,6 +60,7 @@ final class FakeCaptureEngine: CaptureEngine {
 }
 
 final class FakeAudioEnvironment: AudioEnvironment {
+  var sendsInterruptions = true
   var prepareError: Error?
   var activateError: Error?
 
@@ -84,12 +95,15 @@ final class FakeDeviceRegistry: DeviceRegistry {
 
   var missingIds: Set<String> = []
   func isAvailable(_ deviceId: String) -> Bool { !missingIds.contains(deviceId) }
+
+  // The engine listens, not the controller. The engine is faked, so nothing listens.
+  func watch(_ onChange: @escaping () -> Void) -> () -> Void { {} }
 }
 
-// Only real engines bind an input. The engine is faked, so nothing calls it.
+// The engine is faked, so nothing binds.
 final class FakeInputRoute: InputRoute {
-  func bind(_ deviceId: String?, channels: Int, to engine: AVAudioEngine) throws -> String? { nil }
-  func captures(from uid: String, engine: AVAudioEngine) -> Bool? { nil }
+  func bind(_ deviceId: String?, channels: Int) throws -> String? { nil }
+  func captures(from uid: String) -> Bool? { nil }
   func release() {}
 }
 
@@ -111,6 +125,16 @@ final class FakePlatform: RecorderPlatform {
   var prepareEngine: ((FakeCaptureEngine) -> Void)?
 
   var lastEngine: FakeCaptureEngine? { engines.last }
+
+  // The engine is faked, so nothing opens an input.
+  func openInput(
+    on uid: String?,
+    config: RecordConfig,
+    onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
+    onChange: @escaping () -> Void
+  ) throws -> CaptureInput {
+    throw RecorderError.noInputDevice
+  }
 
   func makeEngine(
     config: RecordConfig,

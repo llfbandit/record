@@ -1,7 +1,9 @@
+#if os(iOS)
+
 import AVFoundation
 
-// One AVAudioEngine on one input, with its tap set.
-final class EngineInput {
+// One AVAudioEngine on the session input, with its tap set.
+final class EngineInput: CaptureInput {
   // What the tap gives.
   let format: AVAudioFormat
 
@@ -11,21 +13,17 @@ final class EngineInput {
 
   private static let bus = 0
 
-  // Binds a new engine to the input and taps it. Nil is the default input. The engine is not started.
-  // onBuffer runs on the tap thread. onStop runs on any thread, when the system stops the engine.
+  // A new engine, tapped. See OpenInput.
+  // onChange comes when the engine's configuration changes.
   static func open(
-    on deviceId: String?,
     config: RecordConfig,
-    route: InputRoute,
     onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
-    onStop: @escaping () -> Void
+    onChange: @escaping () -> Void
   ) throws -> EngineInput {
     let engine = AVAudioEngine()
-    // Auto gain works only with voice processing on, and voice processing always cancels echo.
-    let usesVoiceProcessing = config.echoCancel || config.autoGain
+    let usesVoiceProcessing = config.usesVoiceProcessing
 
     do {
-      _ = try route.bind(deviceId, channels: config.numChannels, to: engine)
       // A new engine starts with voice processing off.
       if usesVoiceProcessing { try setVoiceProcessing(true, autoGain: config.autoGain, on: engine) }
 
@@ -42,14 +40,16 @@ final class EngineInput {
       }
       engine.prepare()
 
-      // The system stops the engine when the input changes (device unplugged, new route).
+      // We listen last, so our own setup does not report a change.
       let observer = NotificationCenter.default.addObserver(
         forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
-      ) { [weak engine] _ in
-        if engine?.isRunning == false { onStop() }
+      ) { _ in
+        onChange()
       }
 
-      return EngineInput(engine: engine, format: format, usesVoiceProcessing: usesVoiceProcessing, observer: observer)
+      return EngineInput(
+        engine: engine, format: format, usesVoiceProcessing: usesVoiceProcessing, observer: observer
+      )
     } catch {
       // Leave nothing behind: no tap, no voice processing.
       shutDown(engine, usesVoiceProcessing: usesVoiceProcessing)
@@ -57,17 +57,23 @@ final class EngineInput {
     }
   }
 
-  private init(engine: AVAudioEngine, format: AVAudioFormat, usesVoiceProcessing: Bool, observer: NSObjectProtocol) {
+  private init(
+    engine: AVAudioEngine,
+    format: AVAudioFormat,
+    usesVoiceProcessing: Bool,
+    observer: NSObjectProtocol
+  ) {
     m_engine = engine
     self.format = format
     m_usesVoiceProcessing = usesVoiceProcessing
     m_observer = observer
   }
 
+  var isRunning: Bool { m_engine.isRunning }
+
   // Still in the tap format. Else starting it would crash the app.
   var isCurrent: Bool {
-    let now = m_engine.inputNode.inputFormat(forBus: Self.bus)
-    return now.sampleRate == format.sampleRate && now.channelCount == format.channelCount
+    m_engine.inputNode.inputFormat(forBus: Self.bus).hasSameLayout(as: format)
   }
 
   func start() throws {
@@ -91,6 +97,16 @@ final class EngineInput {
     engine.stop()
     // Voice processing can only change on a stopped engine.
     if usesVoiceProcessing { try? setVoiceProcessing(false, autoGain: false, on: engine) }
+    keepAlive(engine)
+  }
+
+  private static let closedEngines = DispatchQueue(label: "com.record.closedEngines")
+
+  // A device change queues blocks that use the engine's IO unit, but they do not keep the engine alive.
+  // If we free the engine before they run, the app crashes (seen with Bluetooth buds).
+  // So we keep it 3 seconds more.
+  private static func keepAlive(_ engine: AVAudioEngine) {
+    closedEngines.asyncAfter(deadline: .now() + 3) { withExtendedLifetime(engine) {} }
   }
 
   private static func setVoiceProcessing(_ enabled: Bool, autoGain: Bool, on engine: AVAudioEngine) throws {
@@ -102,3 +118,5 @@ final class EngineInput {
     engine.inputNode.isVoiceProcessingAGCEnabled = enabled && autoGain
   }
 }
+
+#endif

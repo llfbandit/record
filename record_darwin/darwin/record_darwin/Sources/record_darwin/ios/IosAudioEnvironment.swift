@@ -4,6 +4,8 @@ import AVFoundation
 
 // Owns the AVAudioSession and its interruption observer.
 final class IosAudioEnvironment: AudioEnvironment {
+  let sendsInterruptions = true
+
   // When false, the app sets the category and activates itself.
   var manageAudioSession = true
 
@@ -12,6 +14,8 @@ final class IosAudioEnvironment: AudioEnvironment {
   private var m_observer: NSObjectProtocol?
   // The app's value before the take. release() puts it back.
   private var m_appPrefersNoInterruptions: Bool?
+  // The take's category options, when we manage the session. activate() sets them again.
+  private var m_categoryOptions: AVAudioSession.CategoryOptions?
 
   func bind(onEvent: @escaping (EnvironmentEvent) -> Void) {
     m_onEvent = onEvent
@@ -32,10 +36,14 @@ final class IosAudioEnvironment: AudioEnvironment {
   }
 
   func activate() throws {
+    // During a pause, the app may use its own category, e.g. to play.
+    if let options = m_categoryOptions { try setRecordCategory(options) }
     try setSessionActive(true)
   }
 
   func release() {
+    m_categoryOptions = nil
+
     // Only if still ours. The app may have changed it since.
     if #available(iOS 14.5, *), let appValue = m_appPrefersNoInterruptions {
       m_appPrefersNoInterruptions = nil
@@ -81,9 +89,8 @@ final class IosAudioEnvironment: AudioEnvironment {
         }
         m_appPrefersNoInterruptions = appValue
       }
-      try RecorderError.wrapping("setCategory") {
-        try session.setCategory(.playAndRecord, options: iosConfig.categoryOptions)
-      }
+      try setRecordCategory(iosConfig.categoryOptions)
+      m_categoryOptions = iosConfig.categoryOptions
       try RecorderError.wrapping("setActive") {
         try session.setActive(true, options: .notifyOthersOnDeactivation)
       }
@@ -96,6 +103,12 @@ final class IosAudioEnvironment: AudioEnvironment {
     }
 
     m_observer = observeInterruptions()
+  }
+
+  private func setRecordCategory(_ options: AVAudioSession.CategoryOptions) throws {
+    try RecorderError.wrapping("setCategory") {
+      try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: options)
+    }
   }
 
   private func observeInterruptions() -> NSObjectProtocol {

@@ -97,7 +97,13 @@ final class RecorderController {
     guard let session = m_session, session.state == .pause else { return }
     // An interruption during the pause takes the audio state. Take it back first.
     try m_platform.environment.activate()
-    try session.engine.resume()
+    do {
+      try session.engine.resume()
+    } catch RecorderError.noInputDevice {
+      // The input went during the pause. It ends the take, and resume() says why.
+      end(delete: false)
+      throw Self.inputGone
+    }
 
     session.pauseReason = nil
     moveTo(session, .record)
@@ -194,15 +200,25 @@ final class RecorderController {
     case .chunk(let data):
       m_sink.onChunk(data)
 
+    case .inputChanged:
+      switch session.engine.inputState {
+      case .ok: break
+      case .stopped: react(to: .inputStopped, session)
+      case .lost: fail(Self.inputGone)
+      }
+
     case .terminated(let error):
-      end(delete: false)
-      m_sink.onError(error)
+      fail(error)
     }
   }
 
   private func onEnvironmentEvent(_ event: EnvironmentEvent) {
-    guard let session = m_session,
-          let action = TakePolicy.react(to: event, config: session.config, pausedFor: session.pauseReason) else { return }
+    guard let session = m_session else { return }
+    react(to: .environment(event), session)
+  }
+
+  private func react(to event: TakeEvent, _ session: Session) {
+    guard let action = TakePolicy.react(to: event, config: session.config, pausedFor: session.pauseReason) else { return }
 
     switch action {
     case .pause(let reason):
@@ -214,8 +230,28 @@ final class RecorderController {
       } catch {
         m_sink.onError(error)
       }
+
+    case .restart:
+      do {
+        try session.engine.restart()
+      } catch RecorderError.noInputDevice {
+        fail(Self.inputGone)
+      } catch {
+        // Without interruptions, nothing would ever resume it. So the take ends.
+        guard m_platform.environment.sendsInterruptions else { return fail(error) }
+        react(to: .restartFailed, session)
+      }
     }
   }
+
+  // Ends the take, keeps the file, and tells Dart why.
+  private func fail(_ error: Error) {
+    end(delete: false)
+    m_sink.onError(error)
+  }
+
+  // A take ends when its input is gone.
+  private static let inputGone = RecorderError.error(message: "Recording stopped", details: "The audio input is gone.")
 
   private func pause(_ session: Session, for reason: PauseReason) {
     session.pauseReason = reason
