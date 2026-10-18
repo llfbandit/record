@@ -6,6 +6,9 @@ protocol DeviceRegistry {
 
   // False when the device is gone. When unsure, true.
   func isAvailable(_ deviceId: String) -> Bool
+
+  // Calls onChange, on any thread, when an input comes or goes. Returns what stops it.
+  func watch(_ onChange: @escaping () -> Void) -> () -> Void
 }
 
 extension DeviceRegistry {

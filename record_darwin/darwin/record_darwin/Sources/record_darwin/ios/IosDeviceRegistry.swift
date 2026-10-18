@@ -10,24 +10,44 @@ final class IosDeviceRegistry: DeviceRegistry {
     }
   }
 
+  // Never changes the category: during a pause, the app may use its own to play.
   func isAvailable(_ deviceId: String) -> Bool {
-    // We cannot list the inputs, so we keep what was asked.
-    guard let ports = try? ports() else { return true }
-    return ports.contains { $0.uid == deviceId }
+    let session = AVAudioSession.sharedInstance()
+    // Without a record category, the list is not complete.
+    guard Self.canRecord(session), let inputs = session.availableInputs else { return true }
+    return inputs.contains { $0.uid == deviceId }
+  }
+
+  // The engine does not always tell: during a pause, or when the route moves but the engine runs on.
+  func watch(_ onChange: @escaping () -> Void) -> () -> Void {
+    let observer = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.routeChangeNotification,
+      object: nil,
+      queue: nil
+    ) { notification in
+      guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+            let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
+            reason == .newDeviceAvailable || reason == .oldDeviceUnavailable else { return }
+      onChange()
+    }
+    return { NotificationCenter.default.removeObserver(observer) }
   }
 
   // The session must be able to record before it can list anything.
   func ports() throws -> [AVAudioSessionPortDescription] {
     let session = AVAudioSession.sharedInstance()
 
-    let inputCapable: [AVAudioSession.Category] = [.record, .playAndRecord]
-    if !inputCapable.contains(session.category) {
+    if !Self.canRecord(session) {
       try RecorderError.wrapping("setCategory", failure: "Failed to list inputs") {
         try session.setCategory(.playAndRecord, options: IosConfig.avCategoryOptions(from: ["defaultToSpeaker", "allowBluetooth"]))
       }
     }
 
     return session.availableInputs ?? []
+  }
+
+  private static func canRecord(_ session: AVAudioSession) -> Bool {
+    session.category == .record || session.category == .playAndRecord
   }
 
   private static func type(of portType: AVAudioSession.Port) -> String {

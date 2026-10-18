@@ -6,16 +6,23 @@ enum CaptureTarget {
   case file(path: String)
 }
 
-// Runs one take: an output fed by an EngineInput. File and stream takes use it, on iOS and macOS.
+// Runs one take: an output fed by a CaptureInput. File and stream takes use it, on iOS and macOS.
 // The tap runs on its own thread, so we lock.
+// A take stays on the input it started with. When the system stops or moves capture, restart() puts it
+// back there, in a new input that feeds the same output. So the take goes on in the same file.
 final class AudioEngineCapture: CaptureEngine {
   private let m_config: RecordConfig
   private let m_target: CaptureTarget
-  private let m_route: InputRoute
+  private let m_input: InputTracker
+  private let m_openInput: OpenInput
   private let m_onEvent: (CaptureEvent) -> Void
   private let m_lock = NSLock()
 
-  private var m_engine: EngineInput?
+  // A new one at each input move. Nil after a move that failed.
+  private var m_engine: CaptureInput?
+  // The format we feed the output. The tap reads it, under the lock.
+  private var m_feedFormat: AVAudioFormat?
+
   private var m_output: CaptureOutput?
   private var m_isPaused = false
   private var m_amplitude = silenceDb
@@ -23,12 +30,14 @@ final class AudioEngineCapture: CaptureEngine {
   init(
     config: RecordConfig,
     target: CaptureTarget,
-    route: InputRoute,
+    input: InputTracker,
+    openInput: @escaping OpenInput,
     onEvent: @escaping (CaptureEvent) -> Void
   ) {
     m_config = config
     m_target = target
-    m_route = route
+    m_input = input
+    m_openInput = openInput
     m_onEvent = onEvent
   }
 
@@ -36,18 +45,13 @@ final class AudioEngineCapture: CaptureEngine {
     if case .file(let path) = m_target { try RecordFile.delete(at: path) }
 
     do {
-      let engine = try EngineInput.open(
-        on: m_config.device?.id,
-        config: m_config,
-        route: m_route,
-        onBuffer: { [weak self] in self?.handleTap($0) },
-        onStop: { [weak self] in self?.handleEngineStop() }
-      )
-      m_engine = engine
-
+      let engine = try open(on: m_config.device?.id)
       let negotiated = try FormatPolicy.negotiate(for: m_config, input: engine.format)
       let output = try makeOutput(settings: negotiated.settings, config: negotiated.effective, srcFormat: engine.format)
-      m_lock.withLock { m_output = output }
+      m_lock.withLock {
+        m_output = output
+        m_feedFormat = engine.format
+      }
 
       try engine.start()
       return negotiated.effective
@@ -59,30 +63,47 @@ final class AudioEngineCapture: CaptureEngine {
   }
 
   func pause() {
-    m_lock.withLock { m_isPaused = true }
+    // The input sends the frames it holds when it pauses. They still go to the output.
     m_engine?.pause()
+    m_lock.withLock { m_isPaused = true }
   }
 
-  // Starts the engine again after a pause. It writes to the same file, so nothing is lost.
+  // Starts again after a pause. It writes to the same output, so nothing is lost.
   func resume() throws {
-    guard let engine = m_engine else { return }
+    guard m_lock.withLock({ m_output != nil }) else { return }
 
-    // The input changed during the pause. Starting with the old tap format would crash the app.
-    guard engine.isCurrent else {
-      let error = Self.inputChangedError
-      terminate(error)
+    try restart()
+    m_lock.withLock { m_isPaused = false }
+  }
+
+  var inputState: InputState {
+    // First: a macOS engine can run on after its device is gone.
+    guard m_input.isAvailable else { return .lost }
+    guard let engine = m_engine, engine.isRunning, isCurrent(engine) else { return .stopped }
+    return .ok
+  }
+
+  // Makes a new engine first when the input moved or changed its format.
+  func restart() throws {
+    do {
+      // Else the engine could start again on another input, and the loss would never be reported.
+      guard m_input.isAvailable else { throw RecorderError.noInputDevice }
+
+      if m_engine.map(isCurrent) != true { try reopen(on: m_input.uid) }
+      try m_engine?.start()
+    } catch {
+      // The device can go while we build on it.
+      guard m_input.isAvailable else { throw RecorderError.noInputDevice }
+      // The input is there, but gives no format for a moment. It is not gone.
+      if case RecorderError.noInputDevice = error { throw RecorderError.startFailed("The audio input gives no format.") }
       throw error
     }
-
-    try engine.start()
-    m_lock.withLock { m_isPaused = false }
   }
 
   @discardableResult
   func stop(delete: Bool) -> String? {
-    m_engine?.close()
-    m_engine = nil
-    m_route.release()
+    closeEngine()
+    m_input.release()
 
     let output = m_lock.withLock { () -> CaptureOutput? in
       let output = m_output
@@ -100,6 +121,48 @@ final class AudioEngineCapture: CaptureEngine {
 
   // MARK: - Private
 
+  // Replaces the engine with a new one on the input with this UID. Nil is the default input. It is not started.
+  private func open(on deviceId: String?) throws -> CaptureInput {
+    // One engine at a time: the old one must free the input first.
+    closeEngine()
+
+    let uid = try m_input.bind(deviceId, channels: m_config.numChannels)
+    let engine = try m_openInput(
+      uid,
+      { [weak self] in self?.handleTap($0) },
+      { [m_onEvent] in m_onEvent(.inputChanged) }
+    )
+    m_engine = engine
+    return engine
+  }
+
+  // Moves the output to a new engine on the input with this UID. The engine is not started.
+  private func reopen(on deviceId: String?) throws {
+    let engine = try open(on: deviceId)
+    // The converter holds a few frames, so we keep it when we can.
+    guard engine.format != m_lock.withLock({ m_feedFormat }) else { return }
+
+    do {
+      try m_lock.withLock {
+        try m_output?.setInputFormat(engine.format)
+        m_feedFormat = engine.format
+      }
+    } catch {
+      closeEngine()
+      throw error
+    }
+  }
+
+  // On the input in use, in the format it opened with.
+  private func isCurrent(_ engine: CaptureInput) -> Bool {
+    engine.isCurrent && m_input.isCurrent
+  }
+
+  private func closeEngine() {
+    m_engine?.close()
+    m_engine = nil
+  }
+
   private func makeOutput(settings: [String: Any], config: RecordConfig, srcFormat: AVAudioFormat) throws -> CaptureOutput {
     switch m_target {
     case .stream:
@@ -116,35 +179,12 @@ final class AudioEngineCapture: CaptureEngine {
     }
   }
 
-  // The engine stopped by itself. End the take and keep the file.
-  // A paused engine is never running, so resume() checks the input instead.
-  private func handleEngineStop() {
-    guard !m_lock.withLock({ m_isPaused }) else { return }
-    terminate(Self.inputChangedError)
-  }
-
-  // Closes the output, keeps the file, and tells the controller once.
-  private func terminate(_ error: Error) {
-    let output = m_lock.withLock { () -> CaptureOutput? in
-      let output = m_output
-      m_output = nil
-      return output
-    }
-    guard let output else { return }
-
-    _ = output.close(delete: false)
-    m_onEvent(.terminated(error))
-  }
-
-  private static let inputChangedError = RecorderError.error(
-    message: "Recording stopped",
-    details: "The audio input changed or is gone."
-  )
-
   // Runs under the lock, so stop() cannot close the output during a write.
   private func handleTap(_ buffer: AVAudioPCMBuffer) {
     let failure = m_lock.withLock { () -> (CaptureOutput, Error)? in
       guard !m_isPaused, let output = m_output else { return nil }
+      // After a move, the old input can still send a buffer. We drop it.
+      guard let feed = m_feedFormat, buffer.format.hasSameLayout(as: feed) else { return nil }
 
       m_amplitude = Self.peakDb(buffer)
       do {

@@ -8,6 +8,9 @@ enum EnvironmentEvent {
 
 // The system audio state. One per recorder, it outlives each take.
 protocol AudioEnvironment: AnyObject {
+  // True when the system can hold the input for a while, then give it back (iOS interruptions).
+  var sendsInterruptions: Bool { get }
+
   // Called once, before the first prepare(). Runs on the platform thread.
   func bind(onEvent: @escaping (EnvironmentEvent) -> Void)
 
