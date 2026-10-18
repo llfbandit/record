@@ -279,6 +279,21 @@ final class RecorderControllerTests: XCTestCase {
     h.run { XCTAssertEqual(h.sink.states, [.record, .pause]) }
   }
 
+  // The take never paused, but the system stopped its capture during the call.
+  func testAnInterruptionEndRestartsCaptureWithNone() throws {
+    try h.startRecording(makeConfig(audioInterruption: AudioInterruptionMode.none))
+
+    h.platform.fakeEnvironment.raise(.interrupted)
+    h.drain()
+    h.platform.fakeEnvironment.raise(.interruptionEnded(shouldResume: true))
+    h.drain()
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.restartCount, 1)
+      XCTAssertEqual(h.sink.states, [.record])
+    }
+  }
+
   func testEnvironmentEventsBeforeRecordingAreIgnored() {
     h.platform.fakeEnvironment.raise(.interrupted)
     h.drain()
@@ -298,6 +313,140 @@ final class RecorderControllerTests: XCTestCase {
     h.run {
       XCTAssertEqual(h.sink.errors.count, 1)
       XCTAssertEqual(h.sink.states, [.record, .pause])
+    }
+  }
+
+  // MARK: - Input changes
+
+  // The engine reports a change. Then the controller reads what became of the input.
+  private func changeTheInput(to state: InputState) {
+    h.platform.lastEngine?.inputState = state
+    h.platform.lastEngine?.raise(.inputChanged)
+    h.drain()
+  }
+
+  private func assertTheInputIsGone(_ error: Error?, line: UInt = #line) {
+    guard case RecorderError.error(_, let details)? = error else { return XCTFail("Got \(String(describing: error))", line: line) }
+    XCTAssertEqual(details, "The audio input is gone.", line: line)
+  }
+
+  func testAnInputChangeThatKeepsTheInputChangesNothing() throws {
+    try h.startRecording()
+
+    changeTheInput(to: .ok)
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.restartCount, 0)
+      XCTAssertEqual(h.sink.states, [.record])
+    }
+  }
+
+  // E.g. a headset was connected: the take goes on, on its own input.
+  func testAStoppedInputRestartsCapture() throws {
+    try h.startRecording()
+
+    changeTheInput(to: .stopped)
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.restartCount, 1)
+      XCTAssertEqual(h.sink.states, [.record])
+      XCTAssertEqual(h.sink.errors.count, 0)
+    }
+  }
+
+  // resume() starts it again.
+  func testAStoppedInputWaitsForResumeDuringAPause() throws {
+    try h.startRecording()
+    h.run { h.controller.pause() }
+
+    changeTheInput(to: .stopped)
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.restartCount, 0)
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+    }
+  }
+
+  // E.g. a call took the input, and its interruption notice is still to come. The take waits.
+  func testAFailedRestartPausesTheTake() throws {
+    try h.startRecording()
+    h.platform.lastEngine?.restartError = TestError.boom
+
+    changeTheInput(to: .stopped)
+
+    h.run {
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+      XCTAssertEqual(h.sink.errors.count, 0)
+      XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [])
+    }
+  }
+
+  // E.g. macOS: no interruption end would ever come.
+  func testAFailedRestartEndsTheTakeWithoutInterruptions() throws {
+    h.platform.fakeEnvironment.sendsInterruptions = false
+    try h.startRecording()
+    h.platform.lastEngine?.restartError = TestError.boom
+
+    changeTheInput(to: .stopped)
+
+    h.run {
+      XCTAssertEqual(h.sink.states, [.record, .stop])
+      XCTAssertEqual(h.sink.errors.count, 1)
+      XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
+    }
+  }
+
+  func testAnInterruptionEndResumesAFailedRestart() throws {
+    try h.startRecording(makeConfig(audioInterruption: .pauseResume))
+    h.platform.lastEngine?.restartError = TestError.boom
+    changeTheInput(to: .stopped)
+
+    h.platform.lastEngine?.restartError = nil
+    h.platform.fakeEnvironment.raise(.interrupted)
+    h.drain()
+    h.platform.fakeEnvironment.raise(.interruptionEnded(shouldResume: true))
+    h.drain()
+
+    h.run {
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+    }
+  }
+
+  func testALostInputEndsTheTakeAndKeepsTheFile() throws {
+    try h.startRecording()
+
+    changeTheInput(to: .lost)
+
+    h.run {
+      XCTAssertEqual(h.sink.states, [.record, .stop])
+      assertTheInputIsGone(h.sink.errors.first)
+      XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
+    }
+  }
+
+  // The input can go while the restart builds on it.
+  func testARestartThatFindsNoInputEndsTheTake() throws {
+    try h.startRecording()
+    h.platform.lastEngine?.restartError = RecorderError.noInputDevice
+
+    changeTheInput(to: .stopped)
+
+    h.run {
+      XCTAssertEqual(h.sink.states, [.record, .stop])
+      assertTheInputIsGone(h.sink.errors.first)
+    }
+  }
+
+  func testAResumeThatFindsNoInputEndsTheTakeAndThrows() throws {
+    try h.startRecording()
+    h.run { h.controller.pause() }
+    h.platform.lastEngine?.inputState = .lost
+
+    XCTAssertThrowsError(try h.run { try h.controller.resume() }) { assertTheInputIsGone($0) }
+
+    h.run {
+      XCTAssertEqual(h.sink.states, [.record, .pause, .stop])
+      XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
     }
   }
 

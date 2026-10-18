@@ -63,6 +63,10 @@ final class CaptureOutputTests: XCTestCase {
     return Double(file.length) / file.fileFormat.sampleRate
   }
 
+  private func size(_ path: String) -> Int {
+    FileManager.default.contents(atPath: path)?.count ?? 0
+  }
+
   private func header(_ path: String, at offset: Int = 0) -> String {
     let bytes = FileManager.default.contents(atPath: path)?.dropFirst(offset).prefix(4) ?? Data()
     return String(decoding: bytes, as: UTF8.self)
@@ -113,19 +117,6 @@ final class CaptureOutputTests: XCTestCase {
     XCTAssertEqual(file.fileFormat.sampleRate, rate)
     XCTAssertEqual(file.fileFormat.channelCount, 1)
     // The resamplers hold back a few frames.
-    XCTAssertEqual(duration(path), 2, accuracy: 0.05)
-  }
-
-  // After a move, the old engine can still send a buffer. It is dropped, not an error.
-  func testAFileDropsABufferFromTheOldInput() throws {
-    let (output, path) = try fileOutput("wav", "late.wav")
-
-    try write(1, to: output)
-    try output.setInputFormat(headsetFormat)
-    try write(0.1, to: output)
-    try write(1, to: output, format: headsetFormat)
-    _ = output.close(delete: false)
-
     XCTAssertEqual(duration(path), 2, accuracy: 0.05)
   }
 
@@ -188,9 +179,8 @@ final class CaptureOutputTests: XCTestCase {
     try write(1, to: output)
     XCTAssertEqual(output.close(delete: false), path)
 
-    let size = FileManager.default.contents(atPath: path)?.count ?? 0
     // The resampler holds back a few frames.
-    XCTAssertEqual(Double(size), 32000, accuracy: 32000 * 0.02)
+    XCTAssertEqual(Double(size(path)), 32000, accuracy: 32000 * 0.02)
     XCTAssertNotEqual(header(path), "RIFF")
   }
 
@@ -203,20 +193,6 @@ final class CaptureOutputTests: XCTestCase {
     try write(1, to: output, format: headsetFormat)
     _ = output.close(delete: false)
 
-    let size = FileManager.default.contents(atPath: path)?.count ?? 0
-    XCTAssertEqual(Double(size), 64000, accuracy: 64000 * 0.02)
-  }
-
-  func testRawPcmDropsABufferFromTheOldInput() throws {
-    let (output, path) = try rawOutput(makeConfig(encoder: "pcm16bits", sampleRate: 16000, numChannels: 1), "late.pcm")
-
-    try write(1, to: output)
-    try output.setInputFormat(headsetFormat)
-    try write(0.1, to: output)
-    try write(1, to: output, format: headsetFormat)
-    _ = output.close(delete: false)
-
-    let size = FileManager.default.contents(atPath: path)?.count ?? 0
-    XCTAssertEqual(Double(size), 64000, accuracy: 64000 * 0.02)
+    XCTAssertEqual(Double(size(path)), 64000, accuracy: 64000 * 0.02)
   }
 }

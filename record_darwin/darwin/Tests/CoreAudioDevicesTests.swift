@@ -25,18 +25,7 @@ final class CoreAudioDevicesTests: XCTestCase {
     XCTAssertEqual(CoreAudioDevices.id(forUid: String(deviceId)), deviceId)
   }
 
-  // AVAudioEngine can put the input in an aggregate it makes. The input must still be found inside.
-  func testAnAggregateNamesTheDevicesInside() throws {
-    let inputUid = try XCTUnwrap(CoreAudioDevices.captureDevices().first?.uniqueID)
-    let input = try XCTUnwrap(CoreAudioDevices.id(forUid: inputUid))
-    let aggregate = makeAggregate("record.test.aggregate", around: inputUid, isPrivate: true)
-    defer { AudioHardwareDestroyAggregateDevice(aggregate) }
-
-    XCTAssertEqual(CoreAudioDevices.uids(of: aggregate), ["record.test.aggregate", inputUid])
-    XCTAssertEqual(CoreAudioDevices.uids(of: input), [inputUid])
-  }
-
-  // A private aggregate, like the one AVAudioEngine makes, is not an input for the app. A public one is.
+  // A private aggregate, like the one voice processing makes, is not an input for the app. A public one is.
   func testOnlyPublicAggregatesAreListed() throws {
     let inputUid = try XCTUnwrap(CoreAudioDevices.captureDevices().first?.uniqueID)
 

@@ -113,6 +113,9 @@ extension RecordConfig {
     return config
   }
 
+  // Auto gain works only with voice processing on, and voice processing always cancels echo.
+  var usesVoiceProcessing: Bool { echoCancel || autoGain }
+
   // True when negotiation changed what the caller asked for.
   func isModified(from original: RecordConfig) -> Bool {
     bitRate != original.bitRate

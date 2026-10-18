@@ -1,15 +1,13 @@
-import AVFoundation
+import Foundation
 
-// Which input an engine captures from. One per recorder.
+// Which input a take captures from. One per recorder.
 protocol InputRoute: AnyObject {
-  // Points a new engine at the input with this UID, before its input node is used.
-  // Nil is the default input. The channels are what the take asks for.
-  // Returns the UID of the input it bound. Nil if unknown.
-  // Throws RecorderError.noInputDevice when that input is not there: it never binds another one instead.
-  func bind(_ deviceId: String?, channels: Int, to engine: AVAudioEngine) throws -> String?
+  // Binds the device with this UID before a new input opens. Nil is the default input.
+  // Returns the UID it bound, nil if unknown. Throws RecorderError.noInputDevice if the device is not there.
+  func bind(_ deviceId: String?, channels: Int) throws -> String?
 
-  // Whether the engine captures from the input with this UID now. Nil when the route cannot tell.
-  func captures(from uid: String, engine: AVAudioEngine) -> Bool?
+  // Whether capture is on this device now. Nil when the route cannot tell.
+  func captures(from uid: String) -> Bool?
 
   // Undoes what bind() left on the system. The take is over.
   func release()
