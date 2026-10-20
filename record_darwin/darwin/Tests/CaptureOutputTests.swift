@@ -156,4 +156,33 @@ final class CaptureOutputTests: XCTestCase {
     XCTAssertEqual(Double(size), 32000, accuracy: 32000 * 0.02)
     XCTAssertNotEqual(header(path), "RIFF")
   }
+
+  // MARK: - Voice processing input
+
+  // What the tap gives on macOS with voice processing on: 9 discrete channels, the processed one first.
+  private var voiceProcessingFormat: AVAudioFormat {
+    let layout = AVAudioChannelLayout(layoutTag: kAudioChannelLayoutTag_DiscreteInOrder | 9)!
+    return AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate, interleaved: false, channelLayout: layout)
+  }
+
+  // One tap buffer with a tone in channel 0 and silence elsewhere.
+  private func voiceProcessingBuffer() -> AVAudioPCMBuffer {
+    let buffer = AVAudioPCMBuffer(pcmFormat: voiceProcessingFormat, frameCapacity: 4800)!
+    buffer.frameLength = 4800
+    for c in 0..<9 {
+      for i in 0..<4800 {
+        buffer.floatChannelData![c][i] = c == 0 ? 0.5 * sin(2 * .pi * 440 * Float(i) / Float(rate)) : 0
+      }
+    }
+    return buffer
+  }
+
+  func testStreamKeepsTheVoiceProcessingChannel() throws {
+    let config = makeConfig(encoder: "pcm16bits", sampleRate: 16000, numChannels: 1)
+    let processor = try AudioStreamProcessor(config: config, srcFormat: voiceProcessingFormat)
+
+    let data = try processor.process(buffer: voiceProcessingBuffer()).reduce(Data(), +)
+    let peak = data.withUnsafeBytes { $0.bindMemory(to: Int16.self).map { $0.magnitude }.max() ?? 0 }
+    XCTAssertGreaterThan(peak, 1000)
+  }
 }

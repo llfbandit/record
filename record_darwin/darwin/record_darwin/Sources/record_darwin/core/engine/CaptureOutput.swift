@@ -159,6 +159,11 @@ extension AVAudioConverter {
       throw RecorderError.startFailed("Format conversion is not possible.")
     }
     converter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
+    // With voice processing on macOS, the input has discrete channels (9 on a MacBook) and
+    // the converter maps none of them, so the output is silence. Channel 0 is the processed one.
+    if converter.channelMap.contains(where: { $0.intValue < 0 }) {
+      converter.channelMap = converter.channelMap.map { $0.intValue < 0 ? 0 : $0 }
+    }
     return converter
   }
 
