@@ -2,7 +2,7 @@ import XCTest
 
 @testable import record_darwin
 
-// Mirrors android's AudioInterruptionPolicyTest, plus the input changes.
+// Mirrors android's AudioInterruptionPolicyTest, plus the input changes and the route change modes.
 final class TakePolicyTests: XCTestCase {
   private func react(
     _ mode: AudioInterruptionMode,
@@ -10,6 +10,10 @@ final class TakePolicyTests: XCTestCase {
     pausedFor: PauseReason? = nil
   ) -> TakeAction? {
     TakePolicy.react(to: .environment(event), config: makeConfig(audioInterruption: mode), pausedFor: pausedFor)
+  }
+
+  private func loseInput(_ mode: AudioRouteChangeMode, pausedFor: PauseReason? = nil) -> TakeAction? {
+    TakePolicy.react(to: .inputLost, config: makeConfig(audioRouteChange: mode), pausedFor: pausedFor)
   }
 
   private func stopInput(pausedFor: PauseReason? = nil) -> TakeAction? {
@@ -49,12 +53,14 @@ final class TakePolicyTests: XCTestCase {
   // An interruption end resumes only what the interruption paused.
   func testAnInterruptionEndLeavesOtherPausesAlone() {
     XCTAssertNil(react(.pauseResume, .interruptionEnded(shouldResume: true), pausedFor: .user))
+    XCTAssertNil(react(.pauseResume, .interruptionEnded(shouldResume: true), pausedFor: .inputLost))
     XCTAssertNil(react(.pauseResume, .interruptionEnded(shouldResume: true)))
   }
 
   // A paused take keeps its reason, so the interruption end cannot resume it.
   func testAnInterruptionDuringAPauseChangesNothing() {
     XCTAssertNil(react(.pauseResume, .interrupted, pausedFor: .user))
+    XCTAssertNil(react(.pauseResume, .interrupted, pausedFor: .inputLost))
   }
 
   // MARK: - Input changes
@@ -72,15 +78,38 @@ final class TakePolicyTests: XCTestCase {
     XCTAssertNil(react(.user))
   }
 
-  // The take must not pause. The interruption end restarts it.
-  func testAFailedRestartNeverPausesWithNone() {
+  // The take must not pause, and nothing may restart it.
+  func testAFailedRestartEndsTheTakeWithNone() {
     let config = makeConfig(audioInterruption: AudioInterruptionMode.none)
-    XCTAssertNil(TakePolicy.react(to: .restartFailed, config: config, pausedFor: nil))
+    XCTAssertEqual(TakePolicy.react(to: .restartFailed, config: config, pausedFor: nil), .end)
   }
 
   // resume() starts it again.
   func testAStoppedInputWaitsDuringAnyPause() {
     XCTAssertNil(stopInput(pausedFor: .user))
     XCTAssertNil(stopInput(pausedFor: .interruption))
+    XCTAssertNil(stopInput(pausedFor: .inputLost))
+  }
+
+  // MARK: - Route change
+
+  func testEachRouteChangeModeHasItsAction() {
+    XCTAssertEqual(loseInput(.follow), .moveToDefault)
+    XCTAssertEqual(loseInput(.pause), .pause(.inputLost))
+    XCTAssertEqual(loseInput(.stop), .end)
+  }
+
+  // The mode applies during any pause too: the device is gone all the same.
+  func testAnInputLossDuringAPauseStillCounts() {
+    XCTAssertEqual(loseInput(.follow, pausedFor: .user), .moveToDefault)
+    XCTAssertEqual(loseInput(.pause, pausedFor: .interruption), .pause(.inputLost))
+    XCTAssertEqual(loseInput(.stop, pausedFor: .user), .end)
+  }
+
+  // Paused for it already. resume() moves capture.
+  func testASecondLossChangesNothing() {
+    XCTAssertNil(loseInput(.follow, pausedFor: .inputLost))
+    XCTAssertNil(loseInput(.pause, pausedFor: .inputLost))
+    XCTAssertNil(loseInput(.stop, pausedFor: .inputLost))
   }
 }

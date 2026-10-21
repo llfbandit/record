@@ -5,6 +5,7 @@ import XCTest
 // Mirrors android's RecorderControllerTest.
 final class RecorderControllerTests: XCTestCase {
   private var h = ControllerHarness()
+  private let usbMic = Device(id: "usb-mic", label: "USB mic")
 
   override func setUp() {
     super.setUp()
@@ -120,9 +121,9 @@ final class RecorderControllerTests: XCTestCase {
   // MARK: - A device that is gone
 
   func testAMissingDeviceRecordsFromTheDefaultAndIsReported() throws {
-    h.platform.fakeDevices.missingIds = ["usb-mic"]
+    h.platform.fakeDevices.missingIds = [usbMic.id]
 
-    try h.startRecording(makeConfig(device: Device(id: "usb-mic", label: "USB mic")))
+    try h.startRecording(makeConfig(device: usbMic))
 
     h.run {
       XCTAssertNil(h.platform.lastEngine?.config.device)
@@ -134,10 +135,10 @@ final class RecorderControllerTests: XCTestCase {
 
   // Same rule for a stream. The engine gets the default, and Dart hears it.
   func testAMissingDeviceIsReportedForAStreamToo() throws {
-    h.platform.fakeDevices.missingIds = ["usb-mic"]
+    h.platform.fakeDevices.missingIds = [usbMic.id]
 
     try h.run {
-      try h.controller.startStream(config: makeConfig(encoder: "pcm16bits", device: Device(id: "usb-mic", label: "USB mic")))
+      try h.controller.startStream(config: makeConfig(encoder: "pcm16bits", device: usbMic))
     }
 
     h.run {
@@ -147,7 +148,7 @@ final class RecorderControllerTests: XCTestCase {
   }
 
   func testAPresentDeviceIsKeptAndNotReported() throws {
-    try h.startRecording(makeConfig(device: Device(id: "usb-mic", label: "USB mic")))
+    try h.startRecording(makeConfig(device: usbMic))
 
     h.run {
       XCTAssertEqual(h.platform.lastEngine?.config.device?.id, "usb-mic")
@@ -325,10 +326,7 @@ final class RecorderControllerTests: XCTestCase {
     h.drain()
   }
 
-  private func assertTheInputIsGone(_ error: Error?, line: UInt = #line) {
-    guard case RecorderError.error(_, let details)? = error else { return XCTFail("Got \(String(describing: error))", line: line) }
-    XCTAssertEqual(details, "The audio input is gone.", line: line)
-  }
+  private func loseTheInput() { changeTheInput(to: .lost) }
 
   func testAnInputChangeThatKeepsTheInputChangesNothing() throws {
     try h.startRecording()
@@ -396,6 +394,20 @@ final class RecorderControllerTests: XCTestCase {
     }
   }
 
+  // The take must not pause, and nothing may restart it. So it ends, and Dart learns why.
+  func testAFailedRestartEndsTheTakeWithNone() throws {
+    try h.startRecording(makeConfig(audioInterruption: AudioInterruptionMode.none))
+    h.platform.lastEngine?.restartError = TestError.boom
+
+    changeTheInput(to: .stopped)
+
+    h.run {
+      XCTAssertEqual(h.sink.states, [.record, .stop])
+      XCTAssertEqual(h.sink.errors.count, 1)
+      XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
+    }
+  }
+
   func testAnInterruptionEndResumesAFailedRestart() throws {
     try h.startRecording(makeConfig(audioInterruption: .pauseResume))
     h.platform.lastEngine?.restartError = TestError.boom
@@ -412,41 +424,295 @@ final class RecorderControllerTests: XCTestCase {
     }
   }
 
-  func testALostInputEndsTheTakeAndKeepsTheFile() throws {
-    try h.startRecording()
-
-    changeTheInput(to: .lost)
-
-    h.run {
-      XCTAssertEqual(h.sink.states, [.record, .stop])
-      assertTheInputIsGone(h.sink.errors.first)
-      XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
-    }
-  }
-
-  // The input can go while the restart builds on it.
-  func testARestartThatFindsNoInputEndsTheTake() throws {
-    try h.startRecording()
+  // The input can go while the restart builds on it. It is a loss like any other.
+  func testARestartThatFindsNoInputIsALoss() throws {
+    try h.startRecording(makeConfig(audioRouteChange: .pause))
     h.platform.lastEngine?.restartError = RecorderError.noInputDevice
 
     changeTheInput(to: .stopped)
 
     h.run {
-      XCTAssertEqual(h.sink.states, [.record, .stop])
-      assertTheInputIsGone(h.sink.errors.first)
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+      XCTAssertEqual(h.sink.errors.count, 0)
     }
   }
 
-  func testAResumeThatFindsNoInputEndsTheTakeAndThrows() throws {
-    try h.startRecording()
+  // MARK: - Route change
+
+  func testPauseModePausesTheTakeWhenTheInputIsGone() throws {
+    try h.startRecording(makeConfig(device: usbMic, audioRouteChange: .pause))
+
+    loseTheInput()
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.pauseCount, 1)
+      XCTAssertEqual(h.platform.lastEngine?.reroutes.count, 0)
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+      XCTAssertTrue(h.controller.isPaused)
+    }
+  }
+
+  // Else the take would resume on another device without the app asking.
+  func testAnInterruptionEndDoesNotResumeATakePausedByARouteLoss() throws {
+    try h.startRecording(makeConfig(audioInterruption: .pauseResume, audioRouteChange: .pause))
+
+    h.platform.fakeEnvironment.raise(.interrupted)
+    h.drain()
+    loseTheInput()
+    h.platform.fakeEnvironment.raise(.interruptionEnded(shouldResume: true))
+    h.drain()
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.resumeCount, 0)
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+    }
+  }
+
+  // The same, when the loss event comes after the interruption end.
+  func testAnInterruptionEndDoesNotResumeATakeWhoseInputIsGone() throws {
+    try h.startRecording(makeConfig(audioInterruption: .pauseResume, audioRouteChange: .pause))
+
+    h.platform.fakeEnvironment.raise(.interrupted)
+    h.drain()
+    h.platform.lastEngine?.inputState = .lost
+    h.platform.fakeEnvironment.raise(.interruptionEnded(shouldResume: true))
+    h.drain()
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes.count, 0)
+      XCTAssertEqual(h.platform.lastEngine?.resumeCount, 0)
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+      XCTAssertEqual(h.sink.errors.count, 0)
+    }
+  }
+
+  // The follow mode moves the take, so the interruption end can resume it.
+  func testAnInterruptionEndResumesOnTheDefaultInputInFollowMode() throws {
+    try h.startRecording(makeConfig(audioInterruption: .pauseResume, audioRouteChange: .follow))
+
+    h.platform.fakeEnvironment.raise(.interrupted)
+    h.drain()
+    h.platform.lastEngine?.inputState = .lost
+    h.platform.fakeEnvironment.raise(.interruptionEnded(shouldResume: true))
+    h.drain()
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, [nil])
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+    }
+  }
+
+  func testAResumeAfterARouteLossGoesBackToTheDeviceWhenItReturned() throws {
+    try h.startRecording(makeConfig(device: usbMic, audioRouteChange: .pause))
+    loseTheInput()
+
+    try h.run { try h.controller.resume() }
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, ["usb-mic"])
+      XCTAssertEqual(h.platform.lastEngine?.resumeCount, 1)
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+      // Still on the device Dart asked for, so nothing to report.
+      XCTAssertEqual(h.sink.configs.count, 0)
+    }
+  }
+
+  // A user pause does not hide the loss: resume() moves capture before it starts.
+  func testAUserPauseAfterARouteLossStillMovesCaptureFirst() throws {
+    try h.startRecording(makeConfig(device: usbMic, audioRouteChange: .pause))
+    loseTheInput()
+    h.run { h.controller.pause() }
+
+    try h.run { try h.controller.resume() }
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, ["usb-mic"])
+      XCTAssertEqual(h.platform.lastEngine?.resumeCount, 1)
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+    }
+  }
+
+  // Like android and web: the device Dart asked for, even when it was missing at start.
+  func testAResumeGoesToTheAskedDeviceEvenIfTheTakeStartedWithoutIt() throws {
+    h.platform.fakeDevices.missingIds = [usbMic.id]
+    try h.startRecording(makeConfig(device: usbMic, audioRouteChange: .pause))
+    h.platform.fakeDevices.missingIds = []
+    loseTheInput()
+
+    try h.run { try h.controller.resume() }
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, ["usb-mic"])
+      // First the fallback to the default input, then the move back to the asked device.
+      XCTAssertEqual(h.sink.configs.map { $0.device?.id }, [nil, "usb-mic"])
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+    }
+  }
+
+  func testAResumeAfterARouteLossMovesToTheDefaultInputAndReportsIt() throws {
+    try h.startRecording(makeConfig(device: usbMic, audioRouteChange: .pause))
+    loseTheInput()
+    h.platform.fakeDevices.missingIds = [usbMic.id]
+
+    try h.run { try h.controller.resume() }
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, [nil])
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+      XCTAssertEqual(h.sink.configs.count, 1)
+      XCTAssertNil(h.sink.configs.first?.device)
+    }
+  }
+
+  func testAResumeWithNoInputThrowsStaysPausedAndCanTryAgain() throws {
+    try h.startRecording(makeConfig(audioRouteChange: .pause))
+    loseTheInput()
+    h.platform.lastEngine?.rerouteError = RecorderError.noInputDevice
+
+    XCTAssertThrowsError(try h.run { try h.controller.resume() }) { assertNoInputDevice($0) }
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.resumeCount, 0)
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+    }
+
+    // A device came back.
+    h.platform.lastEngine?.rerouteError = nil
+    try h.run { try h.controller.resume() }
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, [nil, nil])
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+    }
+  }
+
+  // The device went during a user pause, and its event did not come yet.
+  func testAResumeFindsALossTheEventDidNotReportYet() throws {
+    try h.startRecording(makeConfig(device: usbMic, audioRouteChange: .pause))
+    h.run { h.controller.pause() }
+    h.platform.lastEngine?.inputState = .lost
+    h.platform.fakeDevices.missingIds = [usbMic.id]
+
+    try h.run { try h.controller.resume() }
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, [nil])
+      XCTAssertNil(h.sink.configs.last?.device)
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+    }
+  }
+
+  func testAResumeThatFindsALossInStopModeEndsTheTake() throws {
+    try h.startRecording(makeConfig(audioRouteChange: .stop))
     h.run { h.controller.pause() }
     h.platform.lastEngine?.inputState = .lost
 
-    XCTAssertThrowsError(try h.run { try h.controller.resume() }) { assertTheInputIsGone($0) }
+    try h.run { try h.controller.resume() }
 
     h.run {
       XCTAssertEqual(h.sink.states, [.record, .pause, .stop])
       XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
+    }
+  }
+
+  // No input left is expected. Any other failure, Dart must hear.
+  func testFollowModeReportsAFailureThatIsNotAMissingInput() throws {
+    try h.startRecording(makeConfig(audioRouteChange: .follow))
+    h.platform.lastEngine?.rerouteError = TestError.boom
+
+    loseTheInput()
+
+    h.run {
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+      XCTAssertEqual(h.sink.errors.count, 1)
+    }
+  }
+
+  func testASecondLossWhilePausedForOneChangesNothing() throws {
+    try h.startRecording(makeConfig(audioRouteChange: .follow))
+    h.platform.lastEngine?.rerouteError = RecorderError.noInputDevice
+    loseTheInput()
+    loseTheInput()
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes.count, 1)
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+    }
+  }
+
+  func testFollowModeMovesToTheDefaultInputAndReportsIt() throws {
+    try h.startRecording(makeConfig(device: usbMic, audioRouteChange: .follow))
+
+    loseTheInput()
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, [nil])
+      // Dart never sees a pause.
+      XCTAssertEqual(h.sink.states, [.record])
+      XCTAssertEqual(h.sink.configs.count, 1)
+      XCTAssertNil(h.sink.configs.first?.device)
+    }
+  }
+
+  func testFollowModeOnTheDefaultInputHasNothingToReport() throws {
+    try h.startRecording(makeConfig(audioRouteChange: .follow))
+
+    loseTheInput()
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, [nil])
+      XCTAssertEqual(h.sink.configs.count, 0)
+    }
+  }
+
+  func testFollowModePausesWhenNoInputIsLeft() throws {
+    try h.startRecording(makeConfig(audioRouteChange: .follow))
+    h.platform.lastEngine?.rerouteError = RecorderError.noInputDevice
+
+    loseTheInput()
+    h.run { XCTAssertEqual(h.sink.states, [.record, .pause]) }
+
+    // A device came back. resume() moves capture again.
+    h.platform.lastEngine?.rerouteError = nil
+    try h.run { try h.controller.resume() }
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, [nil, nil])
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+    }
+  }
+
+  func testFollowModeKeepsAUserPauseAndResumesOnTheNewInput() throws {
+    try h.startRecording(makeConfig(device: usbMic, audioRouteChange: .follow))
+    h.run { h.controller.pause() }
+
+    loseTheInput()
+
+    h.run {
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, [nil])
+      XCTAssertEqual(h.platform.lastEngine?.resumeCount, 0)
+      XCTAssertEqual(h.sink.states, [.record, .pause])
+    }
+
+    try h.run { try h.controller.resume() }
+
+    h.run {
+      // Capture moved already. The resume only starts it.
+      XCTAssertEqual(h.platform.lastEngine?.reroutes, [nil])
+      XCTAssertEqual(h.sink.states, [.record, .pause, .record])
+    }
+  }
+
+  func testStopModeEndsTheTakeAndKeepsTheFile() throws {
+    try h.startRecording(makeConfig(audioRouteChange: .stop))
+
+    loseTheInput()
+
+    h.run {
+      XCTAssertEqual(h.sink.states, [.record, .stop])
+      XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
+      XCTAssertEqual(h.platform.fakeEnvironment.releaseCount, 1)
+      // Stopping is what the app asked for, so it is no error.
+      XCTAssertEqual(h.sink.errors.count, 0)
     }
   }
 

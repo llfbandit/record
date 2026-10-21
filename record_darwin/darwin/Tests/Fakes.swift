@@ -1,6 +1,13 @@
 import AVFoundation
+import XCTest
 
 @testable import record_darwin
+
+func assertNoInputDevice(_ error: Error, file: StaticString = #filePath, line: UInt = #line) {
+  guard case RecorderError.noInputDevice = error else {
+    return XCTFail("Expected noInputDevice, got \(error)", file: file, line: line)
+  }
+}
 
 final class FakeCaptureEngine: CaptureEngine {
   let config: RecordConfig
@@ -11,6 +18,7 @@ final class FakeCaptureEngine: CaptureEngine {
   var resumeError: Error?
   var inputState = InputState.ok
   var restartError: Error?
+  var rerouteError: Error?
   var amplitudeValue = silenceDb
   var recordedPath: String? = "/tmp/take.m4a"
 
@@ -18,6 +26,8 @@ final class FakeCaptureEngine: CaptureEngine {
   private(set) var pauseCount = 0
   private(set) var resumeCount = 0
   private(set) var restartCount = 0
+  // Each reroute() call, with the device id. Nil is the default input.
+  private(set) var reroutes: [String?] = []
   private(set) var stopDeleteFlags: [Bool] = []
 
   init(config: RecordConfig, onEvent: @escaping (CaptureEvent) -> Void) {
@@ -44,6 +54,13 @@ final class FakeCaptureEngine: CaptureEngine {
   func restart() throws {
     restartCount += 1
     if let restartError { throw restartError }
+    inputState = .ok
+  }
+
+  func reroute(to device: Device?) throws {
+    reroutes.append(device?.id)
+    if let rerouteError { throw rerouteError }
+    // Like the real engine: it is on an input that is there now.
     inputState = .ok
   }
 

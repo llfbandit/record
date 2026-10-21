@@ -20,11 +20,14 @@ final class RecorderController {
     var maxAmplitude = silenceDb
     // Nil while the take records.
     var pauseReason: PauseReason?
+    // What Dart asked for. resume() goes back to it when it returns, even if the take never used it.
+    let requestedDevice: Device?
 
-    init(id: Int, engine: CaptureEngine, config: RecordConfig) {
+    init(id: Int, engine: CaptureEngine, config: RecordConfig, requestedDevice: Device?) {
       self.id = id
       self.engine = engine
       self.config = config
+      self.requestedDevice = requestedDevice
     }
   }
 
@@ -97,14 +100,12 @@ final class RecorderController {
     guard let session = m_session, session.state == .pause else { return }
     // An interruption during the pause takes the audio state. Take it back first.
     try m_platform.environment.activate()
-    do {
-      try session.engine.resume()
-    } catch RecorderError.noInputDevice {
-      // The input went during the pause. It ends the take, and resume() says why.
-      end(delete: false)
-      throw Self.inputGone
-    }
 
+    reactIfInputLost(session)
+    // The stop mode ended the take.
+    guard m_session === session else { return }
+
+    try resumeCapture(session)
     session.pauseReason = nil
     moveTo(session, .record)
   }
@@ -148,7 +149,7 @@ final class RecorderController {
 
     m_lastTakeId += 1
     let engine = m_platform.makeEngine(config: config, target: target, onEvent: handler(forTake: m_lastTakeId))
-    let session = Session(id: m_lastTakeId, engine: engine, config: config)
+    let session = Session(id: m_lastTakeId, engine: engine, config: config, requestedDevice: asked.device)
     m_session = session
 
     do {
@@ -204,7 +205,7 @@ final class RecorderController {
       switch session.engine.inputState {
       case .ok: break
       case .stopped: react(to: .inputStopped, session)
-      case .lost: fail(Self.inputGone)
+      case .lost: react(to: .inputLost, session)
       }
 
     case .terminated(let error):
@@ -225,6 +226,10 @@ final class RecorderController {
       pause(session, for: reason)
 
     case .resume:
+      // The input may be gone. Its mode comes first: the pause mode keeps the take paused.
+      reactIfInputLost(session)
+      guard m_session === session, session.pauseReason == .interruption else { return }
+
       do {
         try resume()
       } catch {
@@ -235,13 +240,35 @@ final class RecorderController {
       do {
         try session.engine.restart()
       } catch RecorderError.noInputDevice {
-        fail(Self.inputGone)
+        // The input went while the restart built on it.
+        react(to: .inputLost, session)
       } catch {
         // Without interruptions, nothing would ever resume it. So the take ends.
         guard m_platform.environment.sendsInterruptions else { return fail(error) }
         react(to: .restartFailed, session)
+        // The policy ended the take. Dart must know why.
+        if m_session !== session { m_sink.onError(error) }
       }
+
+    case .moveToDefault:
+      do {
+        try move(session, to: nil)
+      } catch {
+        // resume() tries again. No input left is no error for Dart.
+        pause(session, for: .inputLost)
+        if case RecorderError.noInputDevice = error { return }
+        m_sink.onError(error)
+      }
+
+    case .end:
+      end(delete: false)
     }
+  }
+
+  // The device can go during a pause, and its event still waits in the queue.
+  private func reactIfInputLost(_ session: Session) {
+    guard session.engine.inputState == .lost else { return }
+    react(to: .inputLost, session)
   }
 
   // Ends the take, keeps the file, and tells Dart why.
@@ -250,15 +277,33 @@ final class RecorderController {
     m_sink.onError(error)
   }
 
-  // A take ends when its input is gone.
-  private static let inputGone = RecorderError.error(message: "Recording stopped", details: "The audio input is gone.")
-
   private func pause(_ session: Session, for reason: PauseReason) {
-    session.pauseReason = reason
+    // A lost input stays the reason until resume() moves capture.
+    if session.pauseReason != .inputLost { session.pauseReason = reason }
 
     guard session.state == .record else { return }
     session.engine.pause()
     moveTo(session, .pause)
+  }
+
+  // After a loss, capture moves first: to the chosen device if it came back, else the default input.
+  private func resumeCapture(_ session: Session) throws {
+    if session.pauseReason == .inputLost {
+      try move(session, to: m_platform.devices.available(session.requestedDevice))
+      // Capture moved. If the start below fails, only the user resumes.
+      session.pauseReason = .user
+    }
+    try session.engine.resume()
+  }
+
+  // Moves capture to the device, and tells Dart when it changed. Nil is the default input.
+  private func move(_ session: Session, to device: Device?) throws {
+    try session.engine.reroute(to: device)
+
+    let moved = session.config.withDevice(device)
+    guard moved.isModified(from: session.config) else { return }
+    session.config = moved
+    m_sink.onConfigChanged(moved)
   }
 
   // The same state twice would look like a second take in Dart.
