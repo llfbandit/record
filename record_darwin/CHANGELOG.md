@@ -14,6 +14,7 @@
 * fix: An AAC bit rate the encoder refuses for the channel count is now adjusted instead of failing to start.
 * fix: The file container now follows the encoder, whatever the path extension.
 * fix(macOS): A take stays on its input when Bluetooth buds connect.
+* fix(macOS): Inputs with 3 channels or more (audio interfaces, voice processing) no longer record silence.
 * fix(macOS): Recording from an input that is not the system default (empty take, or error -10868).
 * fix(macOS): With `echoCancel` or `autoGain`, a take records its input, not the system default.
 * fix(macOS): `listInputDevices()` no longer lists the private device the recorder makes.
