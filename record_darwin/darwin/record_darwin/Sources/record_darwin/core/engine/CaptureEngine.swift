@@ -34,6 +34,10 @@ protocol CaptureEngine: AnyObject {
   // Starts capture again on the input in use. Throws RecorderError.noInputDevice when it is gone.
   func restart() throws
 
+  // Moves capture to the device, or to the default input when nil. A paused take stays paused.
+  // Throws RecorderError.noInputDevice when there is no input.
+  func reroute(to device: Device?) throws
+
   // Frees everything. Returns the recorded file if there is one.
   @discardableResult
   func stop(delete: Bool) -> String?

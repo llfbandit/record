@@ -18,6 +18,13 @@ public enum AudioInterruptionMode: Int {
   case pauseResume = 2
 }
 
+// What the recorder does when the input device in use goes away.
+public enum AudioRouteChangeMode: Int {
+  case follow = 0
+  case pause = 1
+  case stop = 2
+}
+
 // An input the recorder can capture from.
 public struct Device {
   let id: String
@@ -60,6 +67,7 @@ public struct RecordConfig {
   let autoGain: Bool
   let echoCancel: Bool
   let audioInterruption: AudioInterruptionMode
+  let audioRouteChange: AudioRouteChangeMode
   let streamBufferSize: Int?
   // The raw call arguments. Each platform reads its own keys here.
   let rawArgs: [String: Any]
@@ -82,6 +90,9 @@ extension RecordConfig {
       echoCancel: args["echoCancel"] as? Bool ?? false,
       audioInterruption: (args["audioInterruption"] as? Int)
         .flatMap(AudioInterruptionMode.init(rawValue:)) ?? .pause,
+      // An unknown value, from a newer Dart side, keeps the default.
+      audioRouteChange: (args["audioRouteChange"] as? Int)
+        .flatMap(AudioRouteChangeMode.init(rawValue:)) ?? .pause,
       streamBufferSize: args["streamBufferSize"] as? Int,
       rawArgs: args
     )

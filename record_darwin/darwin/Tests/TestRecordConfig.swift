@@ -10,6 +10,7 @@ func makeConfig(
   numChannels: Int = 2,
   device: Device? = nil,
   audioInterruption: AudioInterruptionMode = .pause,
+  audioRouteChange: AudioRouteChangeMode = .pause,
   streamBufferSize: Int? = nil,
   extra: [String: Any] = [:]
 ) -> RecordConfig {
@@ -19,6 +20,7 @@ func makeConfig(
     "sampleRate": sampleRate,
     "numChannels": numChannels,
     "audioInterruption": audioInterruption.rawValue,
+    "audioRouteChange": audioRouteChange.rawValue,
   ]
   if let device { args["device"] = device.toMap() }
   if let streamBufferSize { args["streamBufferSize"] = streamBufferSize }

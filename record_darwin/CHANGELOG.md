@@ -5,17 +5,25 @@
 * The two changes above unlock many of the items below.
 * feat: `echoCancel` and `autoGain` apply to files, and amplitude is the peak level.
 * feat: `aacHe` file recording.
+* feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
+* feat: `resume()` throws `RecordResumeNoDeviceException` when the lost device has no replacement.
+* fix: A device connected during a take (e.g. a headset) no longer stops the recording, and does not change its input.
 * fix: `pcm16bits` files are raw PCM without a header.
-* fix: Streaming now adapts channels to the input and reports the result through `onConfigChanged`
-* fix: A recording ended by the system is now reported instead of stopping silently..
+* fix: Streaming now adapts channels to the input and reports the result through `onConfigChanged`.
+* fix: A recording ended by the system is now reported instead of stopping silently.
 * fix: An AAC bit rate the encoder refuses for the channel count is now adjusted instead of failing to start.
 * fix: The file container now follows the encoder, whatever the path extension.
+* fix(macOS): A take stays on its input when Bluetooth buds connect.
+* fix(macOS): Recording from an input that is not the system default (empty take, or error -10868).
+* fix(macOS): With `echoCancel` or `autoGain`, a take records its input, not the system default.
+* fix(macOS): `listInputDevices()` no longer lists the private device the recorder makes.
 * fix(macOS): Crash when an input device comes without an id or a label.
 * fix(macOS): FLAC files are native FLAC instead of FLAC inside an m4a.
 * fix(macOS): A device selected by its raw id now works when recording to a file, like it already did when streaming.
 * fix(iOS): An incoming call no longer interrupts the recording until it is answered.
 * fix(iOS): A file recording keeps its audio through a phone call, and resumes in the same file with `pauseResume`.
 * fix(iOS): A pause asked during an interruption is no longer undone when it ends.
+* fix(iOS): With `audioInterruption: none`, a recording captures again after a phone call.
 * fix(iOS): `amrNb` is no longer reported as supported. iOS has no AMR encoder.
 
 ## 1.2.3
