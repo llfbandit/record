@@ -1,4 +1,5 @@
 ## 7.2.0
+- feat: `RecordConfig.audioRouteChange` sets what a take does when its input goes away (pause, follow or stop).
 - chore: iOS and macOS now come from `record_darwin`, replacing `record_ios` and `record_macos`.
 
 ## 7.1.2
