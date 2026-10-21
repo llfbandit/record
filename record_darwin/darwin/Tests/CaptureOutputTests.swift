@@ -195,4 +195,65 @@ final class CaptureOutputTests: XCTestCase {
 
     XCTAssertEqual(Double(size(path)), 64000, accuracy: 64000 * 0.02)
   }
+
+  // MARK: - Inputs with many channels
+
+  // What an audio interface gives: 4 discrete channels. A tone at 0.5 in the first, at 0.25 in the second.
+  private func discreteBuffer() -> AVAudioPCMBuffer {
+    let layout = AVAudioChannelLayout(layoutTag: kAudioChannelLayoutTag_DiscreteInOrder | 4)!
+    let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate, interleaved: false, channelLayout: layout)
+    let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4800)!
+    buffer.frameLength = 4800
+    for channel in 0..<4 {
+      let amplitude: Float = [0.5, 0.25, 0, 0][channel]
+      for i in 0..<4800 { buffer.floatChannelData![channel][i] = amplitude * sin(2 * .pi * 440 * Float(i) / Float(rate)) }
+    }
+    return buffer
+  }
+
+  // The loudest sample of each channel, in 16 bit interleaved data.
+  private func peaks(_ data: Data, channels: Int) -> [Int] {
+    let samples = data.withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
+    return (0..<channels).map { channel in
+      stride(from: channel, to: samples.count, by: channels).map { Int(samples[$0].magnitude) }.max() ?? 0
+    }
+  }
+
+  func testAMonoStreamTakesTheFirstOfManyChannels() throws {
+    let buffer = discreteBuffer()
+    let config = makeConfig(encoder: "pcm16bits", sampleRate: 16000, numChannels: 1)
+    let processor = try AudioStreamProcessor(config: config, srcFormat: buffer.format)
+
+    let peak = peaks(try processor.process(buffer: buffer).reduce(Data(), +), channels: 1)[0]
+    // 0.5 of full scale: the first channel, alone.
+    XCTAssertEqual(Double(peak), 16384, accuracy: 1000)
+  }
+
+  func testAStereoStreamTakesTheFirstTwoOfManyChannels() throws {
+    let buffer = discreteBuffer()
+    let config = makeConfig(encoder: "pcm16bits", sampleRate: 16000, numChannels: 2)
+    let processor = try AudioStreamProcessor(config: config, srcFormat: buffer.format)
+
+    let peaks = peaks(try processor.process(buffer: buffer).reduce(Data(), +), channels: 2)
+    XCTAssertEqual(Double(peaks[0]), 16384, accuracy: 1000)
+    XCTAssertEqual(Double(peaks[1]), 8192, accuracy: 1000)
+  }
+
+  func testAFileTakesTheFirstOfManyChannels() throws {
+    let buffer = discreteBuffer()
+    let (settings, config) = try FormatPolicy.negotiate(
+      for: makeConfig(encoder: "wav", sampleRate: Int(rate), numChannels: 1), input: buffer.format)
+    let path = path("discrete.wav")
+    let output = try AudioFileOutput(
+      path: path, settings: settings, fileType: FormatPolicy.fileType(for: config.encoder)!, srcFormat: buffer.format)
+
+    for _ in 0..<5 { try output.write(buffer) }
+    _ = output.close(delete: false)
+
+    let file = try AVAudioFile(forReading: URL(fileURLWithPath: path))
+    let read = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length))!
+    try file.read(into: read)
+    let samples = UnsafeBufferPointer(start: read.floatChannelData![0], count: Int(read.frameLength))
+    XCTAssertEqual(Double(samples.map(abs).max() ?? 0), 0.5, accuracy: 0.05)
+  }
 }

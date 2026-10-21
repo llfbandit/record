@@ -179,6 +179,14 @@ extension AVAudioConverter {
       throw RecorderError.startFailed("Format conversion is not possible.")
     }
     converter.sampleRateConverterQuality = AVAudioQuality.high.rawValue
+    // With 3 channels or more, AVAudioConverter maps no input channel, so the take is silent.
+    // Then each output channel takes the input channel with the same number, else the first one.
+    let inputChannels = Int(input.channelCount)
+    if converter.channelMap.contains(where: { $0.intValue < 0 }) {
+      converter.channelMap = converter.channelMap.enumerated().map { channel, mapped in
+        mapped.intValue >= 0 ? mapped : NSNumber(value: channel < inputChannels ? channel : 0)
+      }
+    }
     return converter
   }
 
