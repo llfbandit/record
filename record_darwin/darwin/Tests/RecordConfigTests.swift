@@ -14,8 +14,24 @@ final class RecordConfigTests: XCTestCase {
     XCTAssertEqual(config.sampleRate, 44100)
     XCTAssertEqual(config.numChannels, 2)
     XCTAssertEqual(config.audioInterruption, .pause)
+    XCTAssertEqual(config.audioRouteChange, .pause)
     XCTAssertNil(config.device)
     XCTAssertNil(config.streamBufferSize)
+  }
+
+  // Dart sends the enum index: follow, pause, stop.
+  func testTheRouteChangeModeIsRead() throws {
+    for (index, mode) in [(0, AudioRouteChangeMode.follow), (1, .pause), (2, .stop)] {
+      let config = try RecordConfig.fromMap(["encoder": "aacLc", "audioRouteChange": index])
+      XCTAssertEqual(config.audioRouteChange, mode)
+    }
+  }
+
+  // A newer Dart side may send a mode we do not know.
+  func testAnUnknownRouteChangeModeKeepsTheDefault() throws {
+    let config = try RecordConfig.fromMap(["encoder": "aacLc", "audioRouteChange": 9])
+
+    XCTAssertEqual(config.audioRouteChange, .pause)
   }
 
   // The old macOS code force unwrapped these and crashed.

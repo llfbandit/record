@@ -6,6 +6,8 @@ enum PauseReason {
   case user
   // An interruption end may resume it.
   case interruption
+  // The input in use is gone. resume() moves capture first.
+  case inputLost
 }
 
 // Something that happened to a take, not asked by the app.
@@ -15,6 +17,8 @@ enum TakeEvent {
   case inputStopped
   // Capture could not start again, but the input is still there.
   case restartFailed
+  // The input in use is gone.
+  case inputLost
 }
 
 // What the controller should do about it.
@@ -23,9 +27,14 @@ enum TakeAction: Equatable {
   case resume
   // Capture starts again on the input in use.
   case restart
+  // Capture goes on from the default input.
+  case moveToDefault
+  // The take ends and keeps its file.
+  case end
 }
 
-// The only place that decides how a take reacts to the system, and what `audioInterruption` means.
+// The only place that decides how a take reacts to the system,
+// and what `audioInterruption` and `audioRouteChange` mean.
 enum TakePolicy {
   // pausedFor is nil while the take records. Nil when there is nothing to do.
   static func react(to event: TakeEvent, config: RecordConfig, pausedFor: PauseReason?) -> TakeAction? {
@@ -39,7 +48,7 @@ enum TakePolicy {
       // The take never paused, but the system stopped its capture. The app asked to go on recording.
       case .none: return pausedFor == nil ? .restart : nil
       case .pause: return nil
-      // A take the user paused stays paused. The system says if we may resume.
+      // A take the user paused, or that lost its input, stays paused. The system says if we may resume.
       case .pauseResume: return pausedFor == .interruption && shouldResume ? .resume : nil
       }
 
@@ -51,8 +60,19 @@ enum TakePolicy {
       // The system holds the input: most likely an interruption we are not told about yet.
       // So its end may resume the take. Else resume() tries again.
       guard pausedFor == nil else { return nil }
-      // The take must not pause. The interruption end restarts it.
-      return config.audioInterruption == .none ? nil : .pause(.interruption)
+      // The take must not pause, and nothing may restart it. So it ends.
+      return config.audioInterruption == .none ? .end : .pause(.interruption)
+
+    case .inputLost:
+      // Paused for it already. resume() moves capture.
+      guard pausedFor != .inputLost else { return nil }
+
+      switch config.audioRouteChange {
+      case .follow: return .moveToDefault
+      // Like a user pause, so an interruption end cannot resume on another device.
+      case .pause: return .pause(.inputLost)
+      case .stop: return .end
+      }
     }
   }
 }

@@ -58,12 +58,10 @@ final class HalInputTests: XCTestCase {
 
   // It never binds another input instead.
   func testAnUnknownDeviceIsNoInputDevice() {
-    let isNoInputDevice = { (error: Error) in
-      guard case RecorderError.noInputDevice = error else { return XCTFail("\(error)") }
-    }
-    XCTAssertThrowsError(try MacosInputRoute().bind("no.such.device", channels: 1), "", isNoInputDevice)
+    XCTAssertThrowsError(try MacosInputRoute().bind("no.such.device", channels: 1)) { assertNoInputDevice($0) }
     XCTAssertThrowsError(
-      try HalInput.open(on: "no.such.device", config: makeConfig(), onBuffer: { _ in }, onChange: {}), "", isNoInputDevice)
+      try HalInput.open(on: "no.such.device", config: makeConfig(), onBuffer: { _ in }, onChange: {})
+    ) { assertNoInputDevice($0) }
   }
 }
 

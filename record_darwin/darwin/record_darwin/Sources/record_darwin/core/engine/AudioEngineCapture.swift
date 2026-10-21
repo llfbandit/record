@@ -9,7 +9,8 @@ enum CaptureTarget {
 // Runs one take: an output fed by a CaptureInput. File and stream takes use it, on iOS and macOS.
 // The tap runs on its own thread, so we lock.
 // A take stays on the input it started with. When the system stops or moves capture, restart() puts it
-// back there, in a new input that feeds the same output. So the take goes on in the same file.
+// back there. When the input is gone, the controller may reroute() it to another one.
+// Either way, a new input feeds the same output, so the take goes on in the same file.
 final class AudioEngineCapture: CaptureEngine {
   private let m_config: RecordConfig
   private let m_target: CaptureTarget
@@ -98,6 +99,13 @@ final class AudioEngineCapture: CaptureEngine {
       if case RecorderError.noInputDevice = error { throw RecorderError.startFailed("The audio input gives no format.") }
       throw error
     }
+  }
+
+  func reroute(to device: Device?) throws {
+    try reopen(on: device?.id)
+
+    // A paused take stays paused.
+    if !m_lock.withLock({ m_isPaused }) { try m_engine?.start() }
   }
 
   @discardableResult
