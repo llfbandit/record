@@ -26,6 +26,7 @@ External dependencies:
 | auto gain        | ✔️ 2          | ✔️             | ✔️      |            |  ✔️    | 
 | echo cancel      | ✔️ 2          | ✔️             | ✔️      |            |  ✔️     | 
 | noise suppresion | ✔️ 2          |                  | ✔️      |            |       | 
+| audio route change | ✔️ 4        | ✔️               | ✔️      |    ✔️      |  ✔️   |  ✔️
 
 ## File
 | Encoder         | Android        | iOS     | web     | Windows | macOS   | linux
@@ -62,6 +63,7 @@ wav and pcm16bits are provided by the package directly.
 1. Bluetooth telephony device link (SCO) is automatically done but there's no phone call management.
 2. Unsupported on legacy Android recorder.
 3. Opus in CAF container. This means that your file may not be playable outside Apple platforms.
+4. API 28+ on legacy Android recorder.
 
 ## Usage
 
@@ -121,17 +123,14 @@ Add this to the macos/Runner/Info.plist file:
 
 ### Linux
 
-`parecord`, `pactl` and `ffmpeg` dependencies are required and widely available on your system.
+Requires `parecord` (capture), `pactl` (devices, route changes) and `ffmpeg` (encoding), with a PulseAudio or PipeWire (`pipewire-pulse`) server.
 
-- `parecord`: Used for audio input.
-- `pactl`: Used for utility methods like getting available devices.
-- `ffmpeg`: Used for encoding and output.
-
-On Ubuntu 24.04.3 LTS, you can install them using:
 ```bash
-sudo apt install pulseaudio-utils ffmpeg
+sudo apt install pulseaudio-utils ffmpeg  # Debian/Ubuntu
 ```
 
 ### Web
 
 `stop()` returns a blob URL that keeps the recording in memory. Revoke it with `URL.revokeObjectURL` once you are done with it.
+
+`audioRouteChange` reacts when the browser reports that the input is gone. The browser can take 1 to 2 s to do so (Firefox), and may only report it while the page has the focus. The audio of that time is lost.
