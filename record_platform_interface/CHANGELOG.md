@@ -1,5 +1,6 @@
 ## 2.2.0
 * feat: Add `AudioRouteChangeMode` / `RecordConfig.audioRouteChange` to control recorder behaviour (follow/pause/stop) when the input device becomes unavailable. Adds `RecordResumeNoDeviceException`.
+* feat: Add `onStopped()`, `RecordStop` and `RecordStopReason`: the end of each take, why it ended, and its file.
 
 ## 2.1.0
 * feat: Improve InputDevice description with sample rates and type.

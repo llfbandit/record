@@ -159,15 +159,44 @@ mixin RecordMethodChannel implements RecordMethodChannelPlatformInterface {
 }
 
 mixin RecordEventChannel implements RecordEventChannelPlatformInterface {
+  // One channel per recorder carries both the states and the stops.
+  final _events = <String, Stream<dynamic>>{};
+
   @override
   Stream<RecordState> onStateChanged(String recorderId) {
-    final eventChannel = EventChannel(
-      'com.llfbandit.record/events/$recorderId',
-    );
+    return _eventsOf(recorderId).map<RecordState>((event) {
+      // A stop comes as a map: the state, and why the take ended.
+      final state = event is Map ? event['state'] : event;
+      return RecordState.values.firstWhere((e) => e.index == state);
+    });
+  }
 
-    return eventChannel.receiveBroadcastStream().map<RecordState>(
-      (state) => RecordState.values.firstWhere((e) => e.index == state),
-    );
+  @override
+  Stream<RecordStop> onStopped(String recorderId) {
+    return _eventsOf(
+      recorderId,
+    ).where((event) => event is Map).map((event) => RecordStop.fromMap(event));
+  }
+
+  Stream<dynamic> _eventsOf(String recorderId) {
+    return _events[recorderId] ??= () {
+      final channel = EventChannel('com.llfbandit.record/events/$recorderId');
+      StreamSubscription<dynamic>? sub;
+      late final StreamController<dynamic> ctrl;
+      ctrl = StreamController.broadcast(
+        sync: true,
+        onListen: () => sub = channel.receiveBroadcastStream().listen(
+          ctrl.add,
+          onError: ctrl.addError,
+        ),
+        // The last listener is gone: the recorder was disposed.
+        onCancel: () {
+          sub?.cancel();
+          _events.remove(recorderId);
+        },
+      );
+      return ctrl.stream;
+    }();
   }
 
   @override
