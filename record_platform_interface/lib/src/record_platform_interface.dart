@@ -23,6 +23,9 @@ abstract class RecordPlatform extends PlatformInterface
 
   @override
   RecordIos? getIos(String recorderId) => null;
+
+  @override
+  Stream<RecordStop> onStopped(String recorderId) => const Stream.empty();
 }
 
 /// Record method channel platform interface
@@ -106,6 +109,11 @@ abstract class RecordEventChannelPlatformInterface {
   ///
   /// Provides pause, resume and stop states.
   Stream<RecordState> onStateChanged(String recorderId);
+
+  /// Listen to the end of each take [RecordStop]: why it ended, and its file.
+  ///
+  /// Comes once per take, right after [RecordState.stop].
+  Stream<RecordStop> onStopped(String recorderId);
 
   /// Sets a callback invoked when the platform adjusted the requested [RecordConfig].
   ///
