@@ -7,6 +7,8 @@ import com.llfbandit.record.record.model.AudioInterruption
 import com.llfbandit.record.record.model.AudioRouteChange
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.model.RecordState
+import com.llfbandit.record.record.model.RecordStop
+import com.llfbandit.record.record.model.StopReason
 import com.llfbandit.record.record.recorder.engine.CaptureEngine
 import com.llfbandit.record.record.recorder.engine.DEFAULT_AMPLITUDE_DB
 import com.llfbandit.record.testAudioDevice
@@ -120,6 +122,7 @@ class RecorderControllerTest {
     )
     assertEquals(1, probe.calls)
     assertNull(probe.error)
+    assertEquals(listOf(RecordStop(StopReason.STOP, config.path)), sink.stops)
     assertEquals("/tmp/other.wav", stop())
   }
 
@@ -486,6 +489,7 @@ class RecorderControllerTest {
     assertEquals(false, engine.deleteRequested)
     assertEquals(listOf("release"), env.calls)
     assertEquals(RecordState.STOP, sink.states.last())
+    assertEquals(listOf(RecordStop(StopReason.ROUTE_CHANGE, config.path)), sink.stops)
     assertFalse(controller.isRecording)
   }
 
@@ -515,6 +519,7 @@ class RecorderControllerTest {
     assertEquals(false, engine.deleteRequested)
     assertEquals(listOf("release"), env.calls)
     assertEquals(RecordState.STOP, sink.states.last())
+    assertEquals(listOf(RecordStop(StopReason.STOP, config.path)), sink.stops)
     assertFalse(controller.isRecording)
   }
 
@@ -561,6 +566,8 @@ class RecorderControllerTest {
 
     assertEquals(true, engine.deleteRequested)
     assertEquals(listOf("release", "dispose"), env.calls)
+    // The file is gone.
+    assertEquals(listOf(RecordStop(StopReason.STOP, null)), sink.stops)
     assertFalse(controller.isRecording)
   }
 
@@ -615,6 +622,7 @@ class RecorderControllerTest {
     assertEquals(listOf("release"), env.calls)
     assertEquals(listOf("boom"), sink.errors.map { it.message })
     assertEquals(RecordState.STOP, sink.states.last())
+    assertEquals(listOf(RecordStop(StopReason.ERROR, config.path, "boom")), sink.stops)
     assertFalse(controller.isRecording)
   }
 
@@ -785,8 +793,13 @@ private class CapturingSink : RecorderSink {
   val states = mutableListOf<RecordState>()
   val errors = mutableListOf<Throwable>()
   val configChanges = mutableListOf<RecordConfig>()
+  val stops = mutableListOf<RecordStop>()
 
   override fun onState(state: RecordState) { states += state }
+  override fun onStopped(stop: RecordStop) {
+    states += RecordState.STOP
+    stops += stop
+  }
   override fun onError(error: Throwable) { errors += error }
   override fun onConfigChanged(config: RecordConfig) { configChanges += config }
 }
