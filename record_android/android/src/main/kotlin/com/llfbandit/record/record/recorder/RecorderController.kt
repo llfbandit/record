@@ -8,13 +8,17 @@ import com.llfbandit.record.record.audio_manager.PolicyAction
 import com.llfbandit.record.record.model.AudioRouteChange
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.model.RecordState
+import com.llfbandit.record.record.model.RecordStop
+import com.llfbandit.record.record.model.StopReason
 import com.llfbandit.record.record.recorder.engine.CaptureEngine
 import com.llfbandit.record.record.recorder.engine.DEFAULT_AMPLITUDE_DB
 import com.llfbandit.record.record.util.DeviceUtils
 
 /** User-visible output from the recording. */
 interface RecorderSink {
+  /** Pause and record. A take ends with [onStopped]. */
   fun onState(state: RecordState)
+  fun onStopped(stop: RecordStop)
   fun onError(error: Throwable)
   fun onConfigChanged(config: RecordConfig)
 }
@@ -115,7 +119,7 @@ class RecorderController(
   }
 
   /** Answers with the recorded file path, or null if nothing was recording. */
-  fun stop(done: (path: String?) -> Unit) = end(delete = false, done)
+  fun stop(done: (path: String?) -> Unit) = end(delete = false, done = done)
 
   /** Discards the take and let go of Bluetooth SCO too: nothing is kept for a next take. */
   fun cancel(done: (path: String?) -> Unit) = endThenDispose(delete = true, done)
@@ -139,7 +143,7 @@ class RecorderController(
 
     session = null
 
-    endSession(s, reported = cause) { sink.onError(cause) }
+    endSession(s, reason = StopReason.ERROR, reported = cause) { sink.onError(cause) }
   }
 
   /** Applies config.audioRouteChange once the engine loses its input device. */
@@ -160,7 +164,7 @@ class RecorderController(
 
       AudioRouteChange.PAUSE -> pauseForRouteLoss(s)
 
-      AudioRouteChange.STOP -> stop {}
+      AudioRouteChange.STOP -> end(delete = false, StopReason.ROUTE_CHANGE) {}
     }
   }
 
@@ -208,7 +212,11 @@ class RecorderController(
     }
   }
 
-  private fun end(delete: Boolean, done: (path: String?) -> Unit) {
+  private fun end(
+    delete: Boolean,
+    reason: StopReason = StopReason.STOP,
+    done: (path: String?) -> Unit,
+  ) {
     val s = session
     if (s == null) {
       done(null)
@@ -218,13 +226,14 @@ class RecorderController(
     session = null
     // Nothing was written if the engine never started (still connecting SCO).
     val recorded = s.state != RecordState.STOP
-    endSession(s, delete) { done(if (recorded) s.config.path else null) }
+    endSession(s, delete, reason) { done(if (recorded) s.config.path else null) }
   }
 
   // The engine answers from its own thread, so hop back before touching state.
   private fun endSession(
     s: Session,
     delete: Boolean = false,
+    reason: StopReason = StopReason.STOP,
     reported: Throwable? = null,
     done: () -> Unit,
   ) {
@@ -235,7 +244,12 @@ class RecorderController(
         } catch (e: Throwable) {
           sink.onError(e)
         }
-        moveTo(s, RecordState.STOP)
+        // A take that never started sends nothing.
+        if (s.state != RecordState.STOP) {
+          s.state = RecordState.STOP
+          val path = if (delete) null else s.config.path
+          sink.onStopped(RecordStop(reason, path, reported?.let { it.message ?: it.toString() }))
+        }
         error?.takeIf { it !== reported }?.let(sink::onError)
         done()
       }

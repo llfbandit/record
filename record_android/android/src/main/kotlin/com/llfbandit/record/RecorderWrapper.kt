@@ -6,6 +6,7 @@ import com.llfbandit.record.record.audio_manager.AndroidAudioEnvironment
 import com.llfbandit.record.record.audio_manager.AudioEnvironment
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.model.RecordState
+import com.llfbandit.record.record.model.RecordStop
 import com.llfbandit.record.record.recorder.NoInputDeviceException
 import com.llfbandit.record.record.recorder.RecorderController
 import com.llfbandit.record.record.recorder.RecorderSink
@@ -56,6 +57,7 @@ class RecorderWrapper(
     },
     sink = object : RecorderSink {
       override fun onState(state: RecordState) = stateStreamHandler.sendStateEvent(state)
+      override fun onStopped(stop: RecordStop) = stateStreamHandler.sendStopEvent(stop)
       override fun onError(error: Throwable) {
         // The streams may have no listener; keep the cause visible in logcat.
         Log.e(TAG, error.message ?: error.toString(), error)
