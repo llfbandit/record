@@ -6,6 +6,7 @@
 * feat: `echoCancel` and `autoGain` apply to files, and amplitude is the peak level.
 * feat: `aacHe` file recording.
 * feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
+* feat: Report the end of each take (`onStopped`): why it ended, and its file.
 * feat: `resume()` throws `RecordResumeNoDeviceException` when the lost device has no replacement.
 * fix: A device connected during a take (e.g. a headset) no longer stops the recording, and does not change its input.
 * fix: `pcm16bits` files are raw PCM without a header.

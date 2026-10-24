@@ -27,12 +27,44 @@ final class AudioEngineCaptureTests: XCTestCase {
     func close() { isRunning = false }
 
     // Sends `seconds` of silence, in tap-sized buffers of 0.1 s.
-    func send(_ seconds: Double) {
+    func send(_ seconds: Double, as format: AVAudioFormat? = nil) {
+      let format = format ?? self.format
       let frames = AVAudioFrameCount(format.sampleRate / 10)
       let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames)!
       buffer.frameLength = frames
       for _ in 0..<Int(seconds * 10) { m_onBuffer(buffer) }
     }
+  }
+
+  // The take ends on the error, but keeps its file. stop() still gives it.
+  func testAFailedWriteKeepsTheFile() throws {
+    let path = NSTemporaryDirectory() + "failed_write.wav"
+    defer { try? FileManager.default.removeItem(atPath: path) }
+    var input: FakeInput?
+    var failures = 0
+    let capture = AudioEngineCapture(
+      config: makeConfig(encoder: "wav", sampleRate: 16000, numChannels: 1),
+      target: .file(path: path),
+      input: InputTracker(route: FakeInputRoute(), devices: FakeDeviceRegistry()) {},
+      openInput: { _, onBuffer, _ in
+        let fake = FakeInput(format: AVAudioFormat(standardFormatWithSampleRate: 16000, channels: 1)!, onBuffer: onBuffer)
+        input = fake
+        return fake
+      },
+      onEvent: { event in
+        if case .terminated = event { failures += 1 }
+      }
+    )
+
+    _ = try capture.start()
+    input?.send(0.5)
+    // Int16, not the Float32 the converter takes: the write fails.
+    let wrong = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16000, channels: 1, interleaved: false)!
+    input?.send(0.2, as: wrong)
+
+    XCTAssertEqual(failures, 1)
+    XCTAssertEqual(capture.stop(delete: false), path)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: path))
   }
 
   // After a move, the old input can still send a buffer. It is dropped, not an error.

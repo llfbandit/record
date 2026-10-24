@@ -26,6 +26,7 @@ final class AudioEngineCapture: CaptureEngine {
 
   private var m_output: CaptureOutput?
   private var m_isPaused = false
+  private var m_hasFailed = false
   private var m_amplitude = silenceDb
 
   init(
@@ -189,8 +190,8 @@ final class AudioEngineCapture: CaptureEngine {
 
   // Runs under the lock, so stop() cannot close the output during a write.
   private func handleTap(_ buffer: AVAudioPCMBuffer) {
-    let failure = m_lock.withLock { () -> (CaptureOutput, Error)? in
-      guard !m_isPaused, let output = m_output else { return nil }
+    let failure = m_lock.withLock { () -> Error? in
+      guard !m_isPaused, !m_hasFailed, let output = m_output else { return nil }
       // After a move, the old input can still send a buffer. We drop it.
       guard let feed = m_feedFormat, buffer.format.hasSameLayout(as: feed) else { return nil }
 
@@ -199,16 +200,14 @@ final class AudioEngineCapture: CaptureEngine {
         try output.write(buffer)
         return nil
       } catch {
-        // Clear it, so the next buffer does not report the error again.
-        m_output = nil
-        return (output, error)
+        // Reported once. The output stays open, so stop() still gives its file.
+        m_hasFailed = true
+        return error
       }
     }
     guard let failure else { return }
 
-    // Keeps what was written before.
-    _ = failure.0.close(delete: false)
-    m_onEvent(.terminated(failure.1))
+    m_onEvent(.terminated(failure))
   }
 
   // The loudest sample of the first channel.

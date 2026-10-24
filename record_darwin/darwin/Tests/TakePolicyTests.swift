@@ -72,7 +72,7 @@ final class TakePolicyTests: XCTestCase {
 
   // Like an interruption: its end may resume the take.
   func testAFailedRestartPausesLikeAnInterruption() {
-    let react = { TakePolicy.react(to: .restartFailed, config: makeConfig(), pausedFor: $0) }
+    let react = { TakePolicy.react(to: .restartFailed(sendsInterruptions: true), config: makeConfig(), pausedFor: $0) }
 
     XCTAssertEqual(react(nil), .pause(.interruption))
     XCTAssertNil(react(.user))
@@ -81,7 +81,15 @@ final class TakePolicyTests: XCTestCase {
   // The take must not pause, and nothing may restart it.
   func testAFailedRestartEndsTheTakeWithNone() {
     let config = makeConfig(audioInterruption: AudioInterruptionMode.none)
-    XCTAssertEqual(TakePolicy.react(to: .restartFailed, config: config, pausedFor: nil), .end)
+    XCTAssertEqual(TakePolicy.react(to: .restartFailed(sendsInterruptions: true), config: config, pausedFor: nil), .end(.interruption))
+  }
+
+  // E.g. macOS: no interruption end would ever come.
+  func testAFailedRestartEndsTheTakeWithoutInterruptions() {
+    let react = { TakePolicy.react(to: .restartFailed(sendsInterruptions: false), config: makeConfig(), pausedFor: $0) }
+
+    XCTAssertEqual(react(nil), .end(.error))
+    XCTAssertNil(react(.user))
   }
 
   // resume() starts it again.
@@ -96,14 +104,14 @@ final class TakePolicyTests: XCTestCase {
   func testEachRouteChangeModeHasItsAction() {
     XCTAssertEqual(loseInput(.follow), .moveToDefault)
     XCTAssertEqual(loseInput(.pause), .pause(.inputLost))
-    XCTAssertEqual(loseInput(.stop), .end)
+    XCTAssertEqual(loseInput(.stop), .end(.routeChange))
   }
 
   // The mode applies during any pause too: the device is gone all the same.
   func testAnInputLossDuringAPauseStillCounts() {
     XCTAssertEqual(loseInput(.follow, pausedFor: .user), .moveToDefault)
     XCTAssertEqual(loseInput(.pause, pausedFor: .interruption), .pause(.inputLost))
-    XCTAssertEqual(loseInput(.stop, pausedFor: .user), .end)
+    XCTAssertEqual(loseInput(.stop, pausedFor: .user), .end(.routeChange))
   }
 
   // Paused for it already. resume() moves capture.

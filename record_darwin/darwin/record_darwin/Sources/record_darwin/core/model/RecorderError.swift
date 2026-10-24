@@ -6,6 +6,16 @@ public enum RecorderError: Error {
   case noInputDevice
 }
 
+// The text Dart gets.
+extension RecorderError: LocalizedError {
+  public var errorDescription: String? {
+    switch self {
+    case .error(let message, let details): details.map { "\(message): \($0)" } ?? message
+    case .noInputDevice: "No input device available."
+    }
+  }
+}
+
 extension RecorderError {
   static func startFailed(_ details: String) -> RecorderError {
     .error(message: "Failed to start recording", details: details)

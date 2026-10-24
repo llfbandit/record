@@ -86,6 +86,7 @@ final class RecorderControllerTests: XCTestCase {
       XCTAssertEqual(h.platform.fakeEnvironment.releaseCount, 1)
       XCTAssertEqual(h.platform.fakeEnvironment.prepareCount, 2)
       XCTAssertEqual(h.sink.states, [.record, .stop, .record])
+      XCTAssertEqual(h.sink.stops, [RecordStop(.stop, path: "/tmp/take.m4a")])
     }
   }
 
@@ -390,6 +391,7 @@ final class RecorderControllerTests: XCTestCase {
     h.run {
       XCTAssertEqual(h.sink.states, [.record, .stop])
       XCTAssertEqual(h.sink.errors.count, 1)
+      XCTAssertEqual(h.sink.stops, [RecordStop(.error, path: "/tmp/take.m4a", error: TestError.boom)])
       XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
     }
   }
@@ -404,6 +406,8 @@ final class RecorderControllerTests: XCTestCase {
     h.run {
       XCTAssertEqual(h.sink.states, [.record, .stop])
       XCTAssertEqual(h.sink.errors.count, 1)
+      // The error goes to the state stream. The stop only says why.
+      XCTAssertEqual(h.sink.stops, [RecordStop(.interruption, path: "/tmp/take.m4a")])
       XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
     }
   }
@@ -610,6 +614,7 @@ final class RecorderControllerTests: XCTestCase {
 
     h.run {
       XCTAssertEqual(h.sink.states, [.record, .pause, .stop])
+      XCTAssertEqual(h.sink.stops, [RecordStop(.routeChange, path: "/tmp/take.m4a")])
       XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
     }
   }
@@ -709,6 +714,7 @@ final class RecorderControllerTests: XCTestCase {
 
     h.run {
       XCTAssertEqual(h.sink.states, [.record, .stop])
+      XCTAssertEqual(h.sink.stops, [RecordStop(.routeChange, path: "/tmp/take.m4a")])
       XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
       XCTAssertEqual(h.platform.fakeEnvironment.releaseCount, 1)
       // Stopping is what the app asked for, so it is no error.
@@ -728,6 +734,7 @@ final class RecorderControllerTests: XCTestCase {
       XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
       XCTAssertEqual(h.platform.fakeEnvironment.releaseCount, 1)
       XCTAssertEqual(h.sink.states, [.record, .stop])
+      XCTAssertEqual(h.sink.stops, [RecordStop(.stop, path: "/tmp/take.m4a")])
       XCTAssertFalse(h.controller.isRecording)
     }
   }
@@ -741,6 +748,8 @@ final class RecorderControllerTests: XCTestCase {
       XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [true])
       XCTAssertEqual(h.platform.fakeEnvironment.releaseCount, 1)
       XCTAssertEqual(h.sink.states, [.record, .stop])
+      // The file is gone.
+      XCTAssertEqual(h.sink.stops, [RecordStop(.stop, path: nil)])
     }
   }
 
@@ -751,6 +760,7 @@ final class RecorderControllerTests: XCTestCase {
     h.run {
       XCTAssertEqual(h.platform.fakeEnvironment.releaseCount, 0)
       XCTAssertEqual(h.sink.states, [])
+      XCTAssertEqual(h.sink.stops, [])
     }
   }
 
@@ -763,6 +773,7 @@ final class RecorderControllerTests: XCTestCase {
       XCTAssertEqual(h.platform.lastEngine?.stopDeleteFlags, [false])
       XCTAssertEqual(h.platform.fakeEnvironment.releaseCount, 1)
       XCTAssertEqual(h.sink.states, [.record, .stop])
+      XCTAssertEqual(h.sink.stops, [RecordStop(.stop, path: "/tmp/take.m4a")])
     }
   }
 
@@ -778,6 +789,7 @@ final class RecorderControllerTests: XCTestCase {
       XCTAssertEqual(h.platform.fakeEnvironment.releaseCount, 1)
       XCTAssertEqual(h.sink.states, [.record, .stop])
       XCTAssertEqual(h.sink.errors.count, 1)
+      XCTAssertEqual(h.sink.stops, [RecordStop(.error, path: "/tmp/take.m4a", error: TestError.boom)])
       XCTAssertFalse(h.controller.isRecording)
     }
   }

@@ -24,6 +24,13 @@ final class ChannelSink: RecorderSink {
     DispatchQueue.main.async { sink(state.rawValue) }
   }
 
+  func onStopped(_ stop: RecordStop) {
+    guard let sink = m_state.eventSink else { return }
+    let map = stop.toMap()
+
+    DispatchQueue.main.async { sink(map) }
+  }
+
   func onChunk(_ data: Data) {
     guard let sink = m_records.eventSink else { return }
 
