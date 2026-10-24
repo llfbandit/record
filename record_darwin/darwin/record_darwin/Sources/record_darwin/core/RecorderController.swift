@@ -2,7 +2,9 @@ import Foundation
 
 // Where a recorder's output goes.
 protocol RecorderSink: AnyObject {
+  // Pause and record. A take ends with onStopped.
   func onState(_ state: RecordState)
+  func onStopped(_ stop: RecordStop)
   func onChunk(_ data: Data)
   func onConfigChanged(_ config: RecordConfig)
   func onError(_ error: Error)
@@ -180,7 +182,7 @@ final class RecorderController {
   }
 
   @discardableResult
-  private func end(delete: Bool) -> String? {
+  private func end(delete: Bool, reason: StopReason = .stop, error: Error? = nil) -> String? {
     guard let session = m_session else { return nil }
 
     // Drop it now, so the next take cannot mix with this one.
@@ -188,7 +190,11 @@ final class RecorderController {
 
     let path = session.engine.stop(delete: delete)
     m_platform.environment.release()
-    moveTo(session, .stop)
+
+    if session.state != .stop {
+      session.state = .stop
+      m_sink.onStopped(RecordStop(reason, path: delete ? nil : path, error: error))
+    }
 
     return path
   }
@@ -218,7 +224,8 @@ final class RecorderController {
     react(to: .environment(event), session)
   }
 
-  private func react(to event: TakeEvent, _ session: Session) {
+  // The error made the event. A take it ends reports it.
+  private func react(to event: TakeEvent, _ session: Session, error: Error? = nil) {
     guard let action = TakePolicy.react(to: event, config: session.config, pausedFor: session.pauseReason) else { return }
 
     switch action {
@@ -243,11 +250,7 @@ final class RecorderController {
         // The input went while the restart built on it.
         react(to: .inputLost, session)
       } catch {
-        // Without interruptions, nothing would ever resume it. So the take ends.
-        guard m_platform.environment.sendsInterruptions else { return fail(error) }
-        react(to: .restartFailed, session)
-        // The policy ended the take. Dart must know why.
-        if m_session !== session { m_sink.onError(error) }
+        react(to: .restartFailed(sendsInterruptions: m_platform.environment.sendsInterruptions), session, error: error)
       }
 
     case .moveToDefault:
@@ -260,8 +263,10 @@ final class RecorderController {
         m_sink.onError(error)
       }
 
-    case .end:
-      end(delete: false)
+    case .end(let reason):
+      // Only an error stop says what failed. The state stream gets the error anyway.
+      end(delete: false, reason: reason, error: reason == .error ? error : nil)
+      if let error { m_sink.onError(error) }
     }
   }
 
@@ -273,7 +278,7 @@ final class RecorderController {
 
   // Ends the take, keeps the file, and tells Dart why.
   private func fail(_ error: Error) {
-    end(delete: false)
+    end(delete: false, reason: .error, error: error)
     m_sink.onError(error)
   }
 
