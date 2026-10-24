@@ -175,8 +175,13 @@ final class RecordingSink: RecorderSink {
   private(set) var chunks: [Data] = []
   private(set) var configs: [RecordConfig] = []
   private(set) var errors: [Error] = []
+  private(set) var stops: [RecordStop] = []
 
   func onState(_ state: RecordState) { states.append(state) }
+  func onStopped(_ stop: RecordStop) {
+    states.append(.stop)
+    stops.append(stop)
+  }
   func onChunk(_ data: Data) { chunks.append(data) }
   func onConfigChanged(_ config: RecordConfig) { configs.append(config) }
   func onError(_ error: Error) { errors.append(error) }

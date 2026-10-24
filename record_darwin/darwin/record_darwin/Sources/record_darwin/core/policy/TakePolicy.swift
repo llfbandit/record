@@ -16,7 +16,8 @@ enum TakeEvent {
   // The input is still there, but capture does not run on it.
   case inputStopped
   // Capture could not start again, but the input is still there.
-  case restartFailed
+  // Without interruptions from the system (macOS), nothing would ever resume the take.
+  case restartFailed(sendsInterruptions: Bool)
   // The input in use is gone.
   case inputLost
 }
@@ -30,7 +31,7 @@ enum TakeAction: Equatable {
   // Capture goes on from the default input.
   case moveToDefault
   // The take ends and keeps its file.
-  case end
+  case end(StopReason)
 }
 
 // The only place that decides how a take reacts to the system,
@@ -56,12 +57,13 @@ enum TakePolicy {
       // A paused take starts again at resume().
       return pausedFor == nil ? .restart : nil
 
-    case .restartFailed:
+    case .restartFailed(let sendsInterruptions):
+      guard pausedFor == nil else { return nil }
+      guard sendsInterruptions else { return .end(.error) }
       // The system holds the input: most likely an interruption we are not told about yet.
       // So its end may resume the take. Else resume() tries again.
-      guard pausedFor == nil else { return nil }
       // The take must not pause, and nothing may restart it. So it ends.
-      return config.audioInterruption == .none ? .end : .pause(.interruption)
+      return config.audioInterruption == .none ? .end(.interruption) : .pause(.interruption)
 
     case .inputLost:
       // Paused for it already. resume() moves capture.
@@ -71,7 +73,7 @@ enum TakePolicy {
       case .follow: return .moveToDefault
       // Like a user pause, so an interruption end cannot resume on another device.
       case .pause: return .pause(.inputLost)
-      case .stop: return .end
+      case .stop: return .end(.routeChange)
       }
     }
   }
