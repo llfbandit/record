@@ -33,6 +33,23 @@ enum CoreAudioDevices {
     return status == noErr && deviceId != kAudioObjectUnknown ? deviceId : nil
   }
 
+  // The system default input, nil if there is none.
+  static func defaultInputId() -> AudioDeviceID? {
+    let id = property(kAudioHardwarePropertyDefaultInputDevice, of: systemObject, initial: AudioDeviceID(kAudioObjectUnknown))
+    return id == kAudioObjectUnknown ? nil : id
+  }
+
+  // The device an input node reads from right now, nil if CoreAudio does not say.
+  static func currentInputId(of node: AVAudioInputNode) -> AudioDeviceID? {
+    guard let unit = node.audioUnit else { return nil }
+
+    var deviceId = AudioDeviceID(kAudioObjectUnknown)
+    var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+    let status = AudioUnitGetProperty(
+      unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0, &deviceId, &size)
+    return status == noErr ? deviceId : nil
+  }
+
   // The UID CoreAudio gives this device.
   static func deviceUid(of deviceId: AudioDeviceID) -> String? {
     let uid: Unmanaged<CFString>?? = property(kAudioDevicePropertyDeviceUID, of: deviceId, initial: nil)

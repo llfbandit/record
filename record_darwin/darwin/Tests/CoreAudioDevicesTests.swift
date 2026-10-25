@@ -25,6 +25,13 @@ final class CoreAudioDevicesTests: XCTestCase {
     XCTAssertEqual(CoreAudioDevices.id(forUid: String(deviceId)), deviceId)
   }
 
+  func testTheDefaultInputIsAKnownDevice() throws {
+    // A Mac with no input has no default.
+    let deviceId = try XCTUnwrap(CoreAudioDevices.defaultInputId())
+
+    XCTAssertNotNil(CoreAudioDevices.deviceUid(of: deviceId))
+  }
+
   func testAnUnknownDeviceIsNotFound() {
     XCTAssertNil(CoreAudioDevices.id(forUid: "no.such.device"))
     XCTAssertNil(CoreAudioDevices.id(forUid: "999999"))

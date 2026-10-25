@@ -1,5 +1,9 @@
 import Foundation
 
+// How long a started capture may take to give its first buffer.
+// A dead input gives no error, only silence, so we wait for real audio.
+let firstBufferTimeout: TimeInterval = 0.5
+
 // Something the engine did by itself. It can come from any thread.
 enum CaptureEvent {
   case chunk(Data)

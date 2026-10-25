@@ -6,6 +6,30 @@ enum CaptureTarget {
   case file(path: String)
 }
 
+extension CaptureTarget {
+  // The output for this target. The engines share it.
+  func makeOutput(
+    settings: [String: Any],
+    config: RecordConfig,
+    srcFormat: AVAudioFormat,
+    onEvent: @escaping (CaptureEvent) -> Void
+  ) throws -> CaptureOutput {
+    switch self {
+    case .stream:
+      let processor = try AudioStreamProcessor(config: config, srcFormat: srcFormat)
+      return StreamOutput(processor: processor) { onEvent(.chunk($0)) }
+
+    case .file(let path):
+      // pcm16bits has no container. We write the raw stream bytes.
+      guard let fileType = FormatPolicy.fileType(for: config.encoder) else {
+        let processor = try AudioStreamProcessor(config: config, srcFormat: srcFormat)
+        return try RawFileOutput(path: path, processor: processor)
+      }
+      return try AudioFileOutput(path: path, settings: settings, fileType: fileType, srcFormat: srcFormat)
+    }
+  }
+}
+
 // Captures with AVAudioEngine and gives each buffer to an output.
 // File and stream takes use it, on iOS and macOS. The tap runs on its own thread, so we lock.
 final class AudioEngineCapture: CaptureEngine {
@@ -15,12 +39,16 @@ final class AudioEngineCapture: CaptureEngine {
   private let m_onEvent: (CaptureEvent) -> Void
   private let m_bus = 0
   private let m_lock = NSLock()
+  // Fresh engines to try after a failed check.
+  private static let maxRetries = 1
 
   private var m_audioEngine: AVAudioEngine?
   private var m_configObserver: NSObjectProtocol?
   private var m_output: CaptureOutput?
   // The format the tap was installed with.
   private var m_tapFormat: AVAudioFormat?
+  // Set while start() waits for the first buffer.
+  private var m_firstBuffer: DispatchSemaphore?
   private var m_isPaused = false
   private var m_amplitude = silenceDb
 
@@ -36,12 +64,28 @@ final class AudioEngineCapture: CaptureEngine {
     m_onEvent = onEvent
   }
 
+  // A start that fails the checks below gets one more try on a fresh engine, then throws `InputNotKept`.
+  // Worst case, start() blocks for two engine starts and two waits for audio (about 1 s on top of them).
+  // Other errors are final, there is no retry.
   func start() throws -> RecordConfig {
     if case .file(let path) = m_target { try RecordFile.delete(at: path) }
 
+    var retries = Self.maxRetries
+    while true {
+      do {
+        return try startEngine()
+      } catch is InputNotKept where retries > 0 {
+        retries -= 1
+      }
+    }
+  }
+
+  // One try: a new engine, started and checked. Leaves nothing behind when it throws.
+  private func startEngine() throws -> RecordConfig {
     let engine = AVAudioEngine()
     var output: CaptureOutput?
     let effective: RecordConfig
+    let firstBuffer = DispatchSemaphore(value: 0)
 
     do {
       try m_environment.bindInput(m_config.device, to: engine.inputNode)
@@ -56,7 +100,8 @@ final class AudioEngineCapture: CaptureEngine {
 
       let negotiated = try FormatPolicy.negotiate(for: m_config, input: srcFormat)
       effective = negotiated.effective
-      output = try makeOutput(settings: negotiated.settings, config: effective, srcFormat: srcFormat)
+      output = try m_target.makeOutput(
+        settings: negotiated.settings, config: effective, srcFormat: srcFormat, onEvent: m_onEvent)
 
       engine.inputNode.installTap(
         onBus: m_bus,
@@ -69,15 +114,38 @@ final class AudioEngineCapture: CaptureEngine {
 
       engine.prepare()
       try engine.start()
+
+      // The system can change the input while the engine starts. Then the tap is bound to
+      // a format the running input does not produce, and it stays silent.
+      try m_environment.verifyInput(m_config.device, config: m_config, on: engine.inputNode)
+      let running = engine.inputNode.inputFormat(forBus: m_bus)
+      guard running.sampleRate == srcFormat.sampleRate, running.channelCount == srcFormat.channelCount else {
+        throw InputNotKept(
+          reason: "the input format changed from \(Int(srcFormat.sampleRate)) Hz/\(srcFormat.channelCount) ch"
+            + " to \(Int(running.sampleRate)) Hz/\(running.channelCount) ch")
+      }
+
+      // Buffers before this point were dropped on purpose: nothing is delivered until the input is verified.
+      // Real audio is the last proof. The first delivered buffer ends the wait.
+      m_lock.withLock {
+        m_firstBuffer = firstBuffer
+        m_output = output
+      }
+      guard firstBuffer.wait(timeout: .now() + firstBufferTimeout) == .success else {
+        throw InputNotKept(reason: "the input gave no audio in \(Int(firstBufferTimeout * 1000)) ms")
+      }
     } catch {
       // Leave nothing behind: no tap, no voice processing, no file.
+      m_lock.withLock {
+        m_output = nil
+        m_firstBuffer = nil
+      }
       shutDown(engine)
       _ = output?.close(delete: true)
       throw error
     }
 
     m_audioEngine = engine
-    m_lock.withLock { m_output = output }
 
     // The system stops the engine when the input changes (device unplugged, new route).
     m_configObserver = NotificationCenter.default.addObserver(
@@ -138,22 +206,6 @@ final class AudioEngineCapture: CaptureEngine {
 
   // MARK: - Private
 
-  private func makeOutput(settings: [String: Any], config: RecordConfig, srcFormat: AVAudioFormat) throws -> CaptureOutput {
-    switch m_target {
-    case .stream:
-      let processor = try AudioStreamProcessor(config: config, srcFormat: srcFormat)
-      return StreamOutput(processor: processor) { [m_onEvent] in m_onEvent(.chunk($0)) }
-
-    case .file(let path):
-      // pcm16bits has no container. We write the raw stream bytes.
-      guard let fileType = FormatPolicy.fileType(for: config.encoder) else {
-        let processor = try AudioStreamProcessor(config: config, srcFormat: srcFormat)
-        return try RawFileOutput(path: path, processor: processor)
-      }
-      return try AudioFileOutput(path: path, settings: settings, fileType: fileType, srcFormat: srcFormat)
-    }
-  }
-
   private func shutDown(_ engine: AVAudioEngine) {
     engine.inputNode.removeTap(onBus: m_bus)
     engine.stop()
@@ -189,7 +241,10 @@ final class AudioEngineCapture: CaptureEngine {
   // Runs under the lock, so stop() cannot close the output during a write.
   private func handleTap(_ buffer: AVAudioPCMBuffer) {
     let failure = m_lock.withLock { () -> (CaptureOutput, Error)? in
+      // No output before the input is verified: those buffers are dropped on purpose.
       guard !m_isPaused, let output = m_output else { return nil }
+      m_firstBuffer?.signal()
+      m_firstBuffer = nil
 
       m_amplitude = Self.peakDb(buffer)
       do {
@@ -209,7 +264,7 @@ final class AudioEngineCapture: CaptureEngine {
   }
 
   // The loudest sample of the first channel.
-  private static func peakDb(_ buffer: AVAudioPCMBuffer) -> Float {
+  static func peakDb(_ buffer: AVAudioPCMBuffer) -> Float {
     let frames = Int(buffer.frameLength)
     var peak: Float = 0
 

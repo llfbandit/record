@@ -30,6 +30,7 @@
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		34C977E9E8BBC85F7BE44A84 /* RecordFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4076A94C83F194DEAD40EC8 /* RecordFileTests.swift */; };
 		3F0E99A0A771BDFBEB18D254 /* FormatPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F519E5EE9ACE717D6AC69B9 /* FormatPolicyTests.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* InputFallbackCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* InputFallbackCaptureTests.swift */; };
 		48501717367778ED622E0FED /* CoreAudioDevicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6363B32603E60D4D0B730095 /* CoreAudioDevicesTests.swift */; };
 		58CE03C9DE6362BFB93A5638 /* RecorderControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C7E22D52F2EAA49C2661A3 /* RecorderControllerTests.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
@@ -86,6 +87,7 @@
 		33E51913231747F40026EE4D /* DebugProfile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DebugProfile.entitlements; sourceTree = "<group>"; };
 		33E51914231749380026EE4D /* Release.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = Release.entitlements; sourceTree = "<group>"; };
 		33E5194F232828860026EE4D /* AppInfo.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppInfo.xcconfig; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* InputFallbackCaptureTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InputFallbackCaptureTests.swift; path = ../../../record_darwin/darwin/Tests/InputFallbackCaptureTests.swift; sourceTree = "<group>"; };
 		6363B32603E60D4D0B730095 /* CoreAudioDevicesTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CoreAudioDevicesTests.swift; path = ../../../record_darwin/darwin/Tests/CoreAudioDevicesTests.swift; sourceTree = "<group>"; };
 		70DA2F034EBBD27CA9DD4924 /* RecordConfigTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecordConfigTests.swift; path = ../../../record_darwin/darwin/Tests/RecordConfigTests.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
@@ -195,6 +197,7 @@
 				B0C7E22D52F2EAA49C2661A3 /* RecorderControllerTests.swift */,
 				9BD10BD77E7A62C3329006DD /* TestRecordConfig.swift */,
 				FC1B29AA6DE6C456A679602C /* CaptureOutputTests.swift */,
+				A1B2C3D4E5F60718293A4B5D /* InputFallbackCaptureTests.swift */,
 				6363B32603E60D4D0B730095 /* CoreAudioDevicesTests.swift */,
 			);
 			name = RunnerTests;
@@ -378,6 +381,7 @@
 				58CE03C9DE6362BFB93A5638 /* RecorderControllerTests.swift in Sources */,
 				25FE42DECC803F1FFD123CE3 /* TestRecordConfig.swift in Sources */,
 				12C88933F7A2767B18B692AE /* CaptureOutputTests.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* InputFallbackCaptureTests.swift in Sources */,
 				48501717367778ED622E0FED /* CoreAudioDevicesTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

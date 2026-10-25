@@ -22,3 +22,11 @@ extension RecorderError {
     }
   }
 }
+
+// A capture started, but not on the input we asked for, or it never delivers audio.
+// A fresh engine may fix it, and macOS has another way to capture the chosen device.
+struct InputNotKept: LocalizedError {
+  let reason: String
+
+  var errorDescription: String? { "Failed to start recording: \(reason)" }
+}

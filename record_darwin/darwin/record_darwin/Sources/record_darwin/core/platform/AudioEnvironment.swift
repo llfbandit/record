@@ -22,8 +22,14 @@ protocol AudioEnvironment: AnyObject {
 
   // Points a running capture graph at the device.
   func bindInput(_ device: Device?, to node: AVAudioInputNode) throws
+
+  // Checks, once the engine runs, that it still reads the input we chose.
+  // Throws `InputNotKept` when the system picked another one.
+  func verifyInput(_ device: Device?, config: RecordConfig, on node: AVAudioInputNode) throws
 }
 
 extension AudioEnvironment {
   func bindInput(_ device: Device?, to node: AVAudioInputNode) throws {}
+
+  func verifyInput(_ device: Device?, config: RecordConfig, on node: AVAudioInputNode) throws {}
 }
