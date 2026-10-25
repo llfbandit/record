@@ -101,6 +101,11 @@ class RecordPluginWebWrapper extends RecordPlatform {
   }
 
   @override
+  Stream<RecordStop> onStopped(String recorderId) {
+    return _getRecorder(recorderId).onStopped();
+  }
+
+  @override
   void setOnConfigChanged(
     String recorderId,
     void Function(RecordConfig)? handler,

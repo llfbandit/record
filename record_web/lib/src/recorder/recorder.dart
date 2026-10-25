@@ -15,7 +15,10 @@ const kMinAmplitude = -160.0;
 class Recorder {
   RecorderDelegate? _delegate;
   StreamController<RecordState>? _stateStreamCtrl;
+  StreamController<RecordStop>? _stopStreamCtrl;
   void Function(RecordConfig)? _onConfigChanged;
+  // cancel() deletes the take, so its stop has no path.
+  bool _cancelling = false;
 
   Future<bool> _requestPermission() async {
     final mediaDevices = web.window.navigator.mediaDevices;
@@ -88,6 +91,7 @@ class Recorder {
 
   Future<void> dispose() async {
     await _stateStreamCtrl?.close();
+    await _stopStreamCtrl?.close();
     return _delegate?.dispose();
   }
 
@@ -145,14 +149,15 @@ class Recorder {
     switch (config.encoder) {
       case AudioEncoder.wav:
       case AudioEncoder.pcm16bits:
-        await _delegate?.dispose();
+        await _endTake();
         _delegate = MicRecorderDelegate(
           onStateChanged: _updateState,
+          onStopped: _onStopped,
           onConfigChanged: _onConfigChanged,
         );
         return _delegate!.start(config, path: path);
       default:
-        await _delegate?.dispose();
+        await _endTake();
 
         final supported = await isEncoderSupported(config.encoder);
         if (!supported) {
@@ -161,6 +166,7 @@ class Recorder {
 
         _delegate = MediaRecorderDelegate(
           onStateChanged: _updateState,
+          onStopped: _onStopped,
           onConfigChanged: _onConfigChanged,
         );
         return _delegate!.start(config, path: path);
@@ -170,9 +176,10 @@ class Recorder {
   Future<Stream<Uint8List>> startStream(RecordConfig config) async {
     switch (config.encoder) {
       case AudioEncoder.pcm16bits:
-        await _delegate?.dispose();
+        await _endTake();
         _delegate = MicRecorderDelegate(
           onStateChanged: _updateState,
+          onStopped: _onStopped,
           onConfigChanged: _onConfigChanged,
         );
         return _delegate!.startStream(config);
@@ -192,7 +199,13 @@ class Recorder {
   }
 
   Future<void> cancel() async {
-    final url = await stop();
+    _cancelling = true;
+    final String? url;
+    try {
+      url = await stop();
+    } finally {
+      _cancelling = false;
+    }
 
     if (url != null) {
       web.URL.revokeObjectURL(url);
@@ -212,6 +225,34 @@ class Recorder {
     );
 
     return _stateStreamCtrl!.stream;
+  }
+
+  Stream<RecordStop> onStopped() {
+    _stopStreamCtrl ??= StreamController(
+      onCancel: () {
+        _stopStreamCtrl?.close();
+        _stopStreamCtrl = null;
+      },
+    );
+
+    return _stopStreamCtrl!.stream;
+  }
+
+  // The state goes first: Dart hears RecordState.stop, then why.
+  void _onStopped(RecordStop stop) {
+    _updateState(RecordState.stop);
+
+    final ctrl = _stopStreamCtrl;
+    if (ctrl == null || !ctrl.hasListener || ctrl.isClosed) return;
+    ctrl.add(_cancelling ? RecordStop(reason: stop.reason) : stop);
+  }
+
+  // A new take ends the running one first, so the app hears its stop.
+  Future<void> _endTake() async {
+    final delegate = _delegate;
+    _delegate = null;
+    await delegate?.stop();
+    await delegate?.dispose();
   }
 
   void _updateState(RecordState state) {

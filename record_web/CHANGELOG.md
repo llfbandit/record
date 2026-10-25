@@ -1,5 +1,6 @@
 ## 2.2.0
 * feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
+* feat: Report the end of each take (`onStopped`): why it ended, and its file.
 
 ## 2.1.3
 * fix: `startStream` hang when `getUserMedia` fails.
