@@ -20,6 +20,8 @@ class MediaRecorderDelegate extends RecorderDelegate {
   List<web.Blob> _chunks = [];
   // Completer to get data & stop events before `stop()` method ends
   Completer<String?>? _onStopCompleter;
+  // Set when the browser fails the take: its stop event reports it.
+  String? _failure;
 
   final _elapsedTime = Stopwatch();
 
@@ -33,10 +35,15 @@ class MediaRecorderDelegate extends RecorderDelegate {
   RecordConfig? _config;
 
   final OnStateChanged onStateChanged;
+  final OnStopped onStopped;
   @override
   final void Function(RecordConfig)? onConfigChanged;
 
-  MediaRecorderDelegate({required this.onStateChanged, this.onConfigChanged});
+  MediaRecorderDelegate({
+    required this.onStateChanged,
+    required this.onStopped,
+    this.onConfigChanged,
+  });
 
   @override
   Future<void> dispose() async {
@@ -148,6 +155,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
       mediaRecorder.ondataavailable =
           ((web.BlobEvent event) => _onDataAvailable(event)).toJS;
       mediaRecorder.onstop = ((web.Event event) => _onStop()).toJS;
+      mediaRecorder.onerror = _onRecorderError.toJS;
 
       _elapsedTime.start();
 
@@ -223,6 +231,13 @@ class MediaRecorderDelegate extends RecorderDelegate {
     debugPrint(error.toString());
   }
 
+  void _onRecorderError(web.Event event) {
+    final message = event.isA<web.ErrorEvent>()
+        ? (event as web.ErrorEvent).message
+        : '';
+    _failure = message.isEmpty ? 'Recording failed.' : message;
+  }
+
   void _onDataAvailable(web.BlobEvent event) {
     final data = event.data;
 
@@ -255,8 +270,16 @@ class MediaRecorderDelegate extends RecorderDelegate {
     } catch (e) {
       debugPrint(e.toString());
     } finally {
+      final failure = _failure;
+      final reason = takeStopReason();
       await _reset();
-      onStateChanged(RecordState.stop);
+      onStopped(
+        RecordStop(
+          reason: failure == null ? reason : RecordStopReason.error,
+          path: audioUrl,
+          error: failure,
+        ),
+      );
 
       if (_onStopCompleter case final completer?) {
         _onStopCompleter = null;
@@ -274,8 +297,10 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
     _mediaRecorder?.ondataavailable = null;
     _mediaRecorder?.onstop = null;
+    _mediaRecorder?.onerror = null;
 
     _mediaRecorder = null;
+    _failure = null;
     _maxAmplitude = kMinAmplitude;
 
     // Clear the fields before awaiting `resetContext`, so an in-flight swap sees the take ended.

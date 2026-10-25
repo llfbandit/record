@@ -15,6 +15,7 @@ import 'package:web/web.dart' as web;
 /// Records WAVE and PCM through an AudioWorklet, to a file or a stream.
 class MicRecorderDelegate extends RecorderDelegate {
   final OnStateChanged onStateChanged;
+  final OnStopped onStopped;
   @override
   final void Function(RecordConfig)? onConfigChanged;
 
@@ -31,7 +32,11 @@ class MicRecorderDelegate extends RecorderDelegate {
   double _maxAmplitude = kMinAmplitude;
   double _amplitude = kMinAmplitude;
 
-  MicRecorderDelegate({required this.onStateChanged, this.onConfigChanged});
+  MicRecorderDelegate({
+    required this.onStateChanged,
+    required this.onStopped,
+    this.onConfigChanged,
+  });
 
   @override
   Future<void> dispose() => _reset();
@@ -129,15 +134,19 @@ class MicRecorderDelegate extends RecorderDelegate {
   Future<String?> stop() async {
     if (takeRouteStop() case final stopped?) return stopped;
 
+    final wasRecording = _context != null;
     await _reset(resetEncoder: false);
 
     final blob = _encoder?.finish();
     _encoder?.cleanup();
     _encoder = null;
 
-    onStateChanged(RecordState.stop);
+    final url = blob != null ? web.URL.createObjectURL(blob) : null;
+    if (wasRecording) {
+      onStopped(RecordStop(reason: takeStopReason(), path: url));
+    }
 
-    return blob != null ? web.URL.createObjectURL(blob) : null;
+    return url;
   }
 
   Future<void> _start(RecordConfig config, {bool isStream = false}) async {

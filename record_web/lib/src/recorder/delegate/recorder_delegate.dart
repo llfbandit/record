@@ -8,6 +8,7 @@ import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:web/web.dart' as web;
 
 typedef OnStateChanged = void Function(RecordState state);
+typedef OnStopped = void Function(RecordStop stop);
 
 class AdjustedConfig {
   final web.AudioContext context;
@@ -74,6 +75,14 @@ abstract class RecorderDelegate {
 
   Future<bool>? _swap;
   Future<String?>? _routeStop;
+  RecordStopReason _stopReason = RecordStopReason.stop;
+
+  /// Why the take ends, for its stop event. The next take starts over.
+  RecordStopReason takeStopReason() {
+    final reason = _stopReason;
+    _stopReason = RecordStopReason.stop;
+    return reason;
+  }
 
   /// Gets a new stream for [config], after the device in use went away.
   Future<web.MediaStream> reacquireMediaStream(RecordConfig config) {
@@ -177,6 +186,7 @@ abstract class RecorderDelegate {
         case AudioRouteChangeMode.pause:
           await pause();
         case AudioRouteChangeMode.stop:
+          _stopReason = RecordStopReason.routeChange;
           await (_routeStop = stop());
         case null:
           break;
