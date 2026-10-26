@@ -2,6 +2,8 @@
 
 #include <flutter/standard_method_codec.h>
 
+#include "utils.h"
+
 using namespace flutter;
 
 namespace record_windows
@@ -37,6 +39,18 @@ namespace record_windows
 		callbacks.onState = [this, alive, stateHandler](RecordState state) {
 			m_platform.Post([alive, stateHandler, state] {
 				if (*alive) stateHandler->Success(std::make_unique<EncodableValue>(state));
+			});
+		};
+		callbacks.onStopped = [this, alive, stateHandler](const RecordStop& stop) {
+			static const char* reasons[] = { "stop", "routeChange", "interruption", "error" };
+			EncodableMap map{
+				{ EncodableValue("state"), EncodableValue(static_cast<int>(RecordState::stop)) },
+				{ EncodableValue("reason"), EncodableValue(reasons[static_cast<int>(stop.reason)]) },
+				{ EncodableValue("path"), stop.path.empty() ? EncodableValue() : EncodableValue(Utf8FromUtf16(stop.path.c_str())) },
+				{ EncodableValue("error"), stop.error.empty() ? EncodableValue() : EncodableValue(stop.error) },
+			};
+			m_platform.Post([alive, stateHandler, map = std::move(map)]() mutable {
+				if (*alive) stateHandler->Success(std::make_unique<EncodableValue>(std::move(map)));
 			});
 		};
 		callbacks.onChunk = [this, alive, recordHandler](std::vector<uint8_t> bytes) {

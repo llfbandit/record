@@ -29,7 +29,10 @@ namespace record_windows
 			}
 			else
 			{
-				Stop();
+				// The system text may not be UTF-8, so Dart gets the code.
+				char error[64];
+				snprintf(error, sizeof(error), "Capture failed (0x%08X).", static_cast<unsigned>(hr));
+				End(StopReason::error, false, error);
 			}
 
 			return;
