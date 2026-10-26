@@ -44,6 +44,11 @@ namespace record_windows
 				std::lock_guard<std::mutex> lock(m_mutex);
 				m_states.push_back(state);
 			};
+			callbacks.onStopped = [this](const RecordStop& stop) {
+				std::lock_guard<std::mutex> lock(m_mutex);
+				m_states.push_back(RecordState::stop);
+				m_stops.push_back(stop);
+			};
 
 			m_recorder = std::make_unique<Recorder>(m_dispatcher, std::move(callbacks));
 
@@ -63,6 +68,11 @@ namespace record_windows
 			callbacks.onState = [this](RecordState state) {
 				std::lock_guard<std::mutex> lock(m_mutex);
 				m_states.push_back(state);
+			};
+			callbacks.onStopped = [this](const RecordStop& stop) {
+				std::lock_guard<std::mutex> lock(m_mutex);
+				m_states.push_back(RecordState::stop);
+				m_stops.push_back(stop);
 			};
 			callbacks.onChunk = [onChunk](std::vector<uint8_t>) { onChunk(); };
 
@@ -102,6 +112,7 @@ namespace record_windows
 		std::wstring m_path;
 		std::mutex m_mutex;
 		std::vector<RecordState> m_states;
+		std::vector<RecordStop> m_stops;
 	};
 
 	TEST_F(RecorderRouteChangeTest, StopModeEndsTheTake)
@@ -115,6 +126,12 @@ namespace record_windows
 		EXPECT_EQ(States().back(), RecordState::stop);
 		// Stop keeps what was recorded before the loss.
 		EXPECT_NE(GetFileAttributesW(m_path.c_str()), INVALID_FILE_ATTRIBUTES);
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+			ASSERT_EQ(m_stops.size(), 1u);
+			EXPECT_EQ(m_stops[0].reason, StopReason::routeChange);
+			EXPECT_EQ(m_stops[0].path, m_path);
+		}
 	}
 
 	TEST_F(RecorderRouteChangeTest, PauseModeHoldsTheTake)

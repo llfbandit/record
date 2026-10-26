@@ -27,6 +27,22 @@ namespace record_windows
 	// Resume() found no device; Dart raises this as RecordResumeNoDeviceException.
 	constexpr HRESULT E_RECORD_NO_INPUT_DEVICE = MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0x200);
 
+	// Why a take ended. Dart reads the name.
+	enum class StopReason {
+		// The app ended it: stop(), cancel(), dispose(), or a new start().
+		stop, routeChange, interruption, error
+	};
+
+	// The end of a take, as Dart hears it.
+	struct RecordStop
+	{
+		StopReason reason;
+		// Empty after cancel(), and for a stream.
+		std::wstring path;
+		// What failed, for StopReason::error.
+		std::string error;
+	};
+
 	// What a finished take reports back.
 	struct StopResult
 	{
@@ -38,7 +54,9 @@ namespace record_windows
 	// Everything the recorder reports. Invoked on the dispatcher thread.
 	struct RecorderCallbacks
 	{
+		// Pause and record. A take ends with onStopped.
 		std::function<void(RecordState)> onState;
+		std::function<void(const RecordStop&)> onStopped;
 		std::function<void(std::vector<uint8_t>)> onChunk;
 		std::function<void(const RecordConfig&)> onConfigChanged;
 	};
@@ -74,6 +92,8 @@ namespace record_windows
 		HRESULT BeginTake(std::unique_ptr<RecordConfig> config, std::unique_ptr<IRecordSink> sink);
 		HRESULT OpenCaptureDevice(std::unique_ptr<RecordConfig> config);
 		void UpdateState(RecordState state);
+		// Ends the take and tells Dart why. A take with no data is discarded.
+		StopResult End(StopReason reason, bool discard = false, std::string error = {});
 		HRESULT EndRecording(bool discard = false);
 
 		// Holds the take on a gone device, so a later Resume() can retry.
