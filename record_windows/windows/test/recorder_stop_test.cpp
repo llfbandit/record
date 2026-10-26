@@ -67,6 +67,8 @@ namespace record_windows
 		std::atomic<int> states{ 0 };
 		RecorderCallbacks callbacks;
 		callbacks.onState = [&states](RecordState) { states++; };
+		std::vector<RecordStop> stops;
+		callbacks.onStopped = [&states, &stops](const RecordStop& stop) { states++; stops.push_back(stop); };
 		Recorder recorder(dispatcher, std::move(callbacks));
 
 		HRESULT started = Call(*dispatcher, [&] {
@@ -81,6 +83,10 @@ namespace record_windows
 		EXPECT_HRESULT_SUCCEEDED(stopped.hr);
 		EXPECT_FALSE(stopped.path.empty());
 		ExpectValidWavHeader(path);
+		// Stop() answered, so the dispatcher already ran the callback.
+		ASSERT_EQ(stops.size(), 1u);
+		EXPECT_EQ(stops[0].reason, StopReason::stop);
+		EXPECT_EQ(stops[0].path, stopped.path);
 
 		Call(*dispatcher, [&] { return recorder.Dispose(); });
 		DeleteFileW(path.c_str());

@@ -1,5 +1,6 @@
 ## 2.4.0
 * feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
+* feat: Report the end of each take (`onStopped`): why it ended, and its file.
 * refactor: Rebuild recorder as capture engine, sink and controller.
 
 ## 2.3.0

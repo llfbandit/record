@@ -92,7 +92,8 @@ namespace record_windows
 
 	HRESULT Recorder::OpenCaptureDevice(std::unique_ptr<RecordConfig> config)
 	{
-		HRESULT hr = EndRecording();
+		// start() also means "next take".
+		HRESULT hr = m_pConfig ? End(StopReason::stop).hr : EndRecording();
 
 		// Resolve it once so caps, capture and the device watch see the same device.
 		std::string deviceId;
@@ -177,7 +178,7 @@ namespace record_windows
 		}
 
 		case AudioRouteChange::stop:
-			Stop();
+			End(StopReason::routeChange);
 			break;
 
 		default:
@@ -334,33 +335,32 @@ namespace record_windows
 	StopResult Recorder::Stop()
 	{
 		AssertOnDispatcher();
-
-		if (m_dataWritten == 0)
-		{
-			return { Cancel(), std::wstring() };
-		}
-
-		auto path = m_pSink ? m_pSink->Path() : std::wstring();
-		HRESULT hr = EndRecording();
-
-		if (FAILED(hr)) return { hr, std::wstring() };
-
-		UpdateState(RecordState::stop);
-		return { hr, path };
+		return End(StopReason::stop);
 	}
 
 	HRESULT Recorder::Cancel()
 	{
 		AssertOnDispatcher();
+		return End(StopReason::stop, true).hr;
+	}
 
-		HRESULT hr = EndRecording(true);
+	StopResult Recorder::End(StopReason reason, bool discard, std::string error)
+	{
+		// Nothing was written: the take is cancelled instead.
+		discard = discard || m_dataWritten == 0;
 
-		if (SUCCEEDED(hr))
+		auto path = (m_pSink && !discard) ? m_pSink->Path() : std::wstring();
+		HRESULT hr = EndRecording(discard);
+		if (FAILED(hr)) path.clear();
+
+		// The take is over even when finalizing failed. One that never started sends nothing.
+		if (m_recordState != RecordState::stop)
 		{
-			UpdateState(RecordState::stop);
+			m_recordState = RecordState::stop;
+			if (m_callbacks.onStopped) m_callbacks.onStopped({ reason, path, std::move(error) });
 		}
 
-		return hr;
+		return { hr, path };
 	}
 
 	bool Recorder::IsPaused()
@@ -407,7 +407,7 @@ namespace record_windows
 		AssertOnDispatcher();
 		m_disposed = true;
 
-		HRESULT hr = EndRecording();
+		HRESULT hr = End(StopReason::stop).hr;
 		// DeviceNotificationClient::Start() registered on the dispatcher thread, so unregister on it too.
 		m_pRouteWatch->Close();
 		m_callbacks = {};
