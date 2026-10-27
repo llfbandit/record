@@ -17,7 +17,8 @@ Future<Set<String>> listPactlSourceNames() async {
   return parseShortSourceNames(await runPactl(['list', 'short', 'sources']));
 }
 
-/// Runs pactl and returns its output, one entry per line.
+/// Runs pactl and returns its output, one entry per line; throws when pactl
+/// fails, e.g. without a server.
 Future<List<String>> runPactl(List<String> arguments) async {
   // LC_ALL=C keeps the output parseable under any user locale.
   final process = await Process.start(
@@ -27,15 +28,20 @@ Future<List<String>> runPactl(List<String> arguments) async {
   );
 
   // Read stderr too, or a full pipe blocks pactl.
-  final stderrDone = process.stderr.drain<void>();
+  final errors = process.stderr.transform(utf8.decoder).join();
 
   final lines = await process.stdout
       .transform(utf8.decoder)
       .transform(const LineSplitter())
       .toList();
 
-  await stderrDone;
-  await process.exitCode;
+  final error = (await errors).trim();
+  final exitCode = await process.exitCode;
+  // A failed pactl prints nothing, which must not read as "no sources".
+  // pactl 17 exits 0 from `list` without a server: only stderr tells.
+  if (exitCode != 0 || error.isNotEmpty) {
+    throw ProcessException('pactl', arguments, error, exitCode);
+  }
 
   return lines;
 }

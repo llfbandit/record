@@ -1,4 +1,5 @@
 ## 2.2.0
+* feat: Report the end of each take (`onStopped`) and its file.
 * feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
 * fix: `stop()` while paused leaves parecord running.
 * fix: `listInputDevices()` empty on plain PulseAudio, which has no `node.name`.
