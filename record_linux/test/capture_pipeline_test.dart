@@ -93,6 +93,13 @@ void main() {
     }
   }
 
+  Future<void> waitFor(bool Function() condition) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (!condition() && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+  }
+
   test('a restarted capture keeps writing to the same file', () async {
     final parecord = await writeScript(
       'parecord',
@@ -114,6 +121,52 @@ void main() {
     await pipeline.stop().timeout(const Duration(seconds: 10));
 
     expect(File(output).lengthSync(), 64000);
+  });
+
+  test('a parecord that exits on its own is reported', () async {
+    final parecord = await writeScript('parecord', 'exit 3\n');
+    final exits = <String>[];
+
+    final pipeline = CapturePipeline(parecordBin: parecord)
+      ..onExited = (error, {required capture}) {
+        if (capture) exits.add(error);
+      };
+    await pipeline.startStream(const RecordConfig());
+    await waitFor(() => exits.isNotEmpty);
+    await pipeline.stop();
+
+    expect(exits, ['parecord exited (3).']);
+  });
+
+  test('an ffmpeg that exits on its own is reported', () async {
+    final parecord = await writeScript('parecord', 'exec sleep 1000\n');
+    final ffmpeg = await writeScript('ffmpeg', 'exit 1\n');
+    final exits = <String>[];
+
+    final pipeline = CapturePipeline(parecordBin: parecord, ffmpegBin: ffmpeg)
+      ..onExited = (error, {required capture}) {
+        if (!capture) exits.add(error);
+      };
+    await pipeline.startFile(const RecordConfig(), '${tempDir.path}/take.wav');
+    await waitFor(() => exits.isNotEmpty);
+    await pipeline.stop().timeout(const Duration(seconds: 10));
+
+    expect(exits, ['ffmpeg exited (1).']);
+  });
+
+  test('a capture the pipeline ends is not reported', () async {
+    final parecord = await writeScript('parecord', 'exec sleep 1000\n');
+    final ffmpeg = await writeScript('ffmpeg', 'exec cat > /dev/null\n');
+    final exits = <String>[];
+
+    final pipeline = CapturePipeline(parecordBin: parecord, ffmpegBin: ffmpeg)
+      ..onExited = (error, {required capture}) => exits.add(error);
+    await pipeline.startFile(const RecordConfig(), '${tempDir.path}/take.wav');
+    await pipeline.restartCapture(const RecordConfig());
+    await pipeline.stop().timeout(const Duration(seconds: 10));
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    expect(exits, isEmpty);
   });
 
   test('stop ends a paused capture', () async {

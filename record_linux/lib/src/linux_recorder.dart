@@ -11,10 +11,16 @@ import 'route_monitor.dart';
 
 /// One recorder: its own capture, state and config handler.
 class LinuxRecorder {
-  LinuxRecorder({CapturePipeline? pipeline})
-    : _pipeline = pipeline ?? CapturePipeline();
+  LinuxRecorder({
+    CapturePipeline? pipeline,
+    this.listSources = listPactlSourceNames,
+  }) : _pipeline = pipeline ?? CapturePipeline() {
+    _pipeline.onExited = (error, {required capture}) =>
+        unawaited(_onPipelineExited(error, capture: capture));
+  }
 
   final CapturePipeline _pipeline;
+  final Future<Set<String>> Function() listSources;
   final _routeMonitor = RouteMonitor();
 
   RecordState _state = RecordState.stop;
@@ -26,6 +32,7 @@ class LinuxRecorder {
   // Capture ended with its device: resume() needs a new one.
   bool _routeLost = false;
   StreamController<RecordState>? _stateStreamCtrl;
+  StreamController<RecordStop>? _stopStreamCtrl;
   void Function(RecordConfig config)? _configChangedHandler;
 
   Future<void> dispose() async {
@@ -33,6 +40,8 @@ class LinuxRecorder {
 
     await _stateStreamCtrl?.close();
     _stateStreamCtrl = null;
+    await _stopStreamCtrl?.close();
+    _stopStreamCtrl = null;
   }
 
   Amplitude getAmplitude() => _pipeline.amplitude.amplitude;
@@ -93,8 +102,33 @@ class LinuxRecorder {
     return stream;
   }
 
-  Future<String?> stop() async {
+  Future<String?> stop() => _end(delete: false);
+
+  Future<void> cancel() => _end(delete: true);
+
+  Stream<RecordState> onStateChanged() {
+    _stateStreamCtrl ??= StreamController.broadcast();
+    return _stateStreamCtrl!.stream;
+  }
+
+  Stream<RecordStop> onStopped() {
+    _stopStreamCtrl ??= StreamController.broadcast();
+    return _stopStreamCtrl!.stream;
+  }
+
+  void setOnConfigChanged(void Function(RecordConfig config)? handler) {
+    _configChangedHandler = handler;
+  }
+
+  Future<String?> _end({
+    required bool delete,
+    RecordStopReason reason = RecordStopReason.stop,
+    String? error,
+  }) async {
     final path = _path;
+    final wasRecording = _state != RecordState.stop;
+    // Set before the await, so an end that comes meanwhile reports nothing.
+    _state = RecordState.stop;
 
     _config = null;
     _routeLost = false;
@@ -102,25 +136,19 @@ class LinuxRecorder {
     await _pipeline.stop();
 
     _path = null;
+    if (delete) _deleteFile(path);
 
-    _updateState(RecordState.stop);
+    if (wasRecording) {
+      _emitState(RecordState.stop);
+      // The state goes first: Dart hears RecordState.stop, then why.
+      if (_stopStreamCtrl case final controller? when controller.hasListener) {
+        controller.add(
+          RecordStop(reason: reason, path: delete ? null : path, error: error),
+        );
+      }
+    }
 
     return path;
-  }
-
-  Future<void> cancel() async {
-    final path = await stop();
-
-    _deleteFile(path);
-  }
-
-  Stream<RecordState> onStateChanged() {
-    _stateStreamCtrl ??= StreamController.broadcast();
-    return _stateStreamCtrl!.stream;
-  }
-
-  void setOnConfigChanged(void Function(RecordConfig config)? handler) {
-    _configChangedHandler = handler;
   }
 
   void _deleteFile(String? path) {
@@ -183,11 +211,37 @@ class LinuxRecorder {
         case AudioRouteChangeMode.follow || AudioRouteChangeMode.pause:
           _suspendCapture();
         case AudioRouteChangeMode.stop:
-          await stop();
+          await _end(delete: false, reason: RecordStopReason.routeChange);
       }
     } catch (e) {
       // Nothing awaits the monitor callback, so catch here.
       debugPrint(e.toString());
+    }
+  }
+
+  Future<void> _onPipelineExited(String error, {required bool capture}) async {
+    final config = _config;
+    if (config == null) return;
+
+    try {
+      // With no source left, the server ends the stream: the route monitor handles that.
+      if (capture && await _sourceGone(config)) return;
+      // The take may end while pactl runs.
+      if (!identical(config, _config)) return;
+
+      await _end(delete: false, reason: RecordStopReason.error, error: error);
+    } catch (e) {
+      // Nothing awaits the exit callback, so catch here.
+      debugPrint(e.toString());
+    }
+  }
+
+  Future<bool> _sourceGone(RecordConfig config) async {
+    try {
+      return !_isAvailable(config.device, await listSources());
+    } catch (_) {
+      // Without pactl there is no route handling either: report the failure.
+      return false;
     }
   }
 
@@ -204,10 +258,7 @@ class LinuxRecorder {
     final config = _config;
     if (config == null) return false;
 
-    final sources = await listPactlSourceNames();
-    final available = device == null
-        ? sources.isNotEmpty
-        : sources.contains(device.id);
+    final available = _isAvailable(device, await listSources());
     // The take may end while pactl runs.
     if (!available || !identical(config, _config)) return false;
 
@@ -225,11 +276,19 @@ class LinuxRecorder {
     return true;
   }
 
+  /// Whether [device], or any source when null, is among [sources].
+  bool _isAvailable(InputDevice? device, Set<String> sources) {
+    return device == null ? sources.isNotEmpty : sources.contains(device.id);
+  }
+
   void _updateState(RecordState state) {
     if (_state == state) return;
 
     _state = state;
+    _emitState(state);
+  }
 
+  void _emitState(RecordState state) {
     if (_stateStreamCtrl case final controller? when controller.hasListener) {
       controller.add(state);
     }
