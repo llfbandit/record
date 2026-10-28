@@ -19,6 +19,7 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
   Timer? _timer;
   late final AudioRecorder _audioRecorder;
   StreamSubscription<RecordState>? _recordSub;
+  StreamSubscription<RecordStop>? _stopSub;
   RecordState _recordState = RecordState.stop;
   StreamSubscription<Amplitude>? _amplitudeSub;
   Amplitude? _amplitude;
@@ -36,6 +37,9 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
     _recordSub = _audioRecorder.onStateChanged().listen(
       (recordState) => _updateRecordState(recordState),
     );
+
+    // Every take ends here, also when the platform ends it.
+    _stopSub = _audioRecorder.onStopped().listen(_onStopped);
 
     _amplitudeSub = _audioRecorder
         .onAmplitudeChanged(const Duration(milliseconds: 300))
@@ -75,12 +79,20 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
     }
   }
 
-  Future<void> _stop() async {
-    final path = await _audioRecorder.stop();
+  Future<void> _stop() => _audioRecorder.stop();
 
-    if (path != null) {
+  void _onStopped(RecordStop stop) {
+    if (stop.reason != RecordStopReason.stop) {
+      setState(() {
+        _statusBarContent = [
+          'Stopped: ${stop.reason.name}',
+          ?stop.error,
+        ].join(' - ');
+      });
+    }
+
+    if (stop.path case final path?) {
       widget.onStop(path);
-
       downloadWebData(path, _config.encoder);
     }
   }
@@ -205,6 +217,7 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
   void dispose() {
     _timer?.cancel();
     _recordSub?.cancel();
+    _stopSub?.cancel();
     _amplitudeSub?.cancel();
     _audioRecorder.dispose();
     super.dispose();

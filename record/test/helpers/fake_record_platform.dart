@@ -18,8 +18,10 @@ class FakeRecordPlatform extends RecordPlatform {
   Amplitude amplitudeResult = Amplitude(current: -40.0, max: -10.0);
   List<InputDevice> devicesResult = const [];
   Exception? createException;
+  Exception? stopException;
 
   final _stateControllers = <String, StreamController<RecordState>>{};
+  final _stopControllers = <String, StreamController<RecordStop>>{};
   StreamController<Uint8List>? byteStreamCtrl;
 
   /// Emits a state on the recorder whose ID was last registered via create().
@@ -29,10 +31,20 @@ class FakeRecordPlatform extends RecordPlatform {
     }
   }
 
+  /// Ends the take like a platform does: [RecordState.stop], then [stop].
+  void emitStop(RecordStop stop) {
+    if (lastCreatedId != null) {
+      _stateControllers[lastCreatedId]?.add(RecordState.stop);
+      _stopControllers[lastCreatedId]?.add(stop);
+    }
+  }
+
   /// Emits an error on the recorder whose ID was last registered via create().
+  /// On both streams: both come from the same event channel.
   void emitError(Object error) {
     if (lastCreatedId != null) {
       _stateControllers[lastCreatedId]?.addError(error);
+      _stopControllers[lastCreatedId]?.addError(error);
     }
   }
 
@@ -41,6 +53,7 @@ class FakeRecordPlatform extends RecordPlatform {
     calls.add('create');
     lastCreatedId = recorderId;
     _stateControllers[recorderId] = StreamController<RecordState>.broadcast();
+    _stopControllers[recorderId] = StreamController<RecordStop>.broadcast();
     if (createException != null) throw createException!;
   }
 
@@ -67,6 +80,11 @@ class FakeRecordPlatform extends RecordPlatform {
   @override
   Future<String?> stop(String recorderId) async {
     calls.add('stop');
+    if (stopException != null) throw stopException!;
+    if (stopOnStop case final stop?) {
+      _stateControllers[recorderId]?.add(RecordState.stop);
+      _stopControllers[recorderId]?.add(stop);
+    }
     return stopResult;
   }
 
@@ -98,11 +116,16 @@ class FakeRecordPlatform extends RecordPlatform {
   @override
   Future<void> cancel(String recorderId) async => calls.add('cancel');
 
+  /// Sent by stop(), like a platform ending the running take.
+  RecordStop? stopOnStop;
+
   @override
   Future<void> dispose(String recorderId) async {
     calls.add('dispose');
     await _stateControllers[recorderId]?.close();
     _stateControllers.remove(recorderId);
+    await _stopControllers[recorderId]?.close();
+    _stopControllers.remove(recorderId);
   }
 
   @override
@@ -131,6 +154,12 @@ class FakeRecordPlatform extends RecordPlatform {
   Stream<RecordState> onStateChanged(String recorderId) {
     calls.add('onStateChanged');
     return _stateControllers[recorderId]!.stream;
+  }
+
+  @override
+  Stream<RecordStop> onStopped(String recorderId) {
+    calls.add('onStopped');
+    return _stopControllers[recorderId]!.stream;
   }
 
   @override
