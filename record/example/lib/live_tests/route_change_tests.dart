@@ -93,8 +93,8 @@ final routeChangeTests = [
     id: 'R3',
     title: 'Stop, and keep the file',
     purpose:
-        'Losing the input ends the take by itself. The file keeps what was '
-        'recorded.',
+        'Losing the input ends the take by itself. onStopped reports why, '
+        'with the file: the app does not call stop().',
     needs: 'The picked input connected.',
     input: PickedInput.recorded,
     config: const RecordConfig(
@@ -115,10 +115,15 @@ final routeChangeTests = [
         () => run.state == RecordState.stop,
         timeout: 5,
       );
-      // The app does not know yet. It stops as usual.
-      await run.stop(stillRecording: false);
+      await run.waitStopped();
 
       run.expectStates([RecordState.record, RecordState.stop]);
+      // The browser gives a blob URL for the file.
+      run.expectStop(
+        RecordStopReason.routeChange,
+        path: kIsWeb ? null : run.path,
+        file: true,
+      );
       run.expectMoves(mark, 0);
       run.expectNoErrors();
       await run.expectAudio();

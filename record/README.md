@@ -136,6 +136,6 @@ sudo apt install pulseaudio-utils ffmpeg
 
 ### Web
 
-`stop()` returns a blob URL that keeps the recording in memory. Revoke it with `URL.revokeObjectURL` once you are done with it.
+`stop()` returns a blob URL that keeps the recording in memory. Revoke it with `URL.revokeObjectURL` once you are done with it. The same goes for the path in `onStopped()`: a take the browser or a new `start()` ends also gives a blob URL.
 
 `audioRouteChange` reacts when the browser reports that the input is gone. The browser can take 1 to 2 s to do so (Firefox), and may only report it while the page has the focus. The audio of that time is lost.

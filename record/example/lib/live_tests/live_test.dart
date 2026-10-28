@@ -100,6 +100,7 @@ class LiveRun extends ChangeNotifier {
   // What the recorder reported, with the time since the run began.
   final states = <(RecordState, Duration)>[];
   final configs = <(RecordConfig, Duration)>[];
+  final stops = <(RecordStop, Duration)>[];
   final errors = <Object>[];
 
   // Bytes received from the stream.
@@ -201,6 +202,15 @@ class LiveRun extends ChangeNotifier {
         },
       ),
     );
+    _subs.add(
+      recorder.onStopped().listen((s) {
+        stops.add((s, elapsed));
+        note(
+          'stopped: ${s.reason.name}, path ${s.path}'
+          '${s.error == null ? '' : ', error ${s.error}'}',
+        );
+      }),
+    );
     await recorder.setOnConfigChanged((c) {
       configs.add((c, elapsed));
       note(
@@ -246,13 +256,13 @@ class LiveRun extends ChangeNotifier {
   }
 
   // The take must still record when the app stops it: else it ended by itself.
-  Future<String?> stop({bool stillRecording = true}) async {
-    if (stillRecording) {
-      expectState(RecordState.record, 'still recording at stop()');
-    }
+  Future<String?> stop() async {
+    expectState(RecordState.record, 'still recording at stop()');
     note('app calls stop()');
     final result = await recorder.stop();
     note('stop() returned $result');
+    await waitStopped();
+    expectStop(RecordStopReason.stop, path: result);
     // The last chunks may come after stop() returns.
     await _streamEnded?.future.timeout(
       const Duration(seconds: 2),
@@ -391,6 +401,31 @@ class LiveRun extends ChangeNotifier {
       listEquals(actual, expected),
       _names(actual),
       _names(expected),
+    );
+  }
+
+  // The stop event may come just after stop() returns.
+  Future<void> waitStopped() => waitFor(
+    'the end of the take is reported',
+    () => stops.isNotEmpty,
+    timeout: 2,
+  );
+
+  // One stop per take. With [file], any file will do when [path] is null.
+  void expectStop(RecordStopReason reason, {String? path, bool file = false}) {
+    final got = stops.map((s) => s.$1).toList();
+    final stop = got.singleOrNull;
+    final ok =
+        stop != null &&
+        stop.reason == reason &&
+        (file && path == null ? stop.path != null : stop.path == path);
+    check(
+      'end reported (onStopped)',
+      ok,
+      got.isEmpty
+          ? 'none'
+          : got.map((s) => '${s.reason.name}, ${s.path}').join(' | '),
+      '${reason.name}, ${path ?? (file ? 'a file' : 'no file')}',
     );
   }
 

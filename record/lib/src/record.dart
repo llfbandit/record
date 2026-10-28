@@ -129,9 +129,22 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   ///
   /// Provides pause, resume and stop states.
   ///
-  /// Also, you can retrieve async errors from it by adding [Function? onError] callback to the subscription.
+  /// A take that fails ends with [RecordState.stop]: [onStopped] tells why.
   Stream<RecordState> onStateChanged() =>
       _recordStateStream ?? _initStateStream();
+
+  /// Listen to the end of each take [RecordStop]: why it ended, and its file.
+  ///
+  /// Comes once per take, right after [RecordState.stop]: when the app ends
+  /// the take, and when the platform does (route change, interruption, error).
+  /// So the app gets the file without calling [stop].
+  ///
+  /// On web, each path is a blob URL to revoke, as for [stop].
+  Stream<RecordStop> onStopped() {
+    _initStateStream();
+    // Closed once disposed, like the state stream.
+    return _stopStreamCtrl?.stream ?? const Stream.empty();
+  }
 
   /// Requests for amplitude at given [interval].
   Stream<Amplitude> onAmplitudeChanged(Duration interval) {
@@ -182,9 +195,10 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   Future<void> dispose() {
     return _safeCall(() async {
       await _disposeAmplitude();
-      await _disposeState();
       await _stopRecordStream();
       await _platform.dispose(_recorderId);
+      // Closed last: the app still hears the stop of the take dispose ends.
+      await _disposeState();
     });
   }
 
