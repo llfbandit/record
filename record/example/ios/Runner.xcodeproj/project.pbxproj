@@ -20,6 +20,7 @@
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		803449F8F2C20E7C5350796F /* CaptureOutputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6E495FFB98B84A285D54EE /* CaptureOutputTests.swift */; };
+		8B0B18360A96035C2C34254F /* ChannelSinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D38C985C1FA2ED3CC93A159 /* ChannelSinkTests.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -61,6 +62,7 @@
 		20F60AEBD739C8EE6410A8EF /* TakePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TakePolicyTests.swift; path = ../../../record_darwin/darwin/Tests/TakePolicyTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
+		3D38C985C1FA2ED3CC93A159 /* ChannelSinkTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ChannelSinkTests.swift; path = ../../../record_darwin/darwin/Tests/ChannelSinkTests.swift; sourceTree = "<group>"; };
 		41CAF4B4604B56855B9F5923 /* TestRecordConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TestRecordConfig.swift; path = ../../../record_darwin/darwin/Tests/TestRecordConfig.swift; sourceTree = "<group>"; };
 		62B8A9DC96C99225D22211A8 /* IosDeviceRegistryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = IosDeviceRegistryTests.swift; path = ../../../record_darwin/darwin/Tests/IosDeviceRegistryTests.swift; sourceTree = "<group>"; };
 		6AA46CCD8A3ED03E12CADEAB /* Fakes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Fakes.swift; path = ../../../record_darwin/darwin/Tests/Fakes.swift; sourceTree = "<group>"; };
@@ -160,6 +162,7 @@
 				62B8A9DC96C99225D22211A8 /* IosDeviceRegistryTests.swift */,
 				04F6B4039A56CD00C268132E /* IosAudioEnvironmentTests.swift */,
 				818C8ABA57C640DCB1D16DAE /* AudioEngineCaptureTests.swift */,
+				3D38C985C1FA2ED3CC93A159 /* ChannelSinkTests.swift */,
 			);
 			name = RunnerTests;
 			sourceTree = SOURCE_ROOT;
@@ -322,6 +325,7 @@
 				347F834065DC9378D7F0C8DA /* IosDeviceRegistryTests.swift in Sources */,
 				11C184A8F3589604AC5FCBB2 /* IosAudioEnvironmentTests.swift in Sources */,
 				2659171A493448F48F831BB4 /* AudioEngineCaptureTests.swift in Sources */,
+				8B0B18360A96035C2C34254F /* ChannelSinkTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
