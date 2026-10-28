@@ -41,7 +41,7 @@ namespace record_windows
 				if (*alive) stateHandler->Success(std::make_unique<EncodableValue>(state));
 			});
 		};
-		callbacks.onStopped = [this, alive, stateHandler](const RecordStop& stop) {
+		callbacks.onStopped = [this, alive, stateHandler, recordHandler](const RecordStop& stop) {
 			static const char* reasons[] = { "stop", "routeChange", "interruption", "error" };
 			EncodableMap map{
 				{ EncodableValue("state"), EncodableValue(static_cast<int>(RecordState::stop)) },
@@ -49,8 +49,12 @@ namespace record_windows
 				{ EncodableValue("path"), stop.path.empty() ? EncodableValue() : EncodableValue(Utf8FromUtf16(stop.path.c_str())) },
 				{ EncodableValue("error"), stop.error.empty() ? EncodableValue() : EncodableValue(stop.error) },
 			};
-			m_platform.Post([alive, stateHandler, map = std::move(map)]() mutable {
-				if (*alive) stateHandler->Success(std::make_unique<EncodableValue>(std::move(map)));
+			m_platform.Post([alive, stateHandler, recordHandler, map = std::move(map)]() mutable {
+				if (!*alive) return;
+				stateHandler->Success(std::make_unique<EncodableValue>(std::move(map)));
+				// The take may end on its own (a failure, a route change): stream readers must not hang.
+				// Posted after the take's last chunk.
+				recordHandler->EndOfStream();
 			});
 		};
 		callbacks.onChunk = [this, alive, recordHandler](std::vector<uint8_t> bytes) {

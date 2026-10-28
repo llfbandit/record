@@ -21,6 +21,12 @@ public:
             m_sink.get()->Error(error_code, error_message, error_details);
     }
 
+    // Ends Dart's stream; later events are dropped until Dart listens again.
+    void EndOfStream() {
+        if (m_sink) m_sink->EndOfStream();
+        m_sink.reset();
+    }
+
 protected:
     std::unique_ptr<flutter::StreamHandlerError<T>> OnListenInternal(
         const T* arguments, std::unique_ptr<flutter::EventSink<T>>&& events) override {

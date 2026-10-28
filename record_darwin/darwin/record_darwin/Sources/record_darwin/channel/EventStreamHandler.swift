@@ -11,6 +11,15 @@ public class EventStreamHandler: NSObject, FlutterStreamHandler {
 
   var eventSink: FlutterEventSink? { m_lock.withLock { m_eventSink } }
 
+  // Returns the sink and forgets it, so nothing more goes to that stream.
+  func takeEventSink() -> FlutterEventSink? {
+    m_lock.withLock {
+      let sink = m_eventSink
+      m_eventSink = nil
+      return sink
+    }
+  }
+
   public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
     m_lock.withLock { m_eventSink = events }
     return nil

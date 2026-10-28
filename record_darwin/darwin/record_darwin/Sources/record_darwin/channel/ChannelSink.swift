@@ -25,10 +25,15 @@ final class ChannelSink: RecorderSink {
   }
 
   func onStopped(_ stop: RecordStop) {
-    guard let sink = m_state.eventSink else { return }
+    let state = m_state.eventSink
     let map = stop.toMap()
+    // The take is over, so Dart's byte stream ends too. It comes after the last chunk.
+    let records = m_records.takeEventSink()
 
-    DispatchQueue.main.async { sink(map) }
+    DispatchQueue.main.async {
+      state?(map)
+      records?(FlutterEndOfEventStream)
+    }
   }
 
   func onChunk(_ data: Data) {
