@@ -159,13 +159,17 @@ extension AVAudioFormat {
     sampleRate == other.sampleRate && channelCount == other.channelCount
   }
 
-  // PCM 16 bit, not interleaved: what our encoders read.
-  static func int16(sampleRate: Double, channels: Int) throws -> AVAudioFormat {
+  static func pcm(
+    _ commonFormat: AVAudioCommonFormat,
+    sampleRate: Double,
+    channels: Int,
+    interleaved: Bool
+  ) throws -> AVAudioFormat {
     guard let format = AVAudioFormat(
-      commonFormat: .pcmFormatInt16,
+      commonFormat: commonFormat,
       sampleRate: sampleRate,
       channels: AVAudioChannelCount(channels),
-      interleaved: false
+      interleaved: interleaved
     ) else {
       throw RecorderError.startFailed("Format is not supported: \(Int(sampleRate))Hz - \(channels) channels.")
     }

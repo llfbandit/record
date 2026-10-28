@@ -9,13 +9,15 @@ class AudioStreamProcessor {
   private let m_encoder: AudioEnc
 
   init(config: RecordConfig, srcFormat: AVAudioFormat) throws {
-    let outputFormat = try AVAudioFormat.int16(sampleRate: Double(config.sampleRate), channels: config.numChannels)
+    // Interleaved, like the chunks.
+    let outputFormat = try AVAudioFormat.pcm(
+      .pcmFormatInt16, sampleRate: Double(config.sampleRate), channels: config.numChannels, interleaved: true)
     m_converter = try AVAudioConverter.make(from: srcFormat, to: outputFormat)
 
     if config.encoder == AudioEncoder.aacLc.rawValue {
       m_encoder = try AacAdtsEncoder(config: config, format: outputFormat)
     } else if config.encoder == AudioEncoder.pcm16bits.rawValue {
-      m_encoder = Pcm16BitsEncoder()
+      m_encoder = RawPcmEncoder()
     } else {
       throw RecorderError.startFailed("Encoder '\(config.encoder)' is not supported for stream recording.")
     }
