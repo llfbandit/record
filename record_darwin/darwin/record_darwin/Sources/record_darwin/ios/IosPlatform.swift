@@ -23,7 +23,7 @@ final class IosPlatform: RecorderPlatform {
     onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
     onChange: @escaping () -> Void
   ) throws -> CaptureInput {
-    try EngineInput.open(config: config, onBuffer: onBuffer, onChange: onChange)
+    try EngineInput.open(on: uid, config: config, onBuffer: onBuffer, onChange: onChange)
   }
 }
 

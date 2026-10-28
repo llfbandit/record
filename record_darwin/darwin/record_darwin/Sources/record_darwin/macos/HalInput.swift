@@ -7,7 +7,7 @@ import AudioToolbox
 // AVAudioEngine can leave our input for Bluetooth buds. A HAL unit stays on the device we set.
 // With echoCancel or autoGain, it is the voice processing unit. Its output must run: it plays silence.
 final class HalInput: CaptureInput {
-  let format: AVAudioFormat
+  var format: AVAudioFormat { m_feed.format }
 
   private let m_unit: AudioUnit
   private let m_deviceId: AudioDeviceID
@@ -96,18 +96,17 @@ final class HalInput: CaptureInput {
 
       // Voice processing opens all the mics (built-in: 1 to 3 channels). We keep that format, else the take sees a change.
       let openFormat = voiceProcessing ? Self.deviceFormat(of: device) ?? deviceFormat : deviceFormat
-      return HalInput(unit: unit, deviceId: device, deviceFormat: openFormat, format: format, feed: feed)
+      return HalInput(unit: unit, deviceId: device, deviceFormat: openFormat, feed: feed)
     } catch {
       AudioComponentInstanceDispose(unit)
       throw error
     }
   }
 
-  private init(unit: AudioUnit, deviceId: AudioDeviceID, deviceFormat: AVAudioFormat, format: AVAudioFormat, feed: Feed) {
+  private init(unit: AudioUnit, deviceId: AudioDeviceID, deviceFormat: AVAudioFormat, feed: Feed) {
     m_unit = unit
     m_deviceId = deviceId
     m_deviceFormat = deviceFormat
-    self.format = format
     m_feed = feed
 
     // We listen last, so our own setup does not report a change.
