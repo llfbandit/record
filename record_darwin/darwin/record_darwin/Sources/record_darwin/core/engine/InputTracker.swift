@@ -18,7 +18,6 @@ final class InputTracker {
   }
 
   // Binds the device before a new input opens. Nil is the default input. It becomes the input in use.
-  @discardableResult
   func bind(_ deviceId: String?, channels: Int) throws -> String? {
     uid = try m_route.bind(deviceId, channels: channels)
     return uid
@@ -27,11 +26,6 @@ final class InputTracker {
   // False when the input in use is gone. When unsure, true.
   var isAvailable: Bool {
     uid.map(m_devices.isAvailable) ?? true
-  }
-
-  // Capture is still on the input in use. When the route cannot tell, we trust the binding.
-  var isCurrent: Bool {
-    uid.flatMap(m_route.captures(from:)) ?? true
   }
 
   // The take is over.

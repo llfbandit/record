@@ -23,7 +23,7 @@ class AudioStreamProcessor {
 
   // Converts and encodes one tap buffer. Returns `[]` while the encoder waits for more data.
   func process(buffer: AVAudioPCMBuffer) throws -> [Data] {
-    return m_encoder.encode(buffer: try m_converter.convert(buffer))
+    m_encoder.encode(buffer: try m_converter.convert(buffer))
   }
 
   // The capture moved to an input with this format. The chunks keep theirs.

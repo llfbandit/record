@@ -81,7 +81,7 @@ final class AudioEngineCapture: CaptureEngine {
   var inputState: InputState {
     // First: a macOS engine can run on after its device is gone.
     guard m_input.isAvailable else { return .lost }
-    guard let engine = m_engine, engine.isRunning, isCurrent(engine) else { return .stopped }
+    guard let engine = m_engine, engine.isRunning, engine.isCurrent else { return .stopped }
     return .ok
   }
 
@@ -91,7 +91,7 @@ final class AudioEngineCapture: CaptureEngine {
       // Else the engine could start again on another input, and the loss would never be reported.
       guard m_input.isAvailable else { throw RecorderError.noInputDevice }
 
-      if m_engine.map(isCurrent) != true { try reopen(on: m_input.uid) }
+      if m_engine?.isCurrent != true { try reopen(on: m_input.uid) }
       try m_engine?.start()
     } catch {
       // The device can go while we build on it.
@@ -160,11 +160,6 @@ final class AudioEngineCapture: CaptureEngine {
       closeEngine()
       throw error
     }
-  }
-
-  // On the input in use, in the format it opened with.
-  private func isCurrent(_ engine: CaptureInput) -> Bool {
-    engine.isCurrent && m_input.isCurrent
   }
 
   private func closeEngine() {

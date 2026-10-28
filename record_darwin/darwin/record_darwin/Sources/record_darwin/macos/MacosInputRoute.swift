@@ -12,9 +12,6 @@ final class MacosInputRoute: InputRoute {
     return CoreAudioDevices.deviceUid(of: device) ?? String(device)
   }
 
-  // A HAL unit stays on its device.
-  func captures(from uid: String) -> Bool? { nil }
-
   // Nothing stays on the system.
   func release() {}
 }

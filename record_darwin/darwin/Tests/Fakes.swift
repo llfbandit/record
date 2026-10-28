@@ -120,7 +120,6 @@ final class FakeDeviceRegistry: DeviceRegistry {
 // The engine is faked, so nothing binds.
 final class FakeInputRoute: InputRoute {
   func bind(_ deviceId: String?, channels: Int) throws -> String? { nil }
-  func captures(from uid: String) -> Bool? { nil }
   func release() {}
 }
 

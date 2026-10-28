@@ -8,6 +8,7 @@ final class EngineInput: CaptureInput {
   let format: AVAudioFormat
 
   private let m_engine: AVAudioEngine
+  private let m_uid: String?
   private let m_usesVoiceProcessing: Bool
   private let m_observer: NSObjectProtocol
 
@@ -16,6 +17,7 @@ final class EngineInput: CaptureInput {
   // A new engine, tapped. See OpenInput.
   // onChange comes when the engine's configuration changes.
   static func open(
+    on uid: String?,
     config: RecordConfig,
     onBuffer: @escaping (AVAudioPCMBuffer) -> Void,
     onChange: @escaping () -> Void
@@ -48,7 +50,7 @@ final class EngineInput: CaptureInput {
       }
 
       return EngineInput(
-        engine: engine, format: format, usesVoiceProcessing: usesVoiceProcessing, observer: observer
+        engine: engine, uid: uid, format: format, usesVoiceProcessing: usesVoiceProcessing, observer: observer
       )
     } catch {
       // Leave nothing behind: no tap, no voice processing.
@@ -59,11 +61,13 @@ final class EngineInput: CaptureInput {
 
   private init(
     engine: AVAudioEngine,
+    uid: String?,
     format: AVAudioFormat,
     usesVoiceProcessing: Bool,
     observer: NSObjectProtocol
   ) {
     m_engine = engine
+    m_uid = uid
     self.format = format
     m_usesVoiceProcessing = usesVoiceProcessing
     m_observer = observer
@@ -71,9 +75,11 @@ final class EngineInput: CaptureInput {
 
   var isRunning: Bool { m_engine.isRunning }
 
-  // Still in the tap format. Else starting it would crash the app.
+  // Still in the tap format, else starting it would crash the app. And still on the bound input.
   var isCurrent: Bool {
-    m_engine.inputNode.inputFormat(forBus: Self.bus).hasSameLayout(as: format)
+    guard m_engine.inputNode.inputFormat(forBus: Self.bus).hasSameLayout(as: format) else { return false }
+    guard let uid = m_uid, let now = IosInputRoute.currentUid() else { return true }
+    return now == uid
   }
 
   func start() throws {

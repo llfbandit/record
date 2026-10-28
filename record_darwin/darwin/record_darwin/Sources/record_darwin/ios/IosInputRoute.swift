@@ -46,8 +46,8 @@ final class IosInputRoute: InputRoute {
     return port?.uid ?? Self.currentUid()
   }
 
-  func captures(from uid: String) -> Bool? {
-    Self.currentUid().map { $0 == uid }
+  static func currentUid() -> String? {
+    AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid
   }
 
   // Only if it is still ours. The app may have changed it since.
@@ -57,12 +57,6 @@ final class IosInputRoute: InputRoute {
 
     let session = AVAudioSession.sharedInstance()
     if session.preferredInput?.uid == uid { try? session.setPreferredInput(nil) }
-  }
-
-  // MARK: - Private
-
-  private static func currentUid() -> String? {
-    AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid
   }
 }
 
