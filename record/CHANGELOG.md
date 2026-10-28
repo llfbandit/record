@@ -1,6 +1,8 @@
 ## 7.2.0
 - feat: `RecordConfig.audioRouteChange` sets what a take does when its input goes away (pause, follow or stop).
+- feat: `onStopped()` reports the end of each take: why it ended (`RecordStopReason`) and its file.
 - chore: iOS and macOS now come from `record_darwin`, replacing `record_ios` and `record_macos`.
+    - see [changelog](https://github.com/llfbandit/record/blob/main/record_darwin/CHANGELOG.md).
 
 ## 7.1.2
 - fix: The stream from `startStream()` now ends when the platform ends capture on its own (#632).
