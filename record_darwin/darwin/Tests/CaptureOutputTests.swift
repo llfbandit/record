@@ -239,6 +239,37 @@ final class CaptureOutputTests: XCTestCase {
     XCTAssertEqual(Double(peaks[1]), 8192, accuracy: 1000)
   }
 
+  func testAStereoAacStreamKeepsItsChannels() throws {
+    let buffer = discreteBuffer()
+    let config = makeConfig(encoder: "aacLc", sampleRate: Int(rate), numChannels: 2)
+    let processor = try AudioStreamProcessor(config: config, srcFormat: buffer.format)
+
+    var chunks: [Data] = []
+    for _ in 0..<10 { chunks += try processor.process(buffer: buffer) }
+    processor.dispose()
+
+    // One ADTS packet per chunk.
+    XCTAssertFalse(chunks.isEmpty)
+    for chunk in chunks {
+      XCTAssertEqual(chunk.prefix(2), Data([0xFF, 0xF1]))
+      let size = (Int(chunk[3]) & 0x3) << 11 | Int(chunk[4]) << 3 | Int(chunk[5]) >> 5
+      XCTAssertEqual(size, chunk.count)
+    }
+
+    let path = path("stream.aac")
+    FileManager.default.createFile(atPath: path, contents: chunks.reduce(Data(), +))
+    let file = try AVAudioFile(forReading: URL(fileURLWithPath: path))
+    let read = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length))!
+    try file.read(into: read)
+
+    XCTAssertEqual(read.format.channelCount, 2)
+    let peaks = (0..<2).map { channel in
+      UnsafeBufferPointer(start: read.floatChannelData![channel], count: Int(read.frameLength)).map(abs).max() ?? 0
+    }
+    XCTAssertEqual(Double(peaks[0]), 0.5, accuracy: 0.05)
+    XCTAssertEqual(Double(peaks[1]), 0.25, accuracy: 0.05)
+  }
+
   func testAFileTakesTheFirstOfManyChannels() throws {
     let buffer = discreteBuffer()
     let (settings, config) = try FormatPolicy.negotiate(

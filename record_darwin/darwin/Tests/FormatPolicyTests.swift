@@ -9,8 +9,8 @@ final class FormatPolicyTests: XCTestCase {
     AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: channels, interleaved: false)!
   }
 
-  private func pcm(channels: AVAudioChannelCount, sampleRate: Double = 44100) -> AVAudioFormat {
-    AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: channels, interleaved: false)!
+  private func pcm(channels: Int) throws -> AVAudioFormat {
+    try .pcm(.pcmFormatInt16, sampleRate: 44100, channels: channels, interleaved: true)
   }
 
   // MARK: - Channels and rates
