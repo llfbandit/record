@@ -48,6 +48,19 @@ enum FormatPolicy {
 
 // MARK: - Per-encoder initial settings
 
+extension FormatPolicy {
+  // Same list as initialSettings.
+  static let encoders: Set<String> = [
+    AudioEncoder.aacLc.rawValue,
+    AudioEncoder.aacEld.rawValue,
+    AudioEncoder.aacHe.rawValue,
+    AudioEncoder.opus.rawValue,
+    AudioEncoder.flac.rawValue,
+    AudioEncoder.pcm16bits.rawValue,
+    AudioEncoder.wav.rawValue,
+  ]
+}
+
 private extension FormatPolicy {
   static func initialSettings(for config: RecordConfig) throws -> [String: Any] {
     switch config.encoder {

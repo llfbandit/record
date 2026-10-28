@@ -55,6 +55,16 @@ final class FormatPolicyTests: XCTestCase {
       try FormatPolicy.negotiate(for: makeConfig(encoder: "amrNb"), input: input(channels: 1)))
   }
 
+  func testTheEncoderListMatchesWhatCanBeSetUp() {
+    let all = ["aacLc", "aacEld", "aacHe", "amrNb", "amrWb", "opus", "flac", "pcm16bits", "wav"]
+    for encoder in all {
+      // Opus refuses 44.1 kHz.
+      let config = makeConfig(encoder: encoder, sampleRate: 48000)
+      let canSetUp = (try? FormatPolicy.negotiate(for: config, input: input(channels: 1))) != nil
+      XCTAssertEqual(FormatPolicy.encoders.contains(encoder), canSetUp, encoder)
+    }
+  }
+
   // iOS cannot encode HE v2, so stereo stays on HE v1.
   func testAacHeIsV1EvenInStereo() throws {
     let (settings, effective) = try FormatPolicy.negotiate(

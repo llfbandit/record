@@ -24,17 +24,7 @@ protocol RecorderPlatform: AnyObject {
 
 // Both platforms run takes with AudioEngineCapture. Tests give their own engines.
 extension RecorderPlatform {
-  var supportedEncoders: Set<String> {
-    [
-      AudioEncoder.aacLc.rawValue,
-      AudioEncoder.aacEld.rawValue,
-      AudioEncoder.aacHe.rawValue,
-      AudioEncoder.flac.rawValue,
-      AudioEncoder.opus.rawValue,
-      AudioEncoder.pcm16bits.rawValue,
-      AudioEncoder.wav.rawValue,
-    ]
-  }
+  var supportedEncoders: Set<String> { FormatPolicy.encoders }
 
   func makeEngine(
     config: RecordConfig,
