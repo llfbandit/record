@@ -15,7 +15,7 @@ enum FormatPolicy {
     var settings = try initialSettings(for: config)
     settings[AVNumberOfChannelsKey] = channels
 
-    let inFormat = try AVAudioFormat.int16(sampleRate: input.sampleRate, channels: channels)
+    let inFormat = try AVAudioFormat.pcm(.pcmFormatInt16, sampleRate: input.sampleRate, channels: channels, interleaved: false)
     guard let outFormat = AVAudioFormat(settings: settings) else {
       throw RecorderError.startFailed("Output format initialization failure.")
     }

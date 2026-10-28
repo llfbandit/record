@@ -13,19 +13,10 @@ class AacAdtsEncoder: AudioEnc {
   // Reused for each packet.
   private let outputBuffer: UnsafeMutablePointer<UInt8>
 
+  // The format must be Int16, interleaved.
   init(config: RecordConfig, format: AVAudioFormat) throws {
-    var srcFormat = AudioStreamBasicDescription(
-      mSampleRate: format.sampleRate,
-      mFormatID: kAudioFormatLinearPCM,
-      mFormatFlags: kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked,
-      mBytesPerPacket: UInt32(format.channelCount * 2),
-      mFramesPerPacket: 1,
-      mBytesPerFrame: UInt32(format.channelCount * 2),
-      mChannelsPerFrame: UInt32(format.channelCount),
-      mBitsPerChannel: 16,
-      mReserved: 0
-    )
-    
+    var srcFormat = format.streamDescription.pointee
+
     var dstFormat = AudioStreamBasicDescription(
       mSampleRate: Double(config.sampleRate),
       mFormatID: kAudioFormatMPEG4AAC,
@@ -76,8 +67,8 @@ class AacAdtsEncoder: AudioEnc {
   func encode(buffer: AVAudioPCMBuffer) -> [Data] {
     let channels = Int(buffer.format.channelCount)
 
-    guard let converter = audioConverter,
-          buffer.appendInterleavedInt16(to: &pcmBuffer) else { return [] }
+    guard let converter = audioConverter, let samples = buffer.int16ChannelData?[0] else { return [] }
+    pcmBuffer.append(contentsOf: UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength) * channels))
 
     let samplesPerPacket = Self.framesPerPacket * channels
     var aacDataList: [Data] = []
