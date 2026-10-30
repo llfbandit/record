@@ -13,10 +13,7 @@ class FlacFormat : Format() {
   override val mimeTypeAudio: String = MediaFormat.MIMETYPE_AUDIO_FLAC
 
   override fun getMediaFormat(config: RecordConfig): MediaFormat {
-    return MediaFormat().apply {
-      setString(MediaFormat.KEY_MIME, mimeTypeAudio)
-      setInteger(MediaFormat.KEY_SAMPLE_RATE, nearestValue(sampleRates, config.sampleRate))
-      setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.numChannels)
+    return MediaFormat.createAudioFormat(mimeTypeAudio, nearestValue(sampleRates, config.sampleRate), config.numChannels).apply {
 
       // Specifics
       setInteger(MediaFormat.KEY_BIT_RATE, 0)

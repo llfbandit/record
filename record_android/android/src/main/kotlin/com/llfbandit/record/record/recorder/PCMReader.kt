@@ -20,7 +20,7 @@ class AudioDeadObjectException : Exception(
 class PCMReader(
   private val config: RecordConfig,
   private val mediaFormat: MediaFormat,
-) : PcmSource, AutoCloseable {
+) : PcmSource {
   companion object {
     private val TAG = PCMReader::class.java.simpleName
   }
@@ -95,10 +95,6 @@ class PCMReader(
     reader = newReader
     effects = newEffects
     routingListener?.let { newReader.addOnRoutingChangedListener(it, null) }
-  }
-
-  override fun close() {
-    release()
   }
 
   override fun release() {

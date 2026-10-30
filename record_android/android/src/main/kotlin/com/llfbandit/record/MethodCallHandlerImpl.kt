@@ -106,12 +106,6 @@ class MethodCallHandlerImpl(
   }
 
   private fun isEncoderSupported(call: MethodCall, result: MethodChannel.Result) {
-    val codec = call.argument<String>("encoder")
-
-    val isSupported = AudioFormats.isEncoderSupported(
-      AudioFormats.getMimeType(codec)
-    )
-
-    result.success(isSupported)
+    result.success(AudioFormats.isEncoderSupported(call.argument<String>("encoder")))
   }
 }

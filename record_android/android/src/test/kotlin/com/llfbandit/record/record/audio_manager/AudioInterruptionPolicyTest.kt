@@ -8,7 +8,7 @@ import org.junit.Test
 class AudioInterruptionPolicyTest {
   private fun react(mode: AudioInterruption, event: EnvironmentEvent) =
     AudioInterruptionPolicy.react(
-      testRecordConfig(audioInterruption = mode.ordinal),
+      testRecordConfig(audioInterruption = mode),
       event,
     )
 
@@ -38,7 +38,7 @@ class AudioInterruptionPolicyTest {
 
   @Test
   fun `regain still yields resume right after a loss (no stale state check)`() {
-    val config = testRecordConfig(audioInterruption = AudioInterruption.PAUSE_RESUME.ordinal)
+    val config = testRecordConfig(audioInterruption = AudioInterruption.PAUSE_RESUME)
     // A fast loss/regain cycle: the policy is stateless, so each call stands alone.
     assertEquals(listOf(PolicyAction.Pause), AudioInterruptionPolicy.react(config, EnvironmentEvent.FocusLost))
     assertEquals(listOf(PolicyAction.Resume), AudioInterruptionPolicy.react(config, EnvironmentEvent.FocusRegained))

@@ -126,10 +126,13 @@ class DeviceUtils {
     fun filterSources(devices: List<AudioDeviceInfo>): List<AudioDeviceInfo> {
       return devices.filter {
         it.isSource
-          && it.type != 18 // TYPE_TELEPHONY
-          && it.type != 25 // TYPE_REMOTE_SUBMIX
-          && it.type != 28 // TYPE_ECHO_REFERENCE
+          && it.type != AudioDeviceInfo.TYPE_TELEPHONY
+          && it.type != AudioDeviceInfo.TYPE_REMOTE_SUBMIX
+          && it.type != TYPE_ECHO_REFERENCE
       }
     }
+
+    // AudioDeviceInfo.TYPE_ECHO_REFERENCE is a system API, so apps can't reference it.
+    private const val TYPE_ECHO_REFERENCE = 28
   }
 }

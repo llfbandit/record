@@ -15,10 +15,7 @@ class AacFormat : Format() {
   override fun supportsStream(config: RecordConfig): Boolean = config.encoder == AudioEncoder.AacLc
 
   override fun getMediaFormat(config: RecordConfig): MediaFormat {
-    return MediaFormat().apply {
-      setString(MediaFormat.KEY_MIME, mimeTypeAudio)
-      setInteger(MediaFormat.KEY_SAMPLE_RATE, config.sampleRate)
-      setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.numChannels)
+    return MediaFormat.createAudioFormat(mimeTypeAudio, config.sampleRate, config.numChannels).apply {
       setInteger(MediaFormat.KEY_BIT_RATE, config.bitRate)
 
       // Specifics

@@ -9,7 +9,6 @@ import io.flutter.plugin.common.EventChannel.EventSink
 class RecorderStateStreamHandler : EventChannel.StreamHandler {
   // Event producer
   private var eventSink: EventSink? = null
-  private var state: RecordState = RecordState.STOP
 
   override fun onListen(arguments: Any?, events: EventSink?) {
     this.eventSink = events
@@ -20,17 +19,12 @@ class RecorderStateStreamHandler : EventChannel.StreamHandler {
   }
 
   fun sendStateEvent(state: RecordState) {
-    if (this.state != state) {
-      this.state = state
-
-      MainThread.post {
-        eventSink?.success(state.id)
-      }
+    MainThread.post {
+      eventSink?.success(state.id)
     }
   }
 
   fun sendStopEvent(stop: RecordStop) {
-    state = RecordState.STOP
     val map = stop.toMap()
 
     MainThread.post {

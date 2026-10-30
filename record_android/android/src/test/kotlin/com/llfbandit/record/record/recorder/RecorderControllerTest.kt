@@ -228,7 +228,7 @@ class RecorderControllerTest {
 
   @Test
   fun `an interruption pause keeps the audio session`() {
-    startRecording(testRecordConfig(audioInterruption = AudioInterruption.PAUSE_RESUME.ordinal))
+    startRecording(testRecordConfig(audioInterruption = AudioInterruption.PAUSE_RESUME))
     env.calls.clear()
 
     controller.onEnvironmentEvent(EnvironmentEvent.FocusLost)
@@ -240,7 +240,7 @@ class RecorderControllerTest {
 
   @Test
   fun `focus loss then regain pauses then resumes`() {
-    startRecording(testRecordConfig(audioInterruption = AudioInterruption.PAUSE_RESUME.ordinal))
+    startRecording(testRecordConfig(audioInterruption = AudioInterruption.PAUSE_RESUME))
     engine.calls.clear()
 
     controller.onEnvironmentEvent(EnvironmentEvent.FocusLost)
@@ -252,7 +252,7 @@ class RecorderControllerTest {
 
   @Test
   fun `a user pause on top of an interruption pause hands the session back`() {
-    startRecording(testRecordConfig(audioInterruption = AudioInterruption.PAUSE_RESUME.ordinal))
+    startRecording(testRecordConfig(audioInterruption = AudioInterruption.PAUSE_RESUME))
     controller.onEnvironmentEvent(EnvironmentEvent.FocusLost)
     env.calls.clear()
     engine.calls.clear()
@@ -274,7 +274,7 @@ class RecorderControllerTest {
   // --- route change policy ---
 
   private fun startWithRouteChange(mode: AudioRouteChange) =
-    startRecording(testRecordConfig(audioRouteChange = mode.ordinal))
+    startRecording(testRecordConfig(audioRouteChange = mode))
 
   @Test
   fun `follow re-points capture and keeps recording`() {
@@ -329,8 +329,8 @@ class RecorderControllerTest {
   @Test
   fun `a route loss during an interruption pause waits for the user`() {
     startRecording(testRecordConfig(
-      audioInterruption = AudioInterruption.PAUSE_RESUME.ordinal,
-      audioRouteChange = AudioRouteChange.PAUSE.ordinal,
+      audioInterruption = AudioInterruption.PAUSE_RESUME,
+      audioRouteChange = AudioRouteChange.PAUSE,
     ))
     controller.onEnvironmentEvent(EnvironmentEvent.FocusLost)
     env.calls.clear()
@@ -367,7 +367,7 @@ class RecorderControllerTest {
   private val mic = testAudioDevice(id = 7)
 
   private fun startOnMic(mode: AudioRouteChange) =
-    startRecording(testRecordConfig(device = mic, audioRouteChange = mode.ordinal))
+    startRecording(testRecordConfig(device = mic, audioRouteChange = mode))
 
   @Test
   fun `follow reports the default device`() {
@@ -425,7 +425,7 @@ class RecorderControllerTest {
   @Test
   fun `a resume on the re-plugged device pins it and reports nothing`() {
     val buds = testAudioDevice(id = 7, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "24:29:34:AB:85:F1")
-    startRecording(testRecordConfig(device = buds, audioRouteChange = AudioRouteChange.PAUSE.ordinal))
+    startRecording(testRecordConfig(device = buds, audioRouteChange = AudioRouteChange.PAUSE))
     controller.onRouteLost(engine)
     env.plugged[buds.id] = testAudioDevice(id = 12, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "24:29:34:AB:85:F1")
 

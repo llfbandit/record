@@ -5,7 +5,6 @@ import com.llfbandit.record.record.model.AudioEncoder
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
 import com.llfbandit.record.record.encoder.EncoderListener
-import com.llfbandit.record.record.encoder.IEncoder
 
 /**
  * Represents an audio format.
@@ -46,7 +45,7 @@ sealed class Format {
      * the selected format does not support it.
      */
     fun checkStreamSupport(config: RecordConfig) {
-      if (config.path == null && !selectFormat(config).supportsStream(config)) {
+      if (config.path == null && !selectFormat(config.encoder).supportsStream(config)) {
         throw IllegalArgumentException("Streaming is not supported for encoder '${config.encoder.value}'")
       }
     }
@@ -57,13 +56,13 @@ sealed class Format {
     fun createEncoder(
       config: RecordConfig,
       listener: EncoderListener
-    ): Pair<IEncoder, MediaFormat> {
-      val format = selectFormat(config)
+    ): EncoderSetup {
+      val format = selectFormat(config.encoder)
       return FormatCodecSelector.findCodec(format, config, listener)
     }
 
-    private fun selectFormat(config: RecordConfig): Format {
-      return when (config.encoder) {
+    fun selectFormat(encoder: AudioEncoder): Format {
+      return when (encoder) {
         AudioEncoder.AacLc, AudioEncoder.AacEld, AudioEncoder.AacHe -> AacFormat()
         AudioEncoder.AmrNb -> AmrNbFormat()
         AudioEncoder.AmrWb -> AmrWbFormat()

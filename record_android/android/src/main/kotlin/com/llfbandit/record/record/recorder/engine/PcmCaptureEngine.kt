@@ -14,7 +14,7 @@ import java.util.concurrent.LinkedBlockingQueue
 
 /** [CaptureEngine] that records with AudioRecord + an [IEncoder] on a background loop. */
 class PcmCaptureEngine(
-  config: RecordConfig,
+  private val config: RecordConfig,
   private val onEvent: (source: CaptureEngine, event: CaptureEvent) -> Unit,
   private val removals: DeviceRemovals,
   private val createSource: PcmSourceFactory = ::PCMReader,
@@ -36,8 +36,6 @@ class PcmCaptureEngine(
     class EncoderFailed(val cause: Throwable) : Msg
   }
 
-  // Keep a private copy: renegotiating the codec must not change the caller's config.
-  private val config: RecordConfig = config.copy()
   private val inbox = LinkedBlockingQueue<Msg>()
 
   // The loop sets it to null; the control thread reads it for the amplitude.
@@ -56,12 +54,14 @@ class PcmCaptureEngine(
   }
 
   override fun start(): RecordConfig {
+    val negotiated: RecordConfig
     try {
       Format.checkStreamSupport(config)
-      val (enc, mediaFormat) = Format.createEncoder(config, this)
+      val (enc, mediaFormat, settled) = Format.createEncoder(config, this)
+      negotiated = settled
       // Assigned first so a reader failure still releases the container it opened.
       encoder = enc
-      val r = createSource(config, mediaFormat)
+      val r = createSource(negotiated, mediaFormat)
       reader = r
       if (!r.start()) throw Exception("PCM reader failed to start.")
       // Track moves, so an unplug of the device capture just left still counts as a loss.
@@ -79,7 +79,7 @@ class PcmCaptureEngine(
       isDaemon = true
       start()
     }
-    return config
+    return negotiated
   }
 
   override fun pause(): Boolean = post(Msg.Pause)

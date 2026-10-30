@@ -15,14 +15,13 @@ import kotlin.math.log10
 /** [CaptureEngine] backed by the framework [MediaRecorder]; everything runs on the caller's thread. */
 class MediaCaptureEngine(
   private val context: Context,
-  config: RecordConfig,
+  private val config: RecordConfig,
   private val onEvent: (source: CaptureEngine, event: CaptureEvent) -> Unit,
+  private val removals: DeviceRemovals,
 ) : CaptureEngine {
   companion object {
     private val TAG = MediaCaptureEngine::class.java.simpleName
   }
-
-  private val config: RecordConfig = config.copy()
 
   // The control thread writes it; the routing and unplug callbacks read it from other threads.
   @Volatile
@@ -90,7 +89,7 @@ class MediaCaptureEngine(
     r.addOnRoutingChangedListener(listener, null)
 
     // Only an unplug is a loss: a route change alone may be a newly plugged device.
-    unwatchRemovals = DeviceUtils.watchInputRemovals(context) { deviceIds ->
+    unwatchRemovals = removals.watch { deviceIds ->
       if (recorder != null && route.lost(deviceIds)) onEvent(this, CaptureEvent.RouteLost)
     }
   }
