@@ -15,10 +15,7 @@ class OpusFormat : Format() {
   override val mimeTypeAudio: String = MediaFormat.MIMETYPE_AUDIO_OPUS
 
   override fun getMediaFormat(config: RecordConfig): MediaFormat {
-    return MediaFormat().apply {
-      setString(MediaFormat.KEY_MIME, mimeTypeAudio)
-      setInteger(MediaFormat.KEY_SAMPLE_RATE, nearestValue(sampleRates, config.sampleRate))
-      setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.numChannels)
+    return MediaFormat.createAudioFormat(mimeTypeAudio, nearestValue(sampleRates, config.sampleRate), config.numChannels).apply {
       setInteger(MediaFormat.KEY_BIT_RATE, config.bitRate)
     }
   }

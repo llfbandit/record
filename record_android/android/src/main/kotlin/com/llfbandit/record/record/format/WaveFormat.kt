@@ -11,10 +11,7 @@ class WaveFormat : Format() {
   override fun getMediaFormat(config: RecordConfig): MediaFormat {
     val frameSize = config.numChannels * 16 / 8
 
-    return MediaFormat().apply {
-      setString(MediaFormat.KEY_MIME, mimeTypeAudio)
-      setInteger(MediaFormat.KEY_SAMPLE_RATE, config.sampleRate)
-      setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.numChannels)
+    return MediaFormat.createAudioFormat(mimeTypeAudio, config.sampleRate, config.numChannels).apply {
       setInteger(KEY_X_FRAME_SIZE_IN_BYTES, frameSize)
     }
   }

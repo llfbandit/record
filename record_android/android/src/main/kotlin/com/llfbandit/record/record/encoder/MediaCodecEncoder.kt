@@ -24,7 +24,10 @@ class MediaCodecEncoder(
   private var mCodec: MediaCodec? = null
   private var mContainer: IContainerWriter? = null
   private val mQueue = LinkedList<Sample>()
-  private var mRate = 0f // bytes per us
+  // 16-bit PCM input.
+  private val mBytesPerSecond = 2L *
+    mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE) *
+    mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
   private var mInputBufferPosition: Long = 0
   private var mInputBufferIndex = -1
   private var mContainerTrack = 0
@@ -94,8 +97,6 @@ class MediaCodecEncoder(
   }
 
   private fun initEncoding() {
-    calculateInputRate()
-
     var codec: MediaCodec? = null
     var container: IContainerWriter?
 
@@ -251,17 +252,8 @@ class MediaCodecEncoder(
     }
   }
 
-  private fun calculateInputRate() {
-    val bitsPerSample = 16 // Default to 16-bit PCM
-    val sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-    val channelCount = mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-
-    // bytes per microsecond
-    mRate = (bitsPerSample / 8.0f) * sampleRate * channelCount * 1e-6f
-  }
-
   private fun getPresentationTimestampUs(position: Long): Long {
-    return (position / mRate).toLong()
+    return position * 1_000_000L / mBytesPerSecond
   }
 
   internal inner class AudioRecorderCodecCallback : MediaCodec.Callback() {

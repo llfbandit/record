@@ -12,6 +12,7 @@ import com.llfbandit.record.record.recorder.RecorderController
 import com.llfbandit.record.record.recorder.RecorderSink
 import com.llfbandit.record.record.recorder.engine.CaptureEngine
 import com.llfbandit.record.record.recorder.engine.CaptureEvent
+import com.llfbandit.record.record.recorder.engine.DeviceRemovals
 import com.llfbandit.record.record.recorder.engine.MediaCaptureEngine
 import com.llfbandit.record.record.recorder.engine.PcmCaptureEngine
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
@@ -52,8 +53,9 @@ class RecorderWrapper(
   private val controller: RecorderController = RecorderController(
     environment = environment,
     engineFactory = { config ->
-      if (config.useLegacy) MediaCaptureEngine(context, config, ::onCaptureEvent)
-      else PcmCaptureEngine(config, ::onCaptureEvent, { DeviceUtils.watchInputRemovals(context, it) })
+      val removals = DeviceRemovals { DeviceUtils.watchInputRemovals(context, it) }
+      if (config.useLegacy) MediaCaptureEngine(context, config, ::onCaptureEvent, removals)
+      else PcmCaptureEngine(config, ::onCaptureEvent, removals)
     },
     sink = object : RecorderSink {
       override fun onState(state: RecordState) = stateStreamHandler.sendStateEvent(state)

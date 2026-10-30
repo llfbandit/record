@@ -15,10 +15,8 @@ class AmrWbFormat : Format() {
   override val mimeTypeAudio: String = MediaFormat.MIMETYPE_AUDIO_AMR_WB
 
   override fun getMediaFormat(config: RecordConfig): MediaFormat {
-    return MediaFormat().apply {
-      setString(MediaFormat.KEY_MIME, mimeTypeAudio)
-      setInteger(MediaFormat.KEY_SAMPLE_RATE, 16000) // required by SDK
-      setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1)
+    // The SDK requires this sample rate, in mono.
+    return MediaFormat.createAudioFormat(mimeTypeAudio, 16000, 1).apply {
       setInteger(MediaFormat.KEY_BIT_RATE, nearestValue(bitRates, config.bitRate))
     }
   }

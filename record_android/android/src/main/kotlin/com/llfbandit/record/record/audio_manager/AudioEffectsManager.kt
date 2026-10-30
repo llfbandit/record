@@ -6,7 +6,7 @@ import android.media.audiofx.NoiseSuppressor
 import android.util.Log
 import com.llfbandit.record.record.model.RecordConfig
 
-class AudioEffectsManager(private val audioSessionId: Int) : AutoCloseable {
+class AudioEffectsManager(private val audioSessionId: Int) {
   companion object {
     private val TAG = AudioEffectsManager::class.java.simpleName
   }
@@ -43,6 +43,4 @@ class AudioEffectsManager(private val audioSessionId: Int) : AutoCloseable {
     aec?.release()
     ns?.release()
   }
-
-  override fun close() = release()
 }

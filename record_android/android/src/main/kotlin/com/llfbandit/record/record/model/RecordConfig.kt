@@ -5,16 +5,15 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.MediaRecorder
 import android.os.Build
-import com.llfbandit.record.record.util.Utils
 import com.llfbandit.record.record.util.DeviceUtils
 import io.flutter.plugin.common.MethodCall
 
-class RecordConfig(
+data class RecordConfig(
   val path: String?,
-  encoder: String,
-  var bitRate: Int,
-  var sampleRate: Int,
-  var numChannels: Int,
+  val encoder: AudioEncoder,
+  val bitRate: Int,
+  val sampleRate: Int,
+  val numChannels: Int,
   val device: AudioDeviceInfo?,
   val autoGain: Boolean = false,
   val echoCancel: Boolean = false,
@@ -25,42 +24,19 @@ class RecordConfig(
   val audioSource: Int = MediaRecorder.AudioSource.DEFAULT,
   val speakerphone: Boolean = false,
   val audioManagerMode: Int = AudioManager.MODE_NORMAL,
-  audioInterruption: Int,
-  audioRouteChange: Int,
+  val audioInterruption: AudioInterruption = AudioInterruption.PAUSE,
+  val audioRouteChange: AudioRouteChange = AudioRouteChange.PAUSE,
   val streamBufferSize: Int?,
   private val rawMap: Map<String, Any?> = emptyMap(),
   // Dart asked for a device that is not there. The take falls back to the default one.
   val deviceMissing: Boolean = false,
 ) {
-  val audioInterruption: AudioInterruption = when (audioInterruption) {
-    0 -> AudioInterruption.NONE
-    1 -> AudioInterruption.PAUSE
-    2 -> AudioInterruption.PAUSE_RESUME
-    else -> AudioInterruption.PAUSE
-  }
-
-  val audioRouteChange: AudioRouteChange = when (audioRouteChange) {
-    0 -> AudioRouteChange.FOLLOW
-    2 -> AudioRouteChange.STOP
-    else -> AudioRouteChange.PAUSE
-  }
-
-  val encoder: AudioEncoder = AudioEncoder.from(encoder)
-
   fun toMap(): Map<String, Any?> = rawMap + mapOf(
     "sampleRate" to sampleRate,
     "numChannels" to numChannels,
     "bitRate" to bitRate,
     // Report the device in use, not the requested one; null means the default device.
     "device" to device?.let { DeviceUtils.deviceInfoToMap(it) },
-  )
-
-  fun copy(device: AudioDeviceInfo? = this.device) = RecordConfig(
-    path, encoder.value, bitRate, sampleRate, numChannels,
-    device, autoGain, echoCancel, noiseSuppress,
-    useLegacy, muteAudio, manageBluetoothSco, audioSource,
-    speakerphone, audioManagerMode, audioInterruption.ordinal,
-    audioRouteChange.ordinal, streamBufferSize, rawMap, deviceMissing,
   )
 
   fun isModified(other: RecordConfig): Boolean =
@@ -124,28 +100,23 @@ class RecordConfig(
 
       return RecordConfig(
         call.argument("path"),
-        Utils.firstNonNull(call.argument("encoder"), "aacLc"),
-        Utils.firstNonNull(call.argument("bitRate"), 128000),
-        Utils.firstNonNull(call.argument("sampleRate"), 44100),
-        Utils.firstNonNull(call.argument("numChannels"), 2),
+        AudioEncoder.from(call.argument("encoder") ?: "aacLc"),
+        call.argument("bitRate") ?: 128000,
+        call.argument("sampleRate") ?: 44100,
+        call.argument("numChannels") ?: 2,
         device,
-        Utils.firstNonNull(call.argument("autoGain"), false),
-        Utils.firstNonNull(call.argument("echoCancel"), false),
-        Utils.firstNonNull(call.argument("noiseSuppress"), false),
-        Utils.firstNonNull(map?.get("useLegacy") as Boolean?, false),
-        Utils.firstNonNull(map?.get("muteAudio") as Boolean?, false),
-        Utils.firstNonNull(map?.get("manageBluetooth") as Boolean?, true),
+        call.argument("autoGain") ?: false,
+        call.argument("echoCancel") ?: false,
+        call.argument("noiseSuppress") ?: false,
+        map?.get("useLegacy") as Boolean? ?: false,
+        map?.get("muteAudio") as Boolean? ?: false,
+        map?.get("manageBluetooth") as Boolean? ?: true,
         audioSource,
-        Utils.firstNonNull(map?.get("speakerphone") as Boolean?, false),
+        map?.get("speakerphone") as Boolean? ?: false,
         audioManagerMode,
-        Utils.firstNonNull(
-          call.argument("audioInterruption"),
-          AudioInterruption.PAUSE.ordinal
-        ),
-        Utils.firstNonNull(
-          call.argument("audioRouteChange"),
-          AudioRouteChange.PAUSE.ordinal
-        ),
+        // Unknown index falls back to PAUSE.
+        AudioInterruption.entries.getOrElse(call.argument("audioInterruption") ?: -1) { AudioInterruption.PAUSE },
+        AudioRouteChange.entries.getOrElse(call.argument("audioRouteChange") ?: -1) { AudioRouteChange.PAUSE },
         call.argument("streamBufferSize"),
         rawMap,
         deviceMissing = requestedDevice != null && device == null,
@@ -166,8 +137,9 @@ enum class AudioEncoder(val value: String) {
   Wav("wav");
 
   companion object {
-    fun from(value: String): AudioEncoder =
-      entries.firstOrNull { it.value == value } ?: AacLc
+    fun fromOrNull(value: String?): AudioEncoder? = entries.firstOrNull { it.value == value }
+
+    fun from(value: String): AudioEncoder = fromOrNull(value) ?: AacLc
   }
 }
 

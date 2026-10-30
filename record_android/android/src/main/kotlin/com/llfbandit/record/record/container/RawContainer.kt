@@ -81,7 +81,8 @@ class RawContainer(private val path: String?) : IContainerWriter {
     bufferInfo: MediaCodec.BufferInfo
   ): ByteArray {
     val buffer = ByteArray(bufferInfo.size)
-    byteBuffer[buffer, bufferInfo.offset, bufferInfo.size]
+    byteBuffer.position(bufferInfo.offset)
+    byteBuffer.get(buffer)
 
     return buffer
   }
