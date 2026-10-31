@@ -29,6 +29,7 @@ class MediaCaptureEngine(
   private var routingListener: AudioRouting.OnRoutingChangedListener? = null
   private var unwatchRemovals: AutoCloseable? = null
   private val route = RouteTracker()
+  private var paused = false
 
   override val amplitude: Double
     get() {
@@ -41,9 +42,28 @@ class MediaCaptureEngine(
       return if (peak == 0) DEFAULT_AMPLITUDE_DB else 20 * log10(peak / 32768.0)
     }
 
-  // MediaRecorder re-routes itself; all we need to check is that a device still exists.
-  override fun reroute(device: AudioDeviceInfo?, done: (ok: Boolean) -> Unit) =
-    done(recorder != null && DeviceUtils.hasInputDevices(context))
+  // MediaRecorder re-routes itself; it only needs the pin moved and to run.
+  override fun captureOn(device: AudioDeviceInfo?): Bound {
+    val r = recorder ?: return Bound.NoInput
+    if (!DeviceUtils.hasInputDevices(context)) return Bound.NoInput
+    preferDevice(r, device)
+    if (paused && !resume()) return Bound.NoInput
+    return Bound.On(boundDevice(r, device))
+  }
+
+  private fun boundDevice(r: MediaRecorder, device: AudioDeviceInfo?): AudioDeviceInfo? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
+    // Android may not honor the pin; until it names a device, trust it.
+    val routed = r.routedDevice?.id
+    return device?.takeIf { routed == null || routed == it.id }
+  }
+
+  // MediaRecorder only takes a preferred device from API 28; below that, Android picks.
+  private fun preferDevice(r: MediaRecorder, device: AudioDeviceInfo?) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && !r.setPreferredDevice(device)) {
+      Log.w(TAG, "Unable to set device: ${device?.productName}")
+    }
+  }
 
   override fun start(): RecordConfig {
     val r = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
@@ -63,6 +83,7 @@ class MediaCaptureEngine(
       // must be set after output format
       r.setAudioEncoder(getEncoder(config.encoder))
       r.setOutputFile(config.path)
+      preferDevice(r, config.device)
       r.prepare()
       r.start()
     } catch (e: Exception) {
@@ -98,6 +119,7 @@ class MediaCaptureEngine(
     val r = recorder ?: return false
     return try {
       r.pause()
+      paused = true
       true
     } catch (ex: IllegalStateException) {
       Log.d(TAG, "pause() called before start() or after stop(): ${ex.message}")
@@ -109,6 +131,7 @@ class MediaCaptureEngine(
     val r = recorder ?: return false
     return try {
       r.resume()
+      paused = false
       true
     } catch (ex: IllegalStateException) {
       Log.d(TAG, "resume() called before start() or after stop(): ${ex.message}")
@@ -116,7 +139,7 @@ class MediaCaptureEngine(
     }
   }
 
-  override fun stop(delete: Boolean, done: (Throwable?) -> Unit) {
+  override fun stop(delete: Boolean): Throwable? {
     val r = recorder
     recorder = null
     var error: Throwable? = null
@@ -145,7 +168,7 @@ class MediaCaptureEngine(
 
     if (delete) Utils.deleteFile(config.path)
 
-    done(error)
+    return error
   }
 
   private fun getOutputFormat(encoder: AudioEncoder): Int = when (encoder) {

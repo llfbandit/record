@@ -19,13 +19,7 @@ class PcmCaptureEngineTest {
       removals = { AutoCloseable {} },
     )
 
-  private fun stop(engine: PcmCaptureEngine, delete: Boolean = false): Throwable? {
-    var error: Throwable? = null
-    var answered = false
-    engine.stop(delete) { e -> error = e; answered = true }
-    assertTrue("stop must answer", answered)
-    return error
-  }
+  private fun stop(engine: PcmCaptureEngine, delete: Boolean = false): Throwable? = engine.stop(delete)
 
   @Test
   fun `amplitude is the default before start`() {

@@ -10,6 +10,7 @@ import com.llfbandit.record.record.recorder.PCMReader
 import com.llfbandit.record.record.recorder.PcmSource
 import com.llfbandit.record.record.recorder.PcmSourceFactory
 import com.llfbandit.record.record.util.Utils
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.LinkedBlockingQueue
 
 /** [CaptureEngine] that records with AudioRecord + an [IEncoder] on a background loop. */
@@ -31,7 +32,7 @@ class PcmCaptureEngine(
     data object Resume : Msg
     data object RouteChanged : Msg
     class DevicesRemoved(val deviceIds: List<Int>) : Msg
-    class Reroute(val device: AudioDeviceInfo?, val done: (Boolean) -> Unit) : Msg
+    class CaptureOn(val device: AudioDeviceInfo?, val done: (Bound) -> Unit) : Msg
     class Stop(val delete: Boolean, val done: (Throwable?) -> Unit) : Msg
     class EncoderFailed(val cause: Throwable) : Msg
   }
@@ -48,9 +49,12 @@ class PcmCaptureEngine(
 
   override val amplitude: Double get() = reader?.getAmplitude() ?: DEFAULT_AMPLITUDE_DB
 
-  override fun reroute(device: AudioDeviceInfo?, done: (ok: Boolean) -> Unit) {
+  override fun captureOn(device: AudioDeviceInfo?): Bound {
     // Only the loop touches the reader, so the answer comes from there.
-    if (!post(Msg.Reroute(device, done))) done(false)
+    val answer = CompletableFuture<Bound>()
+    if (!post(Msg.CaptureOn(device) { answer.complete(it) })) return Bound.NoInput
+    // No timeout: a late answer would still move capture behind the caller's back.
+    return answer.get()
   }
 
   override fun start(): RecordConfig {
@@ -86,17 +90,18 @@ class PcmCaptureEngine(
 
   override fun resume(): Boolean = post(Msg.Resume)
 
-  override fun stop(delete: Boolean, done: (Throwable?) -> Unit) {
+  override fun stop(delete: Boolean): Throwable? {
     val t = thread
     thread = null
 
+    val answer = CompletableFuture<Throwable?>()
+    val done: (Throwable?) -> Unit = { answer.complete(it) }
     // Never started: only the encoder's container is left.
-    if (t == null) {
-      release { error -> answer(delete, error, done) }
-      return
-    }
+    if (t == null) release { error -> answer(delete, error, done) }
     // The loop owns the teardown, so it answers.
-    inbox.put(Msg.Stop(delete, done))
+    else inbox.put(Msg.Stop(delete, done))
+    // No timeout: the file isn't final until the loop answers.
+    return answer.get()
   }
 
   override fun onEncoderFailure(ex: Exception) {
@@ -119,7 +124,7 @@ class PcmCaptureEngine(
     var paused = false
     // The reader can't read again until it is rebuilt, so the loop must stop calling read().
     var needsRebuild = false
-    // Keeps reportRouteLost from repeating until a reroute or pause answers it.
+    // Keeps reportRouteLost from repeating until a captureOn or pause answers it.
     var routePending = false
     val route = RouteTracker().apply { reset(reader.routedDeviceId) }
     var failure: Throwable
@@ -141,25 +146,25 @@ class PcmCaptureEngine(
       return started
     }
 
-    fun reroute(device: AudioDeviceInfo?): Boolean {
+    fun captureOn(device: AudioDeviceInfo?): Bound {
       if (needsRebuild) {
-        if (!recreate(reader, device)) return false
+        if (!recreate(reader, device)) return Bound.NoInput
       } else {
         // A live AudioRecord can switch device without a rebuild.
         reader.preferDevice(device)
       }
 
-      // The reader stays stopped while paused, rebuilt or not; resume() starts it.
-      if (paused) {
-        route.reset(null)
-      } else if (!startCapture()) {
+      if (!startCapture()) {
         // A reader that failed to start can't be read: wait for a rebuild instead.
         needsRebuild = true
-        return false
+        return Bound.NoInput
       }
 
       needsRebuild = false
-      return true
+      paused = false
+      // Android may not honor the pin; until it names a device, trust it.
+      val routed = reader.routedDeviceId
+      return Bound.On(device?.takeIf { routed == null || routed == it.id })
     }
 
     capture@ while (true) {
@@ -185,10 +190,10 @@ class PcmCaptureEngine(
 
         is Msg.DevicesRemoved -> if (route.lost(msg.deviceIds)) reportRouteLost()
 
-        is Msg.Reroute -> {
-          val ok = reroute(msg.device)
+        is Msg.CaptureOn -> {
+          val bound = captureOn(msg.device)
           routePending = false
-          msg.done(ok)
+          msg.done(bound)
         }
 
         is Msg.Stop -> return release { error -> answer(msg.delete, error, msg.done) }
@@ -216,8 +221,7 @@ class PcmCaptureEngine(
     while (true) {
       when (val msg = inbox.take()) {
         is Msg.Stop -> return answer(msg.delete, failure, msg.done)
-        // The reader is released, so refuse the reroute but still answer the caller.
-        is Msg.Reroute -> msg.done(false)
+        is Msg.CaptureOn -> msg.done(Bound.NoInput)
         else -> {}
       }
     }

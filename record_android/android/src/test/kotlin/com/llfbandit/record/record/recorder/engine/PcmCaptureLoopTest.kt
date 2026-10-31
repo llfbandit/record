@@ -15,7 +15,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -119,14 +118,14 @@ class PcmCaptureLoopTest {
     assertNull(onRemoved)
   }
 
-  // --- reroute ---
+  // --- captureOn ---
 
   @Test
-  fun `a reroute after a dead read rebuilds the source and resumes reading`() {
+  fun `a capture after a dead read rebuilds the source and resumes reading`() {
     source.failNextRead(AudioDeadObjectException())
     assertTrue(awaitRouteLost())
 
-    assertTrue(reroute(null))
+    assertTrue(captureOn(null) is Bound.On)
 
     assertEquals(1, source.recreateCount)
     assertNull("a follow must not pin a device", source.lastRecreateDevice)
@@ -134,22 +133,22 @@ class PcmCaptureLoopTest {
   }
 
   @Test
-  fun `a reroute that cannot rebuild answers false and stays halted`() {
+  fun `a capture that cannot rebuild answers NoInput and stays halted`() {
     source.recreateError = IllegalStateException("mic busy")
     source.failNextRead(AudioDeadObjectException())
     assertTrue(awaitRouteLost())
 
-    assertFalse(reroute(mic))
+    assertEquals(Bound.NoInput, captureOn(mic))
 
     assertEquals("every attempt is used", 3, source.recreateCount)
   }
 
   @Test
-  fun `a reroute of a live source re-aims it instead of rebuilding`() {
+  fun `a capture on a live source re-aims it instead of rebuilding`() {
     unplug(1)
     assertTrue(awaitRouteLost())
 
-    assertTrue(reroute(mic))
+    assertTrue(captureOn(mic) is Bound.On)
 
     assertEquals("a live source is never rebuilt", 0, source.recreateCount)
     assertEquals(mic, source.lastPreferredDevice)
@@ -161,7 +160,7 @@ class PcmCaptureLoopTest {
     assertTrue(awaitRouteLost())
     source.startOk = false
 
-    assertFalse(reroute(null))
+    assertEquals(Bound.NoInput, captureOn(null))
 
     val readsWhileHalted = source.readCount
     Thread.sleep(100)
@@ -169,15 +168,15 @@ class PcmCaptureLoopTest {
     assertNull("nothing fails while waiting", events.poll(100, TimeUnit.MILLISECONDS))
 
     source.startOk = true
-    assertTrue(reroute(null))
-    assertEquals("the next reroute rebuilds it", 1, source.recreateCount)
+    assertTrue(captureOn(null) is Bound.On)
+    assertEquals("the next capture rebuilds it", 1, source.recreateCount)
   }
 
   @Test
   fun `a second route loss is reported once the first has been answered`() {
     source.failNextRead(AudioDeadObjectException())
     assertTrue(awaitRouteLost())
-    assertTrue(reroute(null))
+    assertTrue(captureOn(null) is Bound.On)
 
     source.failNextRead(AudioDeadObjectException())
 
@@ -219,16 +218,29 @@ class PcmCaptureLoopTest {
   }
 
   @Test
-  fun `a resume after a route loss rebuilds pinned to the given device`() {
+  fun `a capture after a paused route loss rebuilds pinned to the given device and runs`() {
     source.failNextRead(AudioDeadObjectException())
     assertTrue(awaitRouteLost())
     engine.pause()
+    source.routedDeviceId = mic.id
 
-    assertTrue(reroute(mic))
+    val bound = captureOn(mic)
 
+    assertEquals(mic, (bound as Bound.On).device)
     assertEquals(1, source.recreateCount)
     assertEquals(mic, source.lastRecreateDevice)
-    assertEquals("a paused rebuild stays stopped", 0, source.startCountSince(1))
+    assertTrue("capture runs again", awaitReads())
+  }
+
+  @Test
+  fun `a capture that Android routes elsewhere reports no device`() {
+    unplug(1)
+    assertTrue(awaitRouteLost())
+    source.routedDeviceId = 9
+
+    val bound = captureOn(mic)
+
+    assertNull((bound as Bound.On).device)
   }
 
   // --- teardown ---
@@ -253,15 +265,13 @@ class PcmCaptureLoopTest {
 
   // The controller hears of the failure later: meanwhile nothing may look like it worked.
   @Test
-  fun `a failed loop refuses pause, resume and reroute`() {
+  fun `a failed loop refuses pause, resume and captureOn`() {
     source.failNextRead(IllegalStateException("broken"))
     assertTrue(events.poll(2, TimeUnit.SECONDS) is CaptureEvent.Failed)
 
     assertFalse(engine.pause())
     assertFalse(engine.resume())
-    val rerouted = LinkedBlockingQueue<Boolean>()
-    engine.reroute(null) { rerouted.put(it) }
-    assertEquals(false, rerouted.poll(2, TimeUnit.SECONDS))
+    assertEquals(Bound.NoInput, captureOn(null))
   }
 
   // --- helpers ---
@@ -297,21 +307,9 @@ class PcmCaptureLoopTest {
     return false
   }
 
-  private fun reroute(device: AudioDeviceInfo?): Boolean {
-    val answered = CountDownLatch(1)
-    var ok = false
-    engine.reroute(device) { result -> ok = result; answered.countDown() }
-    assertTrue("reroute must answer", answered.await(2, TimeUnit.SECONDS))
-    return ok
-  }
+  private fun captureOn(device: AudioDeviceInfo?): Bound = engine.captureOn(device)
 
-  private fun stop(): Throwable? {
-    val answered = CountDownLatch(1)
-    var error: Throwable? = null
-    engine.stop(delete = false) { e -> error = e; answered.countDown() }
-    assertTrue("stop must answer", answered.await(2, TimeUnit.SECONDS))
-    return error
-  }
+  private fun stop(): Throwable? = engine.stop(delete = false)
 }
 
 /** Stands in for the AudioRecord the loop would otherwise need a device to drive. */
@@ -329,17 +327,13 @@ private class FakeSource : PcmSource {
   @Volatile var lastPreferredDevice: AudioDeviceInfo? = null
 
   private val failures = LinkedBlockingQueue<Throwable>()
-  private var startCount = 0
   private var onRouteChanged: (() -> Unit)? = null
 
   fun failNextRead(cause: Throwable) = failures.put(cause)
 
   fun fireRouteChanged() = onRouteChanged?.invoke()
 
-  fun startCountSince(mark: Int) = startCount - mark
-
   override fun start(): Boolean {
-    if (startOk) startCount++
     return startOk
   }
 

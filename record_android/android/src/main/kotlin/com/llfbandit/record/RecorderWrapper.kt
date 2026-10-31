@@ -69,7 +69,6 @@ class RecorderWrapper(
       }
       override fun onConfigChanged(config: RecordConfig) = notifyConfigChanged(config)
     },
-    post = dispatcher::post,
   )
 
   init {
@@ -98,18 +97,26 @@ class RecorderWrapper(
     startRecording(config, result)
   }
 
-  private fun startRecording(config: RecordConfig, result: MethodChannel.Result) =
-    runUntilDone(result) { controller.start(config, it) }
+  // Answered once capture runs or fails.
+  private fun startRecording(config: RecordConfig, result: MethodChannel.Result) {
+    dispatcher.post {
+      try {
+        controller.start(config) { error -> if (error == null) result.success(null) else fail(result, error) }
+      } catch (e: Exception) {
+        fail(result, e)
+      }
+    }
+  }
 
   fun pause(result: MethodChannel.Result) = run(result) { controller.pause() }
 
   // Answer once capture runs again, since resume may first replace a lost device.
-  fun resume(result: MethodChannel.Result) = runUntilDone(result) { controller.resume(it) }
+  fun resume(result: MethodChannel.Result) = run(result) { controller.resume()?.let { throw it } }
 
   // Answered once the file is finalized.
-  fun stop(result: MethodChannel.Result) = runAsync(result) { controller.stop(it) }
+  fun stop(result: MethodChannel.Result) = run(result) { controller.stop() }
 
-  fun cancel(result: MethodChannel.Result) = runAsync(result) { controller.cancel(it) }
+  fun cancel(result: MethodChannel.Result) = run(result) { controller.cancel() }
 
   fun isPaused(result: MethodChannel.Result) = run(result) { controller.isPaused }
 
@@ -124,12 +131,11 @@ class RecorderWrapper(
   fun dispose(result: MethodChannel.Result?) {
     dispatcher.post {
       try {
-        controller.dispose {
-          result?.success(null)
-          dispatcher.quit()
-        }
+        controller.dispose()
+        result?.success(null)
       } catch (e: Exception) {
         result?.let { fail(it, e) }
+      } finally {
         dispatcher.quit()
       }
     }
@@ -151,23 +157,6 @@ class RecorderWrapper(
       }
     }
   }
-
-  // Same, for a block that answers later.
-  private fun runAsync(result: MethodChannel.Result, block: ((Any?) -> Unit) -> Unit) {
-    dispatcher.post {
-      try {
-        block(result::success)
-      } catch (e: Exception) {
-        fail(result, e)
-      }
-    }
-  }
-
-  // Runs a block that answers later with an error, or null on success.
-  private fun runUntilDone(result: MethodChannel.Result, block: ((Throwable?) -> Unit) -> Unit) =
-    runAsync(result) {
-      block { error -> if (error == null) result.success(null) else fail(result, error) }
-    }
 
   // `details` must be codec-encodable; a Throwable is not.
   private fun fail(result: MethodChannel.Result, error: Throwable) {

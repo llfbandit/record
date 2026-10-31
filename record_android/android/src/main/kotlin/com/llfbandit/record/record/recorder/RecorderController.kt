@@ -10,6 +10,7 @@ import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.model.RecordState
 import com.llfbandit.record.record.model.RecordStop
 import com.llfbandit.record.record.model.StopReason
+import com.llfbandit.record.record.recorder.engine.Bound
 import com.llfbandit.record.record.recorder.engine.CaptureEngine
 import com.llfbandit.record.record.recorder.engine.DEFAULT_AMPLITUDE_DB
 import com.llfbandit.record.record.util.DeviceUtils
@@ -30,8 +31,6 @@ class RecorderController(
   private val environment: AudioEnvironment,
   private val engineFactory: (RecordConfig) -> CaptureEngine,
   private val sink: RecorderSink,
-  // Hops back onto the control thread; engines answer from their own.
-  private val post: (() -> Unit) -> Unit,
 ) {
   private class Session(val engine: CaptureEngine, var config: RecordConfig) {
     // Resume pins this device again once it returns, even after reportDevice cleared config.device.
@@ -49,14 +48,8 @@ class RecorderController(
 
   fun start(config: RecordConfig, done: (error: Throwable?) -> Unit) {
     // A live session is finalized first: start() doubles as "next take".
-    if (session != null) {
-      end(delete = false) { beginTake(config, done) }
-      return
-    }
-    beginTake(config, done)
-  }
+    end(delete = false)
 
-  private fun beginTake(config: RecordConfig, done: (error: Throwable?) -> Unit) {
     val s = Session(engineFactory(config), config)
     session = s
     environment.prepare(config) {
@@ -74,8 +67,8 @@ class RecorderController(
         environment.activate(effective)
         moveTo(s, RecordState.RECORD)
       } catch (e: Exception) {
-        session = null
-        endSession(s) { done(e) }
+        end(delete = false)
+        done(e)
         return@prepare
       }
       done(null)
@@ -94,37 +87,38 @@ class RecorderController(
     moveTo(s, RecordState.PAUSE)
   }
 
-  /** Answers with [NoInputDeviceException] when the lost device has no replacement. */
-  fun resume(done: (error: Throwable?) -> Unit) {
-    val s = session ?: return done(null)
-    if (s.state != RecordState.PAUSE) return done(null)
+  /** @return [NoInputDeviceException] when the lost device has no replacement. */
+  fun resume(): Throwable? {
+    val s = session ?: return null
+    if (s.state != RecordState.PAUSE) return null
 
-    if (!s.routeLost) {
-      takeAndResume(s)
-      return done(null)
-    }
+    if (!s.routeLost) return takeAndResume(s)
 
+    activate(s)?.let { return it }
     // Put capture back on the selected device if it returned, or on whatever is there now.
     val device = s.requestedDevice?.let { environment.findDevice(it) }
-    s.engine.reroute(device) { ok ->
-      post {
-        if (session !== s) return@post done(null)
-        if (!ok) return@post done(NoInputDeviceException())
-        reportDevice(s, device)
+    return when (val bound = s.engine.captureOn(device)) {
+      Bound.NoInput -> {
+        environment.release(s.config)
+        NoInputDeviceException()
+      }
+      is Bound.On -> {
         s.routeLost = false
-        takeAndResume(s)
-        done(null)
+        reportDevice(s, bound.device)
+        moveTo(s, RecordState.RECORD)
+        null
       }
     }
   }
 
-  /** Answers with the recorded file path, or null if nothing was recording. */
-  fun stop(done: (path: String?) -> Unit) = end(delete = false, done = done)
+  fun stop(): String? = end(delete = false)
 
   /** Discards the take and let go of Bluetooth SCO too: nothing is kept for a next take. */
-  fun cancel(done: (path: String?) -> Unit) = endThenDispose(delete = true, done)
+  fun cancel(): String? = endThenDispose(delete = true)
 
-  fun dispose(done: () -> Unit) = endThenDispose(delete = false) { done() }
+  fun dispose() {
+    endThenDispose(delete = false)
+  }
 
   /** Current and peak input level; the floor while nothing is being captured. */
   fun amplitude(): Amplitude {
@@ -142,8 +136,8 @@ class RecorderController(
     if (source !== s.engine) return
 
     session = null
-
-    endSession(s, reason = StopReason.ERROR, reported = cause) { sink.onError(cause) }
+    endSession(s, reason = StopReason.ERROR, reported = cause)
+    sink.onError(cause)
   }
 
   /** Applies config.audioRouteChange once the engine loses its input device. */
@@ -152,19 +146,16 @@ class RecorderController(
     if (source !== s.engine) return
 
     when (s.config.audioRouteChange) {
-      AudioRouteChange.FOLLOW -> s.engine.reroute(null) { ok ->
-        post {
-          if (session !== s) return@post
-          // Capture is unpinned, so it is on Android's default device.
-          if (ok) reportDevice(s, null)
-          // No input is left, so fall back to pause and let a later resume try again.
-          else pauseForRouteLoss(s)
-        }
+      // Following must not restart a paused capture: the next resume moves it instead.
+      AudioRouteChange.FOLLOW -> if (s.state != RecordState.RECORD) s.routeLost = true
+      else when (val bound = s.engine.captureOn(null)) {
+        is Bound.On -> reportDevice(s, bound.device)
+        Bound.NoInput -> pauseForRouteLoss(s)
       }
 
       AudioRouteChange.PAUSE -> pauseForRouteLoss(s)
 
-      AudioRouteChange.STOP -> end(delete = false, StopReason.ROUTE_CHANGE) {}
+      AudioRouteChange.STOP -> end(delete = false, StopReason.ROUTE_CHANGE)
     }
   }
 
@@ -174,17 +165,18 @@ class RecorderController(
       when (action) {
         PolicyAction.Pause ->
           if (s.state == RecordState.RECORD && s.engine.pause()) moveTo(s, RecordState.PAUSE)
-        PolicyAction.Resume -> resume {}
+        // Nobody awaits this resume, so its failure goes to Dart as an error.
+        PolicyAction.Resume -> resume()?.let(sink::onError)
       }
     }
   }
 
   /** Tells Dart which device capture is on after a reroute; null is the default one. */
   private fun reportDevice(s: Session, device: AudioDeviceInfo?) {
-    // A re-plug keeps the Dart id.
-    if (device?.let(DeviceUtils::deviceId) == s.config.device?.let(DeviceUtils::deviceId)) return
+    // A re-plug keeps the Dart id, so Dart hears nothing; the config still takes the new device.
+    val changed = device?.let(DeviceUtils::deviceId) != s.config.device?.let(DeviceUtils::deviceId)
     s.config = s.config.copy(device = device)
-    sink.onConfigChanged(s.config)
+    if (changed) sink.onConfigChanged(s.config)
   }
 
   // Pause like a user pause, so a focus regain cannot resume capture on another device.
@@ -193,67 +185,61 @@ class RecorderController(
     pause()
   }
 
-  private fun takeAndResume(s: Session) {
-    if (!s.engine.resume()) return
+  private fun activate(s: Session): Throwable? = try {
     environment.activate(s.config)
-    moveTo(s, RecordState.RECORD)
+    null
+  } catch (e: Exception) {
+    environment.release(s.config)
+    e
   }
 
-  private fun endThenDispose(delete: Boolean, done: (path: String?) -> Unit) {
+  private fun takeAndResume(s: Session): Throwable? {
+    activate(s)?.let { return it }
+    if (!s.engine.resume()) {
+      environment.release(s.config)
+      return IllegalStateException("Capture cannot resume.")
+    }
+    moveTo(s, RecordState.RECORD)
+    return null
+  }
+
+  private fun endThenDispose(delete: Boolean): String? {
     try {
-      end(delete) { path ->
-        environment.dispose()
-        done(path)
-      }
-    } catch (e: Throwable) {
+      return end(delete)
+    } finally {
       // Bluetooth must be torn down even if the engine or session failed to stop.
       environment.dispose()
-      throw e
     }
   }
 
-  private fun end(
-    delete: Boolean,
-    reason: StopReason = StopReason.STOP,
-    done: (path: String?) -> Unit,
-  ) {
-    val s = session
-    if (s == null) {
-      done(null)
-      return
-    }
+  private fun end(delete: Boolean, reason: StopReason = StopReason.STOP): String? {
+    val s = session ?: return null
     // Dropped now, so a next take cannot collide with this one.
     session = null
     // Nothing was written if the engine never started (still connecting SCO).
     val recorded = s.state != RecordState.STOP
-    endSession(s, delete, reason) { done(if (recorded) s.config.path else null) }
+    endSession(s, delete, reason)
+    return if (recorded) s.config.path else null
   }
 
-  // The engine answers from its own thread, so hop back before touching state.
   private fun endSession(
     s: Session,
     delete: Boolean = false,
     reason: StopReason = StopReason.STOP,
     reported: Throwable? = null,
-    done: () -> Unit,
   ) {
-    s.engine.stop(delete) { error ->
-      post {
-        try {
-          environment.release(s.config)
-        } catch (e: Throwable) {
-          sink.onError(e)
-        }
-        // A take that never started sends nothing.
-        if (s.state != RecordState.STOP) {
-          s.state = RecordState.STOP
-          val path = if (delete) null else s.config.path
-          sink.onStopped(RecordStop(reason, path, reported?.let { it.message ?: it.toString() }))
-        }
-        error?.takeIf { it !== reported }?.let(sink::onError)
-        done()
-      }
+    val error = s.engine.stop(delete)
+    try {
+      environment.release(s.config)
+    } catch (e: Throwable) {
+      sink.onError(e)
     }
+    if (s.state != RecordState.STOP) {
+      s.state = RecordState.STOP
+      val path = if (delete) null else s.config.path
+      sink.onStopped(RecordStop(reason, path, reported?.let { it.message ?: it.toString() }))
+    }
+    error?.takeIf { it !== reported }?.let(sink::onError)
   }
 
   private fun moveTo(s: Session, state: RecordState) {

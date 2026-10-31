@@ -9,6 +9,7 @@ import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.model.RecordState
 import com.llfbandit.record.record.model.RecordStop
 import com.llfbandit.record.record.model.StopReason
+import com.llfbandit.record.record.recorder.engine.Bound
 import com.llfbandit.record.record.recorder.engine.CaptureEngine
 import com.llfbandit.record.record.recorder.engine.DEFAULT_AMPLITUDE_DB
 import com.llfbandit.record.testAudioDevice
@@ -27,9 +28,8 @@ class RecorderControllerTest {
   private val env = FakeAudioEnvironment()
   private val engine = FakeCaptureEngine()
   private val sink = CapturingSink()
-  // Inline: the fakes answer on the calling thread.
   private val controller =
-    RecorderController(env, { engine.also { e -> e.config = it } }, sink, { it() })
+    RecorderController(env, { engine.also { e -> e.config = it } }, sink)
 
   private val config = testRecordConfig()
 
@@ -38,17 +38,11 @@ class RecorderControllerTest {
     assertEquals(RecordState.RECORD, sink.states.last())
   }
 
-  private fun stop(): String? {
-    var path: String? = null
-    var answered = false
-    controller.stop { p -> path = p; answered = true }
-    assertTrue("stop must answer", answered)
-    return path
-  }
+  private fun stop(): String? = controller.stop()
 
-  private fun cancel() = controller.cancel {}
+  private fun cancel() = controller.cancel()
 
-  private fun dispose() = controller.dispose {}
+  private fun dispose() = controller.dispose()
 
   // --- start ---
 
@@ -201,7 +195,7 @@ class RecorderControllerTest {
     env.calls.clear()
     engine.calls.clear()
 
-    controller.resume {}
+    controller.resume()
 
     assertEquals(listOf("resume"), engine.calls)
     assertEquals(listOf("activate"), env.calls)
@@ -211,11 +205,11 @@ class RecorderControllerTest {
   @Test
   fun `pause and resume outside their state never reach the engine`() {
     controller.pause()
-    controller.resume {}
+    controller.resume()
     startRecording()
     engine.calls.clear()
 
-    controller.resume {}                 // still RECORD
+    controller.resume()                 // still RECORD
     controller.pause()
     engine.calls.clear()
     controller.pause()                  // already PAUSE
@@ -248,6 +242,18 @@ class RecorderControllerTest {
 
     assertEquals(listOf("pause", "resume"), engine.calls)
     assertEquals(listOf(RecordState.RECORD, RecordState.PAUSE, RecordState.RECORD), sink.states)
+  }
+
+  @Test
+  fun `a failed auto-resume reaches Dart as an error and stays paused`() {
+    startRecording(testRecordConfig(audioInterruption = AudioInterruption.PAUSE_RESUME))
+    controller.onEnvironmentEvent(EnvironmentEvent.FocusLost)
+    engine.canResume = false
+
+    controller.onEnvironmentEvent(EnvironmentEvent.FocusRegained)
+
+    assertEquals(listOf("Capture cannot resume."), sink.errors.map { it.message })
+    assertTrue(controller.isPaused)
   }
 
   @Test
@@ -284,20 +290,20 @@ class RecorderControllerTest {
 
     controller.onRouteLost(engine)
 
-    assertEquals(listOf("reroute"), engine.calls)
+    assertEquals(listOf("captureOn"), engine.calls)
     assertTrue("the session is untouched while recording goes on", env.calls.isEmpty())
     assertEquals(RecordState.RECORD, sink.states.last())
   }
 
   @Test
   fun `follow falls back to pause when there is nothing to follow to`() {
-    engine.canReroute = false
+    engine.canCaptureOn = false
     startWithRouteChange(AudioRouteChange.FOLLOW)
     env.calls.clear()
 
     controller.onRouteLost(engine)
 
-    assertEquals(listOf("reroute", "pause"), engine.calls.drop(1))
+    assertEquals(listOf("captureOn", "pause"), engine.calls.drop(1))
     assertEquals(listOf("release"), env.calls)
     assertEquals(RecordState.PAUSE, sink.states.last())
   }
@@ -316,14 +322,13 @@ class RecorderControllerTest {
 
     engine.calls.clear()
     env.calls.clear()
-    val probe = DoneProbe()
-    controller.resume(probe.done)
+    val error = controller.resume()
 
     // The config names no device, so the reroute pins none.
-    assertEquals(listOf("reroute", "resume"), engine.calls)
+    assertEquals(listOf("captureOn"), engine.calls)
     assertEquals(listOf("activate"), env.calls)
     assertEquals(RecordState.RECORD, sink.states.last())
-    assertNull(probe.error)
+    assertNull(error)
   }
 
   @Test
@@ -348,18 +353,31 @@ class RecorderControllerTest {
   fun `a resume with no device left answers NoInputDeviceException and stays paused`() {
     startWithRouteChange(AudioRouteChange.PAUSE)
     controller.onRouteLost(engine)
-    engine.canReroute = false
+    engine.canCaptureOn = false
     engine.calls.clear()
     env.calls.clear()
 
-    val probe = DoneProbe()
-    controller.resume(probe.done)
+    val error = controller.resume()
 
-    assertTrue(probe.error is NoInputDeviceException)
-    assertEquals(listOf("reroute"), engine.calls)
-    assertTrue("the session is not taken back", env.calls.isEmpty())
+    assertTrue(error is NoInputDeviceException)
+    assertEquals(listOf("captureOn"), engine.calls)
+    assertEquals("the session is handed back", listOf("activate", "release"), env.calls)
     assertEquals(RecordState.PAUSE, sink.states.last())
     assertTrue(controller.isPaused)
+  }
+
+  @Test
+  fun `follow while paused waits for the resume to move capture`() {
+    startWithRouteChange(AudioRouteChange.FOLLOW)
+    controller.pause()
+    engine.calls.clear()
+
+    controller.onRouteLost(engine)
+    assertTrue("a paused capture is not restarted", engine.calls.isEmpty())
+
+    controller.resume()
+    assertEquals(listOf("captureOn"), engine.calls)
+    assertEquals(RecordState.RECORD, sink.states.last())
   }
 
   // --- device in use after a reroute ---
@@ -390,7 +408,7 @@ class RecorderControllerTest {
 
   @Test
   fun `a failed follow reports nothing`() {
-    engine.canReroute = false
+    engine.canCaptureOn = false
     startOnMic(AudioRouteChange.FOLLOW)
 
     controller.onRouteLost(engine)
@@ -403,9 +421,9 @@ class RecorderControllerTest {
     startOnMic(AudioRouteChange.PAUSE)
     controller.onRouteLost(engine)
 
-    controller.resume {}
+    controller.resume()
 
-    assertEquals("nothing left to pin", listOf("reroute", "resume"), engine.calls.drop(2))
+    assertEquals("nothing left to pin", listOf("captureOn"), engine.calls.drop(2))
     assertEquals(1, sink.configChanges.size)
     assertNull(sink.configChanges.last().device)
   }
@@ -416,9 +434,9 @@ class RecorderControllerTest {
     controller.onRouteLost(engine)
     env.plugged[mic.id] = mic
 
-    controller.resume {}
+    controller.resume()
 
-    assertEquals(listOf("reroute(7)", "resume"), engine.calls.drop(2))
+    assertEquals(listOf("captureOn(7)"), engine.calls.drop(2))
     assertTrue(sink.configChanges.isEmpty())
   }
 
@@ -429,9 +447,9 @@ class RecorderControllerTest {
     controller.onRouteLost(engine)
     env.plugged[buds.id] = testAudioDevice(id = 12, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "24:29:34:AB:85:F1")
 
-    controller.resume {}
+    controller.resume()
 
-    assertEquals(listOf("reroute(12)", "resume"), engine.calls.drop(2))
+    assertEquals(listOf("captureOn(12)"), engine.calls.drop(2))
     assertTrue(sink.configChanges.isEmpty())
   }
 
@@ -441,10 +459,23 @@ class RecorderControllerTest {
     controller.onRouteLost(engine)
     env.plugged[mic.id] = testAudioDevice(id = 12)
 
-    controller.resume {}
+    controller.resume()
 
-    assertEquals(listOf("reroute(12)", "resume"), engine.calls.drop(2))
+    assertEquals(listOf("captureOn(12)"), engine.calls.drop(2))
     assertEquals(12, sink.configChanges.single().device?.id)
+  }
+
+  @Test
+  fun `a resume that Android routes elsewhere reports the default device`() {
+    startOnMic(AudioRouteChange.PAUSE)
+    controller.onRouteLost(engine)
+    env.plugged[mic.id] = mic
+    engine.landsElsewhere = true
+
+    controller.resume()
+
+    assertEquals(listOf("captureOn(7)"), engine.calls.drop(2))
+    assertNull(sink.configChanges.single().device)
   }
 
   // The pin still asks for the requested device, so Dart must hear it is back.
@@ -452,12 +483,12 @@ class RecorderControllerTest {
   fun `a later resume reports the requested device back once it returned`() {
     startOnMic(AudioRouteChange.PAUSE)
     controller.onRouteLost(engine)
-    controller.resume {}
+    controller.resume()
     assertNull(sink.configChanges.last().device)
 
     controller.onRouteLost(engine)
     env.plugged[mic.id] = mic
-    controller.resume {}
+    controller.resume()
 
     assertEquals(2, sink.configChanges.size)
     assertEquals(mic.id, sink.configChanges.last().device?.id)
@@ -467,15 +498,43 @@ class RecorderControllerTest {
   fun `a failed resume can be retried once a device is back`() {
     startWithRouteChange(AudioRouteChange.PAUSE)
     controller.onRouteLost(engine)
-    engine.canReroute = false
-    controller.resume {}
+    engine.canCaptureOn = false
+    controller.resume()
 
-    engine.canReroute = true
-    val probe = DoneProbe()
-    controller.resume(probe.done)
+    engine.canCaptureOn = true
+    val error = controller.resume()
 
-    assertNull(probe.error)
+    assertNull(error)
     assertEquals(RecordState.RECORD, sink.states.last())
+  }
+
+  @Test
+  fun `a failed session activation answers the resume before capture moves`() {
+    startWithRouteChange(AudioRouteChange.PAUSE)
+    controller.onRouteLost(engine)
+    env.activateError = SecurityException("dnd")
+    engine.calls.clear()
+
+    val error = controller.resume()
+
+    assertEquals("dnd", error?.message)
+    assertTrue("capture is never moved", engine.calls.isEmpty())
+    assertEquals(listOf("activate", "release"), env.calls.takeLast(2))
+    assertTrue(controller.isPaused)
+  }
+
+  @Test
+  fun `a resume the engine refuses answers with an error and hands the session back`() {
+    startRecording()
+    controller.pause()
+    engine.canResume = false
+    env.calls.clear()
+
+    val error = controller.resume()
+
+    assertTrue(error is IllegalStateException)
+    assertEquals(listOf("activate", "release"), env.calls)
+    assertTrue(controller.isPaused)
   }
 
   @Test
@@ -521,28 +580,6 @@ class RecorderControllerTest {
     assertEquals(RecordState.STOP, sink.states.last())
     assertEquals(listOf(RecordStop(StopReason.STOP, config.path)), sink.stops)
     assertFalse(controller.isRecording)
-  }
-
-  @Test
-  fun `stop answers only once the engine has finished tearing down`() {
-    engine.deferStop = true
-    startRecording()
-    env.calls.clear()
-
-    var path: String? = null
-    var answered = false
-    controller.stop { p -> path = p; answered = true }
-
-    assertFalse("the engine has not finished yet", answered)
-    assertTrue("the session is handed back on completion", env.calls.isEmpty())
-    assertFalse("but the next take can already begin", controller.isRecording)
-
-    engine.completeStop()
-
-    assertTrue(answered)
-    assertEquals(config.path, path)
-    assertEquals(listOf("release"), env.calls)
-    assertEquals(RecordState.STOP, sink.states.last())
   }
 
   @Test
@@ -718,17 +755,18 @@ private class FakeCaptureEngine : CaptureEngine {
   var stopError: Throwable? = null
   var stopThrows: Exception? = null
   var canPause = true
-  var canReroute = true
+  var canCaptureOn = true
+  var canResume = true
   var deleteRequested: Boolean? = null
-  var deferStop = false
+  // Android ignored the pin and picked another device.
+  var landsElsewhere = false
   override var amplitude: Double = DEFAULT_AMPLITUDE_DB
 
   val calls = mutableListOf<String>()
-  private var pendingStop: ((Throwable?) -> Unit)? = null
 
-  override fun reroute(device: AudioDeviceInfo?, done: (ok: Boolean) -> Unit) {
-    calls += if (device != null) "reroute(${device.id})" else "reroute"
-    done(canReroute)
+  override fun captureOn(device: AudioDeviceInfo?): Bound {
+    calls += if (device != null) "captureOn(${device.id})" else "captureOn"
+    return if (!canCaptureOn) Bound.NoInput else Bound.On(device.takeUnless { landsElsewhere })
   }
 
   override fun start(): RecordConfig {
@@ -744,18 +782,14 @@ private class FakeCaptureEngine : CaptureEngine {
 
   override fun resume(): Boolean {
     calls += "resume"
-    return true
+    return canResume
   }
 
-  override fun stop(delete: Boolean, done: (Throwable?) -> Unit) {
+  override fun stop(delete: Boolean): Throwable? {
     calls += "stop"
     deleteRequested = delete
     stopThrows?.let { throw it }
-    if (deferStop) pendingStop = done else done(stopError)
-  }
-
-  fun completeStop() {
-    pendingStop?.also { pendingStop = null; it(stopError) }
+    return stopError
   }
 }
 

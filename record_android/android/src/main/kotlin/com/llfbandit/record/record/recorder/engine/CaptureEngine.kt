@@ -13,8 +13,15 @@ sealed interface CaptureEvent {
   /** Capture ended on its own; the engine has already released itself. */
   class Failed(val cause: Throwable) : CaptureEvent
 
-  /** The input device in use went away; the engine waits for a [CaptureEngine.reroute], pause or stop. */
+  /** Waits for a [CaptureEngine.captureOn], pause or stop. */
   data object RouteLost : CaptureEvent
+}
+
+sealed interface Bound {
+  /** [device] is null when Android ignored the pin. */
+  class On(val device: AudioDeviceInfo?) : Bound
+
+  data object NoInput : Bound
 }
 
 /** Runs one recording end to end on the control thread; single-use, done after [stop]. */
@@ -28,12 +35,10 @@ interface CaptureEngine {
 
   fun resume(): Boolean
 
-  /** Releases everything, then answers with the capture or teardown error. */
-  fun stop(delete: Boolean, done: (Throwable?) -> Unit)
+  fun stop(delete: Boolean): Throwable?
 
   /** Latest input level in dB; [DEFAULT_AMPLITUDE_DB] while nothing is captured. */
   val amplitude: Double
 
-  /** Moves capture to [device], or to Android's pick when null; false when there is nothing to capture from. */
-  fun reroute(device: AudioDeviceInfo?, done: (ok: Boolean) -> Unit)
+  fun captureOn(device: AudioDeviceInfo?): Bound
 }
