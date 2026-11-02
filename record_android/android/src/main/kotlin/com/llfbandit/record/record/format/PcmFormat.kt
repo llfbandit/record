@@ -4,6 +4,7 @@ import android.media.MediaFormat
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
 import com.llfbandit.record.record.container.RawContainer
+import com.llfbandit.record.record.container.RawStreamContainer
 
 class PcmFormat : Format() {
   override val mimeTypeAudio: String = MediaFormat.MIMETYPE_AUDIO_RAW
@@ -18,7 +19,11 @@ class PcmFormat : Format() {
     }
   }
 
-  override fun createWriter(mediaFormat: MediaFormat, path: String?): IContainerWriter {
-    return RawContainer(path)
+  override fun createWriter(
+    mediaFormat: MediaFormat,
+    path: String?,
+    onChunk: (ByteArray) -> Unit,
+  ): IContainerWriter {
+    return if (path == null) RawStreamContainer(onChunk) else RawContainer(path)
   }
 }

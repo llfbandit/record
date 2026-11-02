@@ -1,19 +1,14 @@
 package com.llfbandit.record.record.container
 
 import android.media.MediaCodec
-import android.media.MediaFormat
 import android.system.Os
 import android.system.OsConstants
 import java.io.IOException
 import java.nio.ByteBuffer
 
 @OptIn(ExperimentalUnsignedTypes::class)
-class FlacContainer(path: String) : IContainerWriter {
-  private val file = createFile(path)
-
-  private var isStarted = false
+class FlacContainer(path: String) : FileContainer(path) {
   private var lastPresentationTimeUs = -1L
-  private var track = -1
   private var csdData: ByteArray? = null
 
   override fun onCsdBuffer(csd: ByteArray?) {
@@ -25,70 +20,21 @@ class FlacContainer(path: String) : IContainerWriter {
     }
   }
 
-  override fun start() {
-    if (isStarted) {
-      throw Exception("Container already started")
-    }
-
-    Os.lseek(file.fd, 0, OsConstants.SEEK_SET)
-    Os.ftruncate(file.fd, 0)
-
+  override fun onStart() {
     csdData?.let {
       Os.write(file.fd, ByteBuffer.wrap(it))
       csdData = null
     }
-
-    isStarted = true
   }
 
-  override fun stop() {
-    if (!isStarted) {
-      throw Exception("Container not started")
-    }
-
-    isStarted = false
-
+  override fun onStop() {
     if (lastPresentationTimeUs >= 0) {
       setHeaderDuration()
     }
-
-    file.close()
   }
 
-  override fun release() {
-    if (isStarted) {
-      stop()
-    } else {
-      runCatching { file.close() }
-    }
-  }
-
-  override fun addTrack(mediaFormat: MediaFormat): Int {
-    if (isStarted) {
-      throw Exception("Container already started")
-    } else if (track >= 0) {
-      throw Exception("Track already added")
-    }
-
-    track = 0
-    return this.track
-  }
-
-  override fun writeSampleData(
-    trackIndex: Int,
-    byteBuffer: ByteBuffer,
-    bufferInfo: MediaCodec.BufferInfo
-  ) {
-    if (!isStarted) {
-      throw Exception("Container not started")
-    } else if (track < 0) {
-      throw Exception("No track has been added")
-    } else if (track != trackIndex) {
-      throw Exception("Invalid track: $trackIndex")
-    }
-
-    Os.write(file.fd, byteBuffer)
-
+  override fun write(byteBuffer: ByteBuffer, bufferInfo: MediaCodec.BufferInfo) {
+    super.write(byteBuffer, bufferInfo)
     lastPresentationTimeUs = bufferInfo.presentationTimeUs
   }
 

@@ -2,7 +2,6 @@ package com.llfbandit.record.record.container
 
 import android.media.MediaCodec
 import android.media.MediaFormat
-import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 
 
@@ -19,25 +18,12 @@ interface IContainerWriter {
   fun start()
 
   /**
-   * Stop the muxer process.
-   *
-   *
-   * Must not be called if [start] did not complete successfully.
-   */
-  fun stop()
-
-  /**
    * Free resources used by the muxer process.
    *
    *
    * Can be called in any state. If the muxer process is started, it will be stopped.
    */
   fun release()
-
-  /**
-   * Checks if the container is configured for file or stream output
-   */
-  fun isStream(): Boolean = false
 
   /**
    * Add a track to the container with the specified format.
@@ -60,30 +46,6 @@ interface IContainerWriter {
   fun writeSampleData(trackIndex: Int, byteBuffer: ByteBuffer, bufferInfo: MediaCodec.BufferInfo)
 
   /**
-   * Write encoded samples to the output container.
-   *
-   *
-   * Must not be called unless the muxer process is started.
-   *
-   * @param trackIndex Must be an index returned by [addTrack]
-   */
-  fun writeStream(
-    trackIndex: Int,
-    byteBuffer: ByteBuffer,
-    bufferInfo: MediaCodec.BufferInfo
-  ): ByteArray {
-    throw NotImplementedError()
-  }
-
-  fun createFile(path: String): RandomAccessFile {
-    val out = RandomAccessFile(path, "rw")
-    // Clears file content. Prevents wrong output if file was existing.
-    out.setLength(0)
-
-    return out
-  }
-
-  /**
    * Called when the codec delivers a [MediaCodec.BUFFER_FLAG_CODEC_CONFIG] buffer.
    * [csd] is null if the buffer could not be read from the codec.
    * Containers that need codec-specific data in their track format should store it here
@@ -96,4 +58,10 @@ interface IContainerWriter {
    * The encoder will not call [addTrack] until this returns true.
    */
   fun isReadyForSetup(format: MediaFormat): Boolean = true
+}
+
+internal fun ByteBuffer.toByteArray(info: MediaCodec.BufferInfo): ByteArray {
+  position(info.offset)
+  limit(info.offset + info.size)
+  return ByteArray(info.size).also { get(it) }
 }
