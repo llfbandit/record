@@ -64,6 +64,19 @@ class BluetoothManagerTest {
     assertEquals(1, readyCount)
   }
 
+  // A disposing recorder quits its handler, which drops the timeout.
+  @Test
+  fun `a stop while connecting answers at once, and only once`() {
+    withHeadset()
+    start()
+
+    manager.stop()
+
+    assertEquals(1, readyCount)
+    idlePastTimeout()
+    assertEquals(1, readyCount)
+  }
+
   @Test
   fun `a failed link answers without waiting for the timeout`() {
     withHeadset()

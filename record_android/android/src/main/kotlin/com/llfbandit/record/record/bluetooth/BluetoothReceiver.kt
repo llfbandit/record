@@ -12,12 +12,6 @@ import android.os.Build
 import android.os.Handler
 import com.llfbandit.record.record.util.DeviceUtils
 
-interface BluetoothScoListener {
-  fun onBlScoConnected()
-  fun onBlScoDisconnected()
-  fun onBlScoNone()
-}
-
 /** Both carry a headset mic; LE Audio only exists from API 31. */
 internal fun isBluetoothHeadset(type: Int): Boolean =
   type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
@@ -30,7 +24,7 @@ class BluetoothReceiver(
   private val filter = IntentFilter()
   private val audioManager: AudioManager =
     context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-  private var listener: BluetoothScoListener? = null
+  private var onReady: (() -> Unit)? = null
   private val devices = HashSet<AudioDeviceInfo>()
   private var audioDeviceCallback: AudioDeviceCallback? = null
   private var mRegistered: Boolean = false
@@ -41,11 +35,11 @@ class BluetoothReceiver(
     filter.addAction(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
   }
 
-  fun register(listener: BluetoothScoListener) {
+  fun register(onReady: () -> Unit) {
     context.registerReceiver(this, filter, null, handler)
     mRegistered = true
 
-    this.listener = listener
+    this.onReady = onReady
 
     audioDeviceCallback = object : AudioDeviceCallback() {
       override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
@@ -77,7 +71,7 @@ class BluetoothReceiver(
         audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS).asList()
       )
     )
-    maybeStartOrNotify(listener)
+    maybeStartOrNotify()
   }
 
   fun unregister() {
@@ -89,7 +83,7 @@ class BluetoothReceiver(
       audioDeviceCallback = null
     }
 
-    listener = null
+    onReady = null
     startNotified = false
 
     if (mRegistered) {
@@ -98,35 +92,29 @@ class BluetoothReceiver(
     }
   }
 
-  private fun maybeStartOrNotify(listener: BluetoothScoListener) {
+  private fun maybeStartOrNotify() {
     val hasBluetoothSco = devices.any { isBluetoothHeadset(it.type) }
     if (hasBluetoothSco && audioManager.isBluetoothScoAvailableOffCall) {
-      startBluetoothSco(listener)
+      startBluetoothSco()
     } else {
       // Stays registered, so another app's later SCO link must not look like ours starting.
-      notifyNone(listener)
+      notifyReady()
     }
   }
 
   override fun onReceive(context: Context, intent: Intent) {
     val state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, Int.MIN_VALUE)
     when (state) {
-      AudioManager.SCO_AUDIO_STATE_CONNECTED -> {
-        if (!startNotified) {
-          startNotified = true
-          listener?.onBlScoConnected()
-        }
-      }
-      // The link failed: answer now instead of waiting for a connect that never comes.
-      AudioManager.SCO_AUDIO_STATE_ERROR -> if (!startNotified) notifyNone(listener)
-      AudioManager.SCO_AUDIO_STATE_DISCONNECTED -> listener?.onBlScoDisconnected()
+      // No connect will follow; answer now.
+      AudioManager.SCO_AUDIO_STATE_CONNECTED,
+      AudioManager.SCO_AUDIO_STATE_ERROR -> if (!startNotified) notifyReady()
     }
   }
 
   // Every path must notify: prepare() waits on this.
-  private fun startBluetoothSco(listener: BluetoothScoListener? = this.listener) {
+  private fun startBluetoothSco() {
     if (!audioManager.isBluetoothScoAvailableOffCall) {
-      notifyNone(listener)
+      notifyReady()
       return
     }
 
@@ -137,43 +125,40 @@ class BluetoothReceiver(
         ?: available.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
 
       if (device == null) {
-        notifyNone(listener)
+        notifyReady()
       } else {
-        waitForCommunicationDevice(device, listener)
+        waitForCommunicationDevice(device)
         if (!audioManager.setCommunicationDevice(device)) {
           stopWaitingForCommunicationDevice()
-          notifyNone(listener)
+          notifyReady()
         }
       }
     } else {
       @Suppress("DEPRECATION")
       if (audioManager.isBluetoothScoOn()) {
         // Already up.
-        startNotified = true
-        listener?.onBlScoConnected()
+        notifyReady()
       } else {
         audioManager.startBluetoothSco()
-        // async — onBlScoConnected will be called via ACTION_SCO_AUDIO_STATE_UPDATED broadcast
+        // async — notifyReady() will be called via ACTION_SCO_AUDIO_STATE_UPDATED broadcast
       }
     }
   }
 
   // The link takes a moment to come up: a take started before it records the phone mic.
   @TargetApi(Build.VERSION_CODES.S)
-  private fun waitForCommunicationDevice(device: AudioDeviceInfo, listener: BluetoothScoListener?) {
+  private fun waitForCommunicationDevice(device: AudioDeviceInfo) {
     stopWaitingForCommunicationDevice()
     // Already in use: no change is coming to wait for.
     if (audioManager.communicationDevice?.id == device.id) {
-      startNotified = true
-      listener?.onBlScoConnected()
+      notifyReady()
       return
     }
 
     val onChanged =AudioManager.OnCommunicationDeviceChangedListener { current ->
       if (current?.id != device.id) return@OnCommunicationDeviceChangedListener
       stopWaitingForCommunicationDevice()
-      startNotified = true
-      listener?.onBlScoConnected()
+      notifyReady()
     }
     communicationDeviceListener = onChanged
     audioManager.addOnCommunicationDeviceChangedListener({ handler.post(it) }, onChanged)
@@ -185,9 +170,9 @@ class BluetoothReceiver(
     communicationDeviceListener = null
   }
 
-  private fun notifyNone(listener: BluetoothScoListener?) {
+  private fun notifyReady() {
     startNotified = true
-    listener?.onBlScoNone()
+    onReady?.invoke()
   }
 
   private fun stopBluetoothSco() {
