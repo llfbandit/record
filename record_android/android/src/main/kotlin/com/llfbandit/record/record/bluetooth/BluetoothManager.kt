@@ -11,6 +11,8 @@ class BluetoothManager(private val context: Context, private val handler: Handle
   }
 
   private var receiver: BluetoothReceiver? = null
+  // Answers a start still waiting for SCO when stopped.
+  private var pendingDone: (() -> Unit)? = null
 
   fun maybeStart(config: RecordConfig, onDone: () -> Unit) {
     if (!config.manageBluetoothSco) {
@@ -25,28 +27,23 @@ class BluetoothManager(private val context: Context, private val handler: Handle
     }
 
     if (receiver == null) {
-      val listener = object : BluetoothScoListener {
-        // onDone answers a Flutter call, which must happen exactly once.
-        private var notified = false
-
-        val onTimeout = Runnable { notifyOnce() }
-
-        fun notifyOnce() {
-          if (notified) return
-          notified = true
-          handler.removeCallbacks(onTimeout)
-          onDone()
-        }
-
-        override fun onBlScoConnected() = notifyOnce()
-        override fun onBlScoNone() = notifyOnce()
-        override fun onBlScoDisconnected() {}
+      // onDone must run exactly once.
+      var notified = false
+      lateinit var onTimeout: Runnable
+      fun notifyOnce() {
+        if (notified) return
+        notified = true
+        pendingDone = null
+        handler.removeCallbacks(onTimeout)
+        onDone()
       }
+      onTimeout = Runnable { notifyOnce() }
+      pendingDone = ::notifyOnce
 
       // Armed first: register() may answer synchronously and cancel it right away.
-      handler.postDelayed(listener.onTimeout, SCO_CONNECT_TIMEOUT_MS)
+      handler.postDelayed(onTimeout, SCO_CONNECT_TIMEOUT_MS)
       receiver = BluetoothReceiver(context, handler)
-      receiver!!.register(listener)
+      receiver!!.register { notifyOnce() }
     } else {
       onDone()
     }
@@ -55,5 +52,7 @@ class BluetoothManager(private val context: Context, private val handler: Handle
   fun stop() {
     receiver?.unregister()
     receiver = null
+    // A quitting handler drops the timeout, which would leave the start unanswered.
+    pendingDone?.invoke()
   }
 }
