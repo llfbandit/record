@@ -33,7 +33,7 @@ class MuxerContainer(
     mMuxer?.start()
   }
 
-  override fun stop() {
+  private fun stop() {
     if (!mStarted || mStopped) return
 
     mStarted = false

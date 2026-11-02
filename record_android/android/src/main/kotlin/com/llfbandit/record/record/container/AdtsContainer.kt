@@ -7,7 +7,8 @@ import java.nio.ByteBuffer
 class AdtsContainer(
   private val sampleRate: Int,
   private val numChannels: Int,
-  private val aacProfile: Int
+  private val aacProfile: Int,
+  private val onChunk: (ByteArray) -> Unit,
 ) : IContainerWriter {
   private val sampleRates = intArrayOf(
     96000,
@@ -24,74 +25,16 @@ class AdtsContainer(
     8000
   )
 
-  private var isStarted = false
-  private var track = -1
-
-  override fun start() {
-    if (isStarted) {
-      throw IllegalStateException("Container already started")
-    }
-
-    isStarted = true
-  }
-
-  override fun stop() {
-    if (!isStarted) {
-      throw IllegalStateException("Container not started")
-    }
-
-    isStarted = false
-  }
-
-  override fun release() {
-    if (isStarted) {
-      stop()
-    }
-  }
-
-  override fun isStream(): Boolean = true
-
-  override fun addTrack(mediaFormat: MediaFormat): Int {
-    if (isStarted) {
-      throw IllegalStateException("Container already started")
-    } else if (track >= 0) {
-      throw IllegalStateException("Track already added")
-    }
-
-    track = 0
-
-    return this.track
-  }
+  override fun start() {}
+  override fun release() {}
+  override fun addTrack(mediaFormat: MediaFormat) = 0
 
   override fun writeSampleData(
     trackIndex: Int,
     byteBuffer: ByteBuffer,
     bufferInfo: MediaCodec.BufferInfo
   ) {
-    if (!isStarted) {
-      throw IllegalStateException("Container not started")
-    } else if (track < 0) {
-      throw IllegalStateException("No track has been added")
-    } else if (track != trackIndex) {
-      throw IllegalStateException("Invalid track: $trackIndex")
-    }
-  }
-
-  override fun writeStream(
-    trackIndex: Int,
-    byteBuffer: ByteBuffer,
-    bufferInfo: MediaCodec.BufferInfo
-  ): ByteArray {
-    val frameSize = byteBuffer.remaining()
-
-    // Add header
-    val header = buildADTSHeader(frameSize)
-
-    // Add frame
-    val frame = ByteArray(frameSize)
-    byteBuffer[frame, 0, frameSize]
-
-    return header + frame
+    onChunk(buildADTSHeader(bufferInfo.size) + byteBuffer.toByteArray(bufferInfo))
   }
 
   /**

@@ -7,6 +7,7 @@ import android.os.HandlerThread
 import android.util.Log
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
+import com.llfbandit.record.record.container.toByteArray
 import com.llfbandit.record.record.format.Format
 import java.util.LinkedList
 import java.util.concurrent.atomic.AtomicReference
@@ -106,7 +107,7 @@ class MediaCodecEncoder(
       codec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
       codec.start()
 
-      container = format.createWriter(mediaFormat, config.path)
+      container = format.createWriter(mediaFormat, config.path, listener::onEncoderStream)
 
       mCodec = codec
       mContainer = container
@@ -169,11 +170,7 @@ class MediaCodecEncoder(
           val out = codec.getOutputBuffer(index)
 
           if (out != null && mContainerSetup) {
-            if (container.isStream()) {
-              listener.onEncoderStream(container.writeStream(mContainerTrack, out, info))
-            } else {
-              container.writeSampleData(mContainerTrack, out, info)
-            }
+            container.writeSampleData(mContainerTrack, out, info)
           }
         }
       }
@@ -194,11 +191,7 @@ class MediaCodecEncoder(
     info: MediaCodec.BufferInfo,
     container: IContainerWriter
   ) {
-    val csd = codec.getOutputBuffer(index)?.let { out ->
-      out.position(info.offset)
-      out.limit(info.offset + info.size)
-      ByteArray(info.size).also { out.get(it) }
-    }
+    val csd = codec.getOutputBuffer(index)?.toByteArray(info)
     container.onCsdBuffer(csd)
     trySetupContainer()
   }

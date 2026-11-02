@@ -13,12 +13,12 @@ class PassthroughEncoder(
   config: RecordConfig,
   format: Format,
   private val mediaFormat: MediaFormat,
-  private val listener: EncoderListener,
+  listener: EncoderListener,
 ) : IEncoder {
   private var mIsStarted = false
   private val mBufferInfo = MediaCodec.BufferInfo()
   private var mTrackIndex = -1
-  private var mContainer = format.createWriter(mediaFormat, config.path)
+  private var mContainer = format.createWriter(mediaFormat, config.path, listener::onEncoderStream)
 
   private val mFrameSize = mediaFormat.getInteger(Format.KEY_X_FRAME_SIZE_IN_BYTES)
   private val mSampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
@@ -63,11 +63,7 @@ class PassthroughEncoder(
     mBufferInfo.size = buffer.limit()
     mBufferInfo.presentationTimeUs = timestampUs
 
-    if (mContainer.isStream()) {
-      listener.onEncoderStream(mContainer.writeStream(mTrackIndex, buffer, mBufferInfo))
-    } else {
-      mContainer.writeSampleData(mTrackIndex, buffer, mBufferInfo)
-    }
+    mContainer.writeSampleData(mTrackIndex, buffer, mBufferInfo)
 
     mNumFrames += frames
   }

@@ -20,7 +20,11 @@ class OpusFormat : Format() {
     }
   }
 
-  override fun createWriter(mediaFormat: MediaFormat, path: String?): IContainerWriter {
+  override fun createWriter(
+    mediaFormat: MediaFormat,
+    path: String?,
+    onChunk: (ByteArray) -> Unit,
+  ): IContainerWriter {
     if (path == null) {
       throw IllegalArgumentException("Path not provided. Stream is not supported.")
     }

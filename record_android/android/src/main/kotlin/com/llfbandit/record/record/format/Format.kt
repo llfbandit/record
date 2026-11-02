@@ -34,8 +34,13 @@ sealed class Format {
    *
    * @param path The output path if the container writes to file.
    * @param mediaFormat The final negotiated [MediaFormat] for the encoded stream.
+   * @param onChunk Receives the encoded bytes when there is no [path].
    */
-  abstract fun createWriter(mediaFormat: MediaFormat, path: String?): IContainerWriter
+  abstract fun createWriter(
+    mediaFormat: MediaFormat,
+    path: String?,
+    onChunk: (ByteArray) -> Unit,
+  ): IContainerWriter
 
   companion object {
     const val KEY_X_FRAME_SIZE_IN_BYTES = "x-frame-size-in-bytes"
@@ -64,8 +69,8 @@ sealed class Format {
     fun selectFormat(encoder: AudioEncoder): Format {
       return when (encoder) {
         AudioEncoder.AacLc, AudioEncoder.AacEld, AudioEncoder.AacHe -> AacFormat()
-        AudioEncoder.AmrNb -> AmrNbFormat()
-        AudioEncoder.AmrWb -> AmrWbFormat()
+        AudioEncoder.AmrNb -> AmrFormat.narrowBand()
+        AudioEncoder.AmrWb -> AmrFormat.wideBand()
         AudioEncoder.Flac -> FlacFormat()
         AudioEncoder.Pcm16bits -> PcmFormat()
         AudioEncoder.Opus -> OpusFormat()

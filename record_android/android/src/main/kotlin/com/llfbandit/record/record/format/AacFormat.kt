@@ -39,7 +39,11 @@ class AacFormat : Format() {
     }
   }
 
-  override fun createWriter(mediaFormat: MediaFormat, path: String?): IContainerWriter {
+  override fun createWriter(
+    mediaFormat: MediaFormat,
+    path: String?,
+    onChunk: (ByteArray) -> Unit,
+  ): IContainerWriter {
     if (path == null) {
       val aacProfile = mediaFormat.getInteger(MediaFormat.KEY_AAC_PROFILE)
       if (aacProfile != MediaCodecInfo.CodecProfileLevel.AACObjectLC) {
@@ -49,7 +53,8 @@ class AacFormat : Format() {
       return AdtsContainer(
         mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE),
         mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT),
-        aacProfile
+        aacProfile,
+        onChunk,
       )
     }
 

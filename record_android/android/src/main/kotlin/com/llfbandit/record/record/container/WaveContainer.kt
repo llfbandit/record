@@ -1,6 +1,5 @@
 package com.llfbandit.record.record.container
 
-import android.media.MediaCodec
 import android.media.MediaFormat
 import android.system.Os
 import android.system.OsConstants
@@ -8,80 +7,27 @@ import android.util.Log
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-class WaveContainer(path: String, private val frameSize: Int) : IContainerWriter {
-  private val file = createFile(path)
-
-  private var isStarted = false
-  private var track = -1
+class WaveContainer(path: String, private val frameSize: Int) : FileContainer(path) {
   private var channelCount = 0
   private var sampleRate = 0
 
-  override fun start() {
-    if (isStarted) {
-      throw IllegalStateException("Container already started")
-    }
-
-    Os.ftruncate(file.fd, 0)
-
+  override fun onStart() {
     // Skip header
     Os.lseek(file.fd, HEADER_SIZE.toLong(), OsConstants.SEEK_SET)
-
-    isStarted = true
   }
 
-  override fun stop() {
-    if (!isStarted) {
-      throw IllegalStateException("Container not started")
-    }
+  override fun onStop() {
+    if (!hasTrack) return
 
-    isStarted = false
-
-    if (track >= 0) {
-      val fileSize = Os.lseek(file.fd, 0, OsConstants.SEEK_CUR)
-      val header = buildHeader(fileSize)
-      Os.lseek(file.fd, 0, OsConstants.SEEK_SET)
-      Os.write(file.fd, header)
-    }
-
-    file.close()
+    val fileSize = Os.lseek(file.fd, 0, OsConstants.SEEK_CUR)
+    val header = buildHeader(fileSize)
+    Os.lseek(file.fd, 0, OsConstants.SEEK_SET)
+    Os.write(file.fd, header)
   }
 
-  override fun release() {
-    if (isStarted) {
-      stop()
-    } else {
-      runCatching { file.close() }
-    }
-  }
-
-  override fun addTrack(mediaFormat: MediaFormat): Int {
-    if (isStarted) {
-      throw IllegalStateException("Container already started")
-    } else if (track >= 0) {
-      throw IllegalStateException("Track already added")
-    }
-
-    track = 0
+  override fun onTrack(mediaFormat: MediaFormat) {
     channelCount = mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
     sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-
-    return track
-  }
-
-  override fun writeSampleData(
-    trackIndex: Int,
-    byteBuffer: ByteBuffer,
-    bufferInfo: MediaCodec.BufferInfo
-  ) {
-    if (!isStarted) {
-      throw IllegalStateException("Container not started")
-    } else if (track < 0) {
-      throw IllegalStateException("No track has been added")
-    } else if (track != trackIndex) {
-      throw IllegalStateException("Invalid track: $trackIndex")
-    }
-
-    Os.write(file.fd, byteBuffer)
   }
 
   private fun buildHeader(fileSize: Long): ByteBuffer {
