@@ -33,30 +33,30 @@ class AudioSessionManager(
   private val audioManager: AudioManager =
     context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-  private val prevMuteSettings = HashMap<Int, Int>()
+  private val mutedVolumes = HashMap<Int, Int>()
   private var prevAudioMode: Int = AudioManager.MODE_NORMAL
   private var prevSpeakerphone = false
 
   private var focusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
   private var focusRequest: AudioFocusRequest? = null
 
-  @Suppress("DEPRECATION")
-  fun save() {
-    prevMuteSettings.clear()
-    muteStreams.forEach { stream ->
-      prevMuteSettings[stream] = audioManager.getStreamVolume(stream)
-    }
-    prevAudioMode = audioManager.mode
-    prevSpeakerphone = audioManager.isSpeakerphoneOn
-  }
+  // A second restore would clobber app changes made since.
+  private var applied = false
 
   /** Idempotent: a session already holding focus keeps its request. */
   @Suppress("DEPRECATION")
   fun apply(config: RecordConfig) {
+    if (!applied) {
+      // Snapshot here, so a restore never brings back settings from before a pause.
+      prevAudioMode = audioManager.mode
+      prevSpeakerphone = audioManager.isSpeakerphoneOn
+    }
+    // Set first, so restore() also undoes a partial apply.
+    applied = true
     if (config.audioInterruption != AudioInterruption.NONE) {
       requestAudioFocus()
     }
-    if (config.muteAudio) {
+    if (config.muteAudio && mutedVolumes.isEmpty()) {
       setMuted(true)
     }
     if (config.audioManagerMode != AudioManager.MODE_NORMAL) {
@@ -70,6 +70,8 @@ class AudioSessionManager(
 
   @Suppress("DEPRECATION")
   fun restore(config: RecordConfig) {
+    if (!applied) return
+    applied = false
     abandonAudioFocus()
     if (config.muteAudio) {
       setMuted(false)
@@ -82,17 +84,26 @@ class AudioSessionManager(
     }
   }
 
+  // Volume 0, not ADJUST_MUTE: Android ignores a mute on streams like the alarm.
   private fun setMuted(mute: Boolean) {
-    muteStreams.forEach { stream ->
-      val level = if (mute) AudioManager.ADJUST_MUTE
-      else (prevMuteSettings[stream] ?: AudioManager.ADJUST_UNMUTE)
-      try {
-        audioManager.setStreamVolume(stream, level, 0)
-      } catch (e: SecurityException) {
-        // Do Not Disturb without notification-policy access; muting is best effort.
-        Log.w(TAG, "Cannot change volume of stream $stream: ${e.message}")
+    if (mute) {
+      muteStreams.forEach { stream ->
+        val volume = audioManager.getStreamVolume(stream)
+        if (setVolume(stream, 0)) mutedVolumes[stream] = volume
       }
+    } else {
+      mutedVolumes.forEach { (stream, volume) -> setVolume(stream, volume) }
+      mutedVolumes.clear()
     }
+  }
+
+  private fun setVolume(stream: Int, volume: Int): Boolean = try {
+    audioManager.setStreamVolume(stream, volume, 0)
+    true
+  } catch (e: SecurityException) {
+    // DND without policy access; best effort.
+    Log.w(TAG, "Cannot change volume of stream $stream: ${e.message}")
+    false
   }
 
   @Suppress("DEPRECATION")

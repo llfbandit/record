@@ -23,7 +23,6 @@ class AndroidAudioEnvironment(
   private val bluetooth = BluetoothManager(context, handler)
 
   override fun prepare(config: RecordConfig, onReady: () -> Unit) {
-    session.save()
     bluetooth.maybeStart(config) { onReady() }
   }
 
