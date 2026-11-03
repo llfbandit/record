@@ -583,13 +583,14 @@ class RecorderControllerTest {
   }
 
   @Test
-  fun `a teardown error goes to the stream and stop still returns the path`() {
+  fun `a teardown error reaches Dart with the stop and stop still returns the path`() {
     engine.stopError = RuntimeException("muxer")
     startRecording()
 
     val path = stop()
 
     assertEquals(config.path, path)
+    assertEquals(listOf(RecordStop(StopReason.STOP, config.path, "muxer")), sink.stops)
     assertEquals(listOf("muxer"), sink.errors.map { it.message })
     assertEquals(RecordState.STOP, sink.states.last())
   }
