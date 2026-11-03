@@ -6,7 +6,7 @@ import android.media.AudioRouting
 import android.media.MediaRecorder
 import android.os.Build
 import android.util.Log
-import com.llfbandit.record.record.model.AudioEncoder
+import com.llfbandit.record.record.format.Format
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.util.DeviceUtils
 import com.llfbandit.record.record.util.Utils
@@ -66,6 +66,9 @@ class MediaCaptureEngine(
   }
 
   override fun start(): RecordConfig {
+    val legacy = Format.selectFormat(config.encoder).legacyRecorder(config)
+      ?: throw IllegalArgumentException("The legacy recorder cannot record '${config.encoder.value}'.")
+
     val r = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
       @Suppress("DEPRECATION")
       MediaRecorder()
@@ -79,9 +82,9 @@ class MediaCaptureEngine(
       r.setAudioEncodingBitRate(config.bitRate)
       r.setAudioSamplingRate(config.sampleRate)
       r.setAudioChannels(2.coerceAtMost(1.coerceAtLeast(config.numChannels)))
-      r.setOutputFormat(getOutputFormat(config.encoder))
+      r.setOutputFormat(legacy.outputFormat)
       // must be set after output format
-      r.setAudioEncoder(getEncoder(config.encoder))
+      r.setAudioEncoder(legacy.audioEncoder)
       r.setOutputFile(config.path)
       preferDevice(r, config.device)
       r.prepare()
@@ -169,34 +172,5 @@ class MediaCaptureEngine(
     if (delete) Utils.deleteFile(config.path)
 
     return error
-  }
-
-  private fun getOutputFormat(encoder: AudioEncoder): Int = when (encoder) {
-    AudioEncoder.AacLc, AudioEncoder.AacEld, AudioEncoder.AacHe -> MediaRecorder.OutputFormat.MPEG_4
-    AudioEncoder.AmrNb, AudioEncoder.AmrWb -> MediaRecorder.OutputFormat.THREE_GPP
-    AudioEncoder.Opus ->
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaRecorder.OutputFormat.OGG
-      else MediaRecorder.OutputFormat.MPEG_4
-    else -> MediaRecorder.OutputFormat.DEFAULT
-  }
-
-  // https://developer.android.com/reference/android/media/MediaRecorder.AudioEncoder
-  private fun getEncoder(encoder: AudioEncoder): Int = when (encoder) {
-    AudioEncoder.AacLc -> MediaRecorder.AudioEncoder.AAC
-    AudioEncoder.AacEld -> MediaRecorder.AudioEncoder.AAC_ELD
-    AudioEncoder.AacHe -> MediaRecorder.AudioEncoder.HE_AAC
-    AudioEncoder.AmrNb -> MediaRecorder.AudioEncoder.AMR_NB
-    AudioEncoder.AmrWb -> MediaRecorder.AudioEncoder.AMR_WB
-    AudioEncoder.Opus ->
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        MediaRecorder.AudioEncoder.OPUS
-      } else {
-        Log.d(TAG, "Falling back to AAC LC")
-        MediaRecorder.AudioEncoder.AAC
-      }
-    else -> {
-      Log.d(TAG, "Falling back to AAC LC")
-      MediaRecorder.AudioEncoder.AAC
-    }
   }
 }
