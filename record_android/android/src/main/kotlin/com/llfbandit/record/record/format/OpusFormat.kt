@@ -2,6 +2,7 @@ package com.llfbandit.record.record.format
 
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.media.MediaRecorder
 import android.os.Build
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
@@ -19,6 +20,14 @@ class OpusFormat : Format() {
       setInteger(MediaFormat.KEY_BIT_RATE, config.bitRate)
     }
   }
+
+  // No Opus in MediaRecorder below API 29; keep recording AAC.
+  override fun legacyRecorder(config: RecordConfig) =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      LegacyRecorder(MediaRecorder.OutputFormat.OGG, MediaRecorder.AudioEncoder.OPUS)
+    } else {
+      LegacyRecorder(MediaRecorder.OutputFormat.MPEG_4, MediaRecorder.AudioEncoder.AAC)
+    }
 
   override fun createWriter(
     mediaFormat: MediaFormat,

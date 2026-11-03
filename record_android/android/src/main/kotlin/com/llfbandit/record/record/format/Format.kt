@@ -6,6 +6,8 @@ import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
 import com.llfbandit.record.record.encoder.EncoderListener
 
+class LegacyRecorder(val outputFormat: Int, val audioEncoder: Int)
+
 /**
  * Represents an audio format.
  * This class is responsible for creating the encoder and container for the specified format.
@@ -29,6 +31,9 @@ sealed class Format {
    */
   abstract fun getMediaFormat(config: RecordConfig): MediaFormat
 
+  /** Null when MediaRecorder cannot record this format. */
+  open fun legacyRecorder(config: RecordConfig): LegacyRecorder? = null
+
   /**
    * Create a container to write the encoded data.
    *
@@ -41,6 +46,7 @@ sealed class Format {
     path: String?,
     onChunk: (ByteArray) -> Unit,
   ): IContainerWriter
+
 
   companion object {
     const val KEY_X_FRAME_SIZE_IN_BYTES = "x-frame-size-in-bytes"

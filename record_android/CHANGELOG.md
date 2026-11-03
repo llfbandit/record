@@ -5,6 +5,7 @@
 * fix: Audio captured while paused no longer leaks into the recording on resume.
 * fix: A device keeps its id when it is plugged in again, so a saved `InputDevice` still works.
 * fix: A missing device falls back to the default one, and `onConfigChanged` reports it with a null device.
+* fix: The legacy recorder rejects `flac`, `pcm16bits` and `wav` instead of silently recording AAC.
 
 ## 2.2.0
 * refactor: Rebuild recorder as capture engine + controller.
