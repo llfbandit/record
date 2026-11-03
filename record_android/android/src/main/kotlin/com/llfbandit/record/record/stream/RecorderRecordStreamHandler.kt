@@ -22,10 +22,11 @@ class RecorderRecordStreamHandler : EventChannel.StreamHandler {
     }
   }
 
-  fun sendErrorEvent(ex: Exception) {
+  /** Ends the Dart stream once a take is over; queued after its last chunk. */
+  fun sendEndOfStream() {
     MainThread.post {
-      // `details` must be codec-encodable; a Throwable is not.
-      eventSink?.error("-1", ex.message ?: ex.toString(), ex.cause?.toString())
+      eventSink?.endOfStream()
+      eventSink = null
     }
   }
 }

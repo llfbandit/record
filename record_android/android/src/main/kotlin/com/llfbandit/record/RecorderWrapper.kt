@@ -59,13 +59,14 @@ class RecorderWrapper(
     },
     sink = object : RecorderSink {
       override fun onState(state: RecordState) = stateStreamHandler.sendStateEvent(state)
-      override fun onStopped(stop: RecordStop) = stateStreamHandler.sendStopEvent(stop)
+      override fun onStopped(stop: RecordStop) {
+        stateStreamHandler.sendStopEvent(stop)
+        // The take may end on its own (a failure, a route change): stream readers must not hang.
+        recordStreamHandler.sendEndOfStream()
+      }
+      // Already reported via onStopped; only log.
       override fun onError(error: Throwable) {
-        // The streams may have no listener; keep the cause visible in logcat.
         Log.e(TAG, error.message ?: error.toString(), error)
-        val ex = error as? Exception ?: Exception(error)
-        stateStreamHandler.sendStateErrorEvent(ex)
-        recordStreamHandler.sendErrorEvent(ex)
       }
       override fun onConfigChanged(config: RecordConfig) = notifyConfigChanged(config)
     },

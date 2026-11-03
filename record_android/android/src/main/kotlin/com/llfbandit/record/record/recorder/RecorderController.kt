@@ -20,6 +20,7 @@ interface RecorderSink {
   /** Pause and record. A take ends with [onStopped]. */
   fun onState(state: RecordState)
   fun onStopped(stop: RecordStop)
+  /** A failure the take survived, or one [onStopped] already reported. */
   fun onError(error: Throwable)
   fun onConfigChanged(config: RecordConfig)
 }
@@ -165,7 +166,7 @@ class RecorderController(
       when (action) {
         PolicyAction.Pause ->
           if (s.state == RecordState.RECORD && s.engine.pause()) moveTo(s, RecordState.PAUSE)
-        // Nobody awaits this resume, so its failure goes to Dart as an error.
+        // Nobody awaits this resume: on failure the take stays paused, or ends through onStopped.
         PolicyAction.Resume -> resume()?.let(sink::onError)
       }
     }
@@ -237,7 +238,9 @@ class RecorderController(
     if (s.state != RecordState.STOP) {
       s.state = RecordState.STOP
       val path = if (delete) null else s.config.path
-      sink.onStopped(RecordStop(reason, path, reported?.let { it.message ?: it.toString() }))
+      // A failure the stop ran into still reaches Dart, which onError alone would not.
+      val failure = reported ?: error
+      sink.onStopped(RecordStop(reason, path, failure?.let { it.message ?: it.toString() }))
     }
     error?.takeIf { it !== reported }?.let(sink::onError)
   }

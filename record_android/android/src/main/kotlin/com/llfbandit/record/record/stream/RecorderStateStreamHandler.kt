@@ -31,11 +31,4 @@ class RecorderStateStreamHandler : EventChannel.StreamHandler {
       eventSink?.success(map)
     }
   }
-
-  fun sendStateErrorEvent(ex: Exception) {
-    MainThread.post {
-      // `details` must be codec-encodable; a Throwable is not.
-      eventSink?.error("-1", ex.message ?: ex.toString(), ex.cause?.toString())
-    }
-  }
 }
