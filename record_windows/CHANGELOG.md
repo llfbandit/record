@@ -1,5 +1,6 @@
 ## 2.4.0
 * refactor: Rebuild recorder as capture engine, sink and controller.
+* fix: `stop()` and `cancel()` before the first sample failed with "Catastrophic failure" (E_UNEXPECTED).
 
 ## 2.3.0
 * refactor: redirect recorder control onto one background thread.
