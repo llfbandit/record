@@ -112,4 +112,61 @@ namespace record_windows
 		Call(*dispatcher, [&] { return recorder.Dispose(); });
 		DeleteFileW(path.c_str());
 	}
+
+	// A device that delivers nothing leaves a sink writer without samples, and
+	// Finalize fails on that with E_UNEXPECTED.
+	TEST(RecorderStopTest, StopBeforeTheFirstSampleCancelsTheTake)
+	{
+		if (!HasCaptureDevice()) GTEST_SKIP() << "no capture device";
+
+		wchar_t temp[MAX_PATH];
+		GetTempPathW(MAX_PATH, temp);
+		std::wstring path = std::wstring(temp) + L"record_stop_empty_test.wav";
+		DeleteFileW(path.c_str());
+
+		auto dispatcher = std::make_shared<RecorderDispatcher>();
+		Recorder recorder(dispatcher, RecorderCallbacks());
+
+		// One dispatcher task: no sample can be processed between the two calls.
+		StopResult stopped = Call(*dispatcher, [&] {
+			HRESULT started = recorder.Start(WavConfig(), path);
+			return SUCCEEDED(started) ? recorder.Stop() : StopResult{ started, std::wstring() };
+		});
+
+		EXPECT_HRESULT_SUCCEEDED(stopped.hr);
+		EXPECT_TRUE(stopped.path.empty());
+		EXPECT_FALSE(Call(*dispatcher, [&] { return recorder.IsRecording(); }));
+		EXPECT_EQ(GetFileAttributesW(path.c_str()), INVALID_FILE_ATTRIBUTES);
+
+		Call(*dispatcher, [&] { return recorder.Dispose(); });
+		DeleteFileW(path.c_str());
+	}
+
+	// Discarding skips Finalize, so the open writer must not keep the file alive.
+	TEST(RecorderStopTest, CancelAfterARealTakeRemovesTheFile)
+	{
+		if (!HasCaptureDevice()) GTEST_SKIP() << "no capture device";
+
+		wchar_t temp[MAX_PATH];
+		GetTempPathW(MAX_PATH, temp);
+		std::wstring path = std::wstring(temp) + L"record_cancel_test.wav";
+		DeleteFileW(path.c_str());
+
+		auto dispatcher = std::make_shared<RecorderDispatcher>();
+		Recorder recorder(dispatcher, RecorderCallbacks());
+
+		HRESULT started = Call(*dispatcher, [&] {
+			return recorder.Start(WavConfig(), path);
+		});
+		ASSERT_HRESULT_SUCCEEDED(started);
+
+		Sleep(1000);
+
+		EXPECT_HRESULT_SUCCEEDED(Call(*dispatcher, [&] { return recorder.Cancel(); }));
+		EXPECT_FALSE(Call(*dispatcher, [&] { return recorder.IsRecording(); }));
+		EXPECT_EQ(GetFileAttributesW(path.c_str()), INVALID_FILE_ATTRIBUTES);
+
+		Call(*dispatcher, [&] { return recorder.Dispose(); });
+		DeleteFileW(path.c_str());
+	}
 }

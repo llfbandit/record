@@ -195,8 +195,9 @@ namespace record_windows
 
 		if (m_pSink)
 		{
-			hr = m_pSink->Finalize();
+			// Finalize fails with E_UNEXPECTED on a take that never got a sample.
 			if (discard) m_pSink->Discard();
+			else hr = m_pSink->Finalize();
 			m_pSink.reset();
 		}
 
