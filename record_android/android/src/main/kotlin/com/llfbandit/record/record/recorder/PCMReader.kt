@@ -28,7 +28,12 @@ class PCMReader(
   private val bufferSize: Int = initBufferSize()
   private val buffer = PcmBuffer(bufferSize)
   private var reader: AudioRecord = createReader()
-  private var effects = AudioEffectsManager(reader.audioSessionId).also { it.apply(config) }
+  private var effects = try {
+    AudioEffectsManager(reader.audioSessionId).also { it.apply(config) }
+  } catch (e: Exception) {
+    reader.release()
+    throw e
+  }
   private var routingListener: AudioRouting.OnRoutingChangedListener? = null
 
   // Written by the capture loop, read from the control thread.
