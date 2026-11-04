@@ -66,10 +66,13 @@ class MuxerContainer(
   }
 
   override fun release() {
-    stop()
-
-    mMuxer?.release()
-    mMuxer = null
+    try {
+      // Throws if no sample was written; still release.
+      stop()
+    } finally {
+      mMuxer?.release()
+      mMuxer = null
+    }
   }
 
   override fun onCsdBuffer(csd: ByteArray?) {
