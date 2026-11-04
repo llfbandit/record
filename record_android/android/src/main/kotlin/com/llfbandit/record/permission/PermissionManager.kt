@@ -2,56 +2,63 @@ package com.llfbandit.record.permission
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener
 
-class PermissionManager : RequestPermissionsResultListener {
-  private var resultCallback: PermissionResultCallback? = null
+class PermissionManager(private val context: Context) : RequestPermissionsResultListener {
+  private val pending = mutableListOf<PermissionResultCallback>()
   private var activity: Activity? = null
 
   fun setActivity(activity: Activity?) {
     this.activity = activity
   }
 
+  fun answerPending() = answerAll(isPermissionGranted())
+
   override fun onRequestPermissionsResult(
     requestCode: Int,
     permissions: Array<String>,
     grantResults: IntArray
   ): Boolean {
-    if (requestCode == RECORD_AUDIO_REQUEST_CODE && resultCallback != null) {
-      val granted =
-        grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
-      resultCallback!!.onResult(granted)
-      resultCallback = null
-      return true
-    }
-    return false
+    if (requestCode != RECORD_AUDIO_REQUEST_CODE || pending.isEmpty()) return false
+    val index = permissions.indexOf(Manifest.permission.RECORD_AUDIO)
+    // Another request sharing our code; an interrupted one comes back empty and is ours.
+    if (index < 0 && permissions.isNotEmpty()) return false
+
+    answerAll(index >= 0 && grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED)
+    return true
+  }
+
+  private fun answerAll(granted: Boolean) {
+    val waiting = pending.toList()
+    pending.clear()
+    waiting.forEach { it.onResult(granted) }
   }
 
   fun hasPermission(request: Boolean = true, resultCallback: PermissionResultCallback) {
-    if (activity == null) {
-      resultCallback.onResult(false)
+    val isGranted = isPermissionGranted()
+    val activity = activity
+    if (isGranted || !request || activity == null) {
+      resultCallback.onResult(isGranted)
       return
     }
-    val isGranted = isPermissionGranted(activity!!)
-    if (!isGranted && request) {
-      this.resultCallback = resultCallback
+
+    pending += resultCallback
+    if (pending.size == 1) {
       ActivityCompat.requestPermissions(
-        activity!!, arrayOf(Manifest.permission.RECORD_AUDIO),
-        RECORD_AUDIO_REQUEST_CODE
+        activity, arrayOf(Manifest.permission.RECORD_AUDIO), RECORD_AUDIO_REQUEST_CODE
       )
-    } else {
-      resultCallback.onResult(isGranted)
     }
   }
 
-  private fun isPermissionGranted(activity: Activity): Boolean {
-    val result = ActivityCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO)
-    return result == PackageManager.PERMISSION_GRANTED
-  }
+  private fun isPermissionGranted(): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+      PackageManager.PERMISSION_GRANTED
 
   companion object {
-    private const val RECORD_AUDIO_REQUEST_CODE = 1001
+    internal const val RECORD_AUDIO_REQUEST_CODE = 1001
   }
 }
