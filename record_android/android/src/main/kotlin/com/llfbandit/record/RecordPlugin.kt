@@ -43,16 +43,23 @@ class RecordPlugin : FlutterPlugin, ActivityAware {
     }
   }
 
+  // The recreated activity delivers the pending dialog's result.
   override fun onDetachedFromActivityForConfigChanges() {
-    onDetachedFromActivity()
+    detachActivity()
   }
 
   override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-    onDetachedFromActivity()
+    detachActivity()
     onAttachedToActivity(binding)
   }
 
   override fun onDetachedFromActivity() {
+    detachActivity()
+    // No activity comes back to deliver the dialog's result.
+    permissionManager?.answerPending()
+  }
+
+  private fun detachActivity() {
     val pm = permissionManager
     if (pm != null) {
       pm.setActivity(null)
@@ -65,7 +72,7 @@ class RecordPlugin : FlutterPlugin, ActivityAware {
   /////////////////////////////////////////////////////////////////////////////
 
   private fun startPlugin(binding: FlutterPluginBinding) {
-    permissionManager = PermissionManager()
+    permissionManager = PermissionManager(binding.applicationContext)
     callHandler = MethodCallHandlerImpl(
       permissionManager!!,
       binding.binaryMessenger,
