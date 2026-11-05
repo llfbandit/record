@@ -80,4 +80,29 @@ namespace record_windows
 		EXPECT_EQ(config.rawArgs.size(), args.size());
 		EXPECT_EQ(config.rawArgs.at(Key("sampleRate")), flutter::EncodableValue(48000));
 	}
+		TEST(RecordConfigTest, FromMapKeepsWindowsDefaults)
+	{
+		auto config = RecordConfig::FromMap(flutter::EncodableMap());
+
+		EXPECT_FALSE(config.captureSystemAudio);
+		EXPECT_DOUBLE_EQ(config.micGain, 1.0);
+		EXPECT_DOUBLE_EQ(config.systemAudioGain, 0.7);
+	}
+
+	TEST(RecordConfigTest, FromMapReadsWindowsConfig)
+	{
+		flutter::EncodableMap args{
+			{ Key("windowsConfig"), flutter::EncodableValue(flutter::EncodableMap{
+				{ Key("captureSystemAudio"), flutter::EncodableValue(true) },
+				{ Key("micGain"),            flutter::EncodableValue(1.5) },
+				{ Key("systemAudioGain"),    flutter::EncodableValue(0.3) },
+			}) },
+		};
+
+		auto config = RecordConfig::FromMap(args);
+
+		EXPECT_TRUE(config.captureSystemAudio);
+		EXPECT_DOUBLE_EQ(config.micGain, 1.5);
+		EXPECT_DOUBLE_EQ(config.systemAudioGain, 0.3);
+	}
 }

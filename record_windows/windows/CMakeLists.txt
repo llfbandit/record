@@ -49,6 +49,9 @@ list(APPEND PLUGIN_SOURCES
   "audio_device/record_audio_device.cpp"
   "amplitude/amplitude_tracker.h"
   "amplitude/amplitude_tracker.cpp"
+  "wasapi/wasapi_mix_recorder.h"
+  "wasapi/wasapi_mix_recorder.cpp"
+  "wasapi/pcm_utils.h"
   "utils.h"
   "event_stream_handler.h"
 )
@@ -116,6 +119,7 @@ if (include_${PROJECT_NAME}_tests)
     "test/record_config_test.cpp"
     "test/timeline_clock_test.cpp"
     "test/sink_test.cpp"
+    "test/pcm_utils_test.cpp"
     ${PLUGIN_SOURCES}
   )
 

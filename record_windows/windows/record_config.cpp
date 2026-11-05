@@ -21,7 +21,13 @@ namespace record_windows
 		{
 			GetValueFromEncodableMap(&device, "id", config.deviceId);
 		}
-
+		flutter::EncodableMap win;
+		if (GetValueFromEncodableMap(&args, "windowsConfig", win))
+		{
+			GetValueFromEncodableMap(&win, "captureSystemAudio", config.captureSystemAudio);
+			GetValueFromEncodableMap(&win, "micGain", config.micGain);
+			GetValueFromEncodableMap(&win, "systemAudioGain", config.systemAudioGain);
+		}
 		config.rawArgs = args;
 
 		return config;

@@ -8,3 +8,4 @@ export 'ios_audio_session.dart';
 export 'ios_record_config.dart';
 export 'record_config.dart';
 export 'record_state.dart';
+export 'windows_record_config.dart';

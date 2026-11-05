@@ -1,12 +1,12 @@
 import 'types.dart';
 
-/// Recording configuration
+/// Recording configuration.
 ///
 /// `encoder`: The audio encoder to be used for recording.
 ///
-/// `bitRate`*: The audio encoding bit rate in bits per second.
+/// `bitRate`: The audio encoding bit rate in bits per second.
 ///
-/// `sampleRate`*: The sample rate for audio in samples per second.
+/// `sampleRate`: The sample rate for audio in samples per second.
 ///
 /// `numChannels`: The numbers of channels for the recording.
 /// 1 = mono, 2 = stereo.
@@ -14,11 +14,11 @@ import 'types.dart';
 /// `device`: The device to be used for recording. If null, default device
 /// will be selected.
 ///
-/// `autoGain`*: The recorder will try to auto adjust recording volume in a limited range.
+/// `autoGain`: The recorder will try to auto adjust recording volume in a limited range.
 ///
-/// `echoCancel`*: The recorder will try to reduce echo.
+/// `echoCancel`: The recorder will try to reduce echo.
 ///
-/// `noiseSuppress`*: The recorder will try to negates the input noise.
+/// `noiseSuppress`: The recorder will try to negates the input noise.
 ///
 /// `*`: May not be considered on all platforms/formats.
 class RecordConfig {
@@ -62,6 +62,9 @@ class RecordConfig {
   /// iOS specific configuration.
   final IosRecordConfig iosConfig;
 
+  /// Windows specific configuration.
+  final WindowsRecordConfig windowsConfig;
+
   /// Recorder behaviour when audio is interrupted by another source.
   ///
   /// System alerts are ignored.
@@ -72,7 +75,7 @@ class RecordConfig {
 
   /// Useful for those who need finer data when streaming.
   ///
-  /// Underlying implementations may adjust to other value or throw exception if under miminum size required.
+  /// Underlying implementations may adjust to other value or throw exception if under minimum size required.
   ///
   /// Platforms: Android, iOS, macOS & web.
   final int? streamBufferSize;
@@ -88,6 +91,7 @@ class RecordConfig {
     this.noiseSuppress = false,
     this.androidConfig = const AndroidRecordConfig(),
     this.iosConfig = const IosRecordConfig(),
+    this.windowsConfig = const WindowsRecordConfig(),
     this.audioInterruption = AudioInterruptionMode.pause,
     this.streamBufferSize,
   });
@@ -103,6 +107,7 @@ class RecordConfig {
     bool? noiseSuppress,
     AndroidRecordConfig? androidConfig,
     IosRecordConfig? iosConfig,
+    WindowsRecordConfig? windowsConfig,
     AudioInterruptionMode? audioInterruption,
     ({int? value})? streamBufferSize,
   }) {
@@ -117,6 +122,7 @@ class RecordConfig {
       noiseSuppress: noiseSuppress ?? this.noiseSuppress,
       androidConfig: androidConfig ?? this.androidConfig,
       iosConfig: iosConfig ?? this.iosConfig,
+      windowsConfig: windowsConfig ?? this.windowsConfig,
       audioInterruption: audioInterruption ?? this.audioInterruption,
       streamBufferSize:
           streamBufferSize != null ? streamBufferSize.value : this.streamBufferSize,
@@ -157,6 +163,7 @@ class RecordConfig {
       'noiseSuppress': noiseSuppress,
       'androidConfig': androidConfig.toMap(),
       'iosConfig': iosConfig.toMap(),
+      'windowsConfig': windowsConfig.toMap(),
       'audioInterruption': audioInterruption.index,
       'streamBufferSize': streamBufferSize,
     };
