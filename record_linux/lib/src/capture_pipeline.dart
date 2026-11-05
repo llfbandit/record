@@ -135,7 +135,11 @@ class CapturePipeline {
     final process = await Process.start(parecordBin, parecordArgs(config));
 
     // The take may end while parecord starts.
-    if (pcm == null || !identical(pcm, _pcm)) return _kill(process);
+    if (pcm == null || !identical(pcm, _pcm)) {
+      _drain(process.stdout);
+      _drain(process.stderr);
+      return _kill(process);
+    }
 
     // Two overlapping restarts would otherwise leave one parecord behind.
     suspendCapture();
