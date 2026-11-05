@@ -29,6 +29,10 @@ namespace record_windows
 		bool autoGain = false;
 		bool echoCancel = false;
 		bool noiseSuppress = false;
+		// --- Windows: mic + system audio mix (WASAPI) ---
+		bool captureSystemAudio = false;
+		double micGain = 1.0;
+		double systemAudioGain = 0.7;
 		flutter::EncodableMap rawArgs;
 
 		// Reads the Dart call arguments. A missing key keeps the default above.

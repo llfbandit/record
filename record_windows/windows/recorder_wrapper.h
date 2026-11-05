@@ -14,6 +14,7 @@
 #include "platform_thread.h"
 #include "record/record.h"
 #include "recorder_dispatcher.h"
+#include "wasapi/wasapi_mix_recorder.h"
 
 namespace record_windows
 {
@@ -39,10 +40,11 @@ namespace record_windows
 		void Dispose(std::function<void()> reply);
 
 	private:
+        HRESULT StartWasapi(const RecordConfig& cfg, const std::wstring& path, bool stream);
+		static WasapiMixConfig ToWasapiCfg(const RecordConfig& cfg);
 		template <typename R, typename F>
 		void Run(std::function<void(R)> reply, R fallback, F&& block);
 		void Teardown(std::function<void()> done);
-
 		PlatformThread& m_platform;
 		// Cleared on destruction: event hops still queued on the platform thread must skip.
 		std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
@@ -55,5 +57,7 @@ namespace record_windows
 
 		std::shared_ptr<RecorderDispatcher> m_dispatcher;
 		std::unique_ptr<Recorder> m_recorder;
+		std::unique_ptr<WasapiMixRecorder> m_wasapi;
+		RecorderCallbacks m_callbacks;     
 	};
 }

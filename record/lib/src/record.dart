@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:record_platform_interface/record_platform_interface.dart';
 
 import 'util/semaphore.dart';
@@ -47,6 +49,7 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   ///
   /// Output path can be retrieves when [stop] method is called.
   Future<void> start(RecordConfig config, {required String path}) async {
+    _validateWindowsConfig(config, stream: false);
     _initStateStream();
 
     await _safeCall(() => _platform.start(_recorderId, config, path: path));
@@ -56,7 +59,8 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   ///
   /// When stopping the record, you must rely on stream close event to get
   /// full recorded data.
-  Future<Stream<Uint8List>> startStream(RecordConfig config) {
+  Future<Stream<Uint8List>> startStream(RecordConfig config) async {
+    _validateWindowsConfig(config, stream: true);
     _initStateStream();
 
     return _safeCall(() async {
@@ -223,6 +227,27 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
       return await fn();
     } finally {
       _semaphore.release();
+    }
+  }
+
+  /// Windows system-audio mix supports only uncompressed output for now.
+  void _validateWindowsConfig(RecordConfig config, {required bool stream}) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) return;
+    if (!config.windowsConfig.captureSystemAudio) return;
+
+    final ok = stream
+        ? config.encoder == AudioEncoder.pcm16bits
+        : config.encoder == AudioEncoder.wav ||
+              config.encoder == AudioEncoder.pcm16bits;
+
+    if (!ok) {
+      throw ArgumentError(
+        stream
+            ? 'captureSystemAudio on Windows supports only '
+                  'AudioEncoder.pcm16bits for streaming.'
+            : 'captureSystemAudio on Windows supports only '
+                  'AudioEncoder.wav or AudioEncoder.pcm16bits.',
+      );
     }
   }
 }
