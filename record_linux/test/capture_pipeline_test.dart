@@ -154,6 +154,66 @@ void main() {
     expect(exits, ['ffmpeg exited (1).']);
   });
 
+  test('ffmpeg logs only errors', () async {
+    final parecord = await writeScript('parecord', 'exec sleep 1000\n');
+    final ffmpeg = await writeScript(
+      'ffmpeg',
+      'echo "\$@" > "${tempDir.path}/args"\nexec cat > /dev/null\n',
+    );
+
+    final pipeline = CapturePipeline(parecordBin: parecord, ffmpegBin: ffmpeg);
+    await pipeline.startFile(const RecordConfig(), '${tempDir.path}/take.wav');
+    await waitFor(() => File('${tempDir.path}/args').existsSync());
+    await pipeline.stop().timeout(const Duration(seconds: 10));
+
+    expect(
+      File('${tempDir.path}/args').readAsStringSync(),
+      startsWith('-loglevel error -nostats '),
+    );
+  });
+
+  test('an exit drops the line that trimming stderr cut', () async {
+    final parecord = await writeScript(
+      'parecord',
+      'head -c 4096 /dev/zero | tr "\\0" x >&2\n'
+          'printf "\\nStream error: No such entity\\n" >&2\n'
+          'exit 1\n',
+    );
+    final exits = <String>[];
+
+    final pipeline = CapturePipeline(parecordBin: parecord)
+      ..onExited = (error, {required capture}) {
+        if (capture) exits.add(error);
+      };
+    await pipeline.startStream(const RecordConfig());
+    await waitFor(() => exits.isNotEmpty);
+    await pipeline.stop();
+
+    expect(exits, ['parecord exited (1): Stream error: No such entity']);
+  });
+
+  test('an exit reports the last lines of stderr', () async {
+    final parecord = await writeScript(
+      'parecord',
+      'head -c 4096 /dev/zero | tr "\\0" x >&2\n'
+          'printf "\\nline 1\\nline 2\\n\\nStream error: No such entity\\n" >&2\n'
+          'exit 1\n',
+    );
+    final exits = <String>[];
+
+    final pipeline = CapturePipeline(parecordBin: parecord)
+      ..onExited = (error, {required capture}) {
+        if (capture) exits.add(error);
+      };
+    await pipeline.startStream(const RecordConfig());
+    await waitFor(() => exits.isNotEmpty);
+    await pipeline.stop();
+
+    expect(exits, [
+      'parecord exited (1): line 1\nline 2\nStream error: No such entity',
+    ]);
+  });
+
   test('a capture the pipeline ends is not reported', () async {
     final parecord = await writeScript('parecord', 'exec sleep 1000\n');
     final ffmpeg = await writeScript('ffmpeg', 'exec cat > /dev/null\n');

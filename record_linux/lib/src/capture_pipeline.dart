@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:record_platform_interface/record_platform_interface.dart';
 
 import 'amplitude_tracker.dart';
+import 'output_tail.dart';
 import 'process_args.dart';
 
 /// Captures with parecord, and encodes with ffmpeg when recording to a file.
@@ -36,6 +37,10 @@ class CapturePipeline {
     await _startParecord(config);
 
     final args = [
+      // Progress and stats would push the error out of the stderr tail.
+      '-loglevel',
+      'error',
+      '-nostats',
       '-f',
       's16le',
       '-ar',
@@ -48,16 +53,16 @@ class CapturePipeline {
     ];
 
     final ffmpeg = _ffmpeg = await Process.start(ffmpegBin, args);
-    // ffmpeg reports progress on stderr until it exits; a full pipe would
-    // block it in write() and stall the recording.
+    // A full pipe would block ffmpeg in write() and stall the recording.
     _drain(ffmpeg.stdout);
-    _drain(ffmpeg.stderr);
+    final tail = OutputTail(ffmpeg.stderr);
 
     unawaited(
-      ffmpeg.exitCode.then((code) {
+      ffmpeg.exitCode.then((code) async {
+        final reason = await tail.text();
         // stop() drops the PCM stream before ffmpeg ends.
         if (identical(ffmpeg, _ffmpeg) && _pcm != null) {
-          onExited?.call('ffmpeg exited ($code).', capture: false);
+          onExited?.call(_exitError('ffmpeg', code, reason), capture: false);
         }
       }),
     );
@@ -135,7 +140,7 @@ class CapturePipeline {
     // Two overlapping restarts would otherwise leave one parecord behind.
     suspendCapture();
     _parecord = process;
-    _drain(process.stderr);
+    final tail = OutputTail(process.stderr);
 
     _capture = process.stdout.listen((data) {
       final typed = data is Uint8List ? data : Uint8List.fromList(data);
@@ -148,13 +153,20 @@ class CapturePipeline {
     if (pcm.hasListener && pcm.isPaused) _capture!.pause();
 
     unawaited(
-      process.exitCode.then((code) {
+      process.exitCode.then((code) async {
+        final reason = await tail.text();
         // suspendCapture() drops the process before killing it.
         if (identical(process, _parecord)) {
-          onExited?.call('parecord exited ($code).', capture: true);
+          onExited?.call(_exitError('parecord', code, reason), capture: true);
         }
       }),
     );
+  }
+
+  String _exitError(String program, int code, String reason) {
+    return reason.isEmpty
+        ? '$program exited ($code).'
+        : '$program exited ($code): $reason';
   }
 
   /// A paused parecord holds SIGTERM until it continues.
