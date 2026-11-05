@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 
 import 'platform/audio_recorder_platform.dart';
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 class Recorder extends StatefulWidget {
   final void Function(String path) onStop;
@@ -26,9 +28,11 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
   RecordConfig _config = const RecordConfig(numChannels: 1);
   bool _useStream = false;
   List<InputDevice> _inputDevices = [];
-
   String? _statusBarContent;
-
+  bool get _isWindows =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  bool get _systemAudioOn =>
+      _isWindows && _config.windowsConfig.captureSystemAudio;
   @override
   void initState() {
     _audioRecorder = AudioRecorder();
@@ -153,9 +157,18 @@ class _RecorderState extends State<Recorder> with AudioRecorderMixin {
                         config: _config,
                         onConfigChanged: (v) => setState(() => _config = v),
                         useStream: _useStream,
-                        onUseStreamChanged: (v) =>
-                            setState(() => _useStream = v),
+                        onUseStreamChanged: (v) => setState(() {
+                          _useStream = v;
+                          if (v &&
+                              _systemAudioOn &&
+                              _config.encoder != AudioEncoder.pcm16bits) {
+                            _config = _config.copyWith(
+                              encoder: AudioEncoder.pcm16bits,
+                            );
+                          }
+                        }),
                         inputDevices: _inputDevices,
+                        showSystemAudio: _isWindows,
                       ),
                     ),
                   ),
@@ -339,7 +352,7 @@ class _RecordConfigControls extends StatelessWidget {
   final bool useStream;
   final ValueChanged<bool> onUseStreamChanged;
   final List<InputDevice> inputDevices;
-
+  final bool showSystemAudio;
   static const _sampleRates = [2, 8000, 16000, 22050, 44100, 48000, 96000];
 
   const _RecordConfigControls({
@@ -348,12 +361,14 @@ class _RecordConfigControls extends StatelessWidget {
     required this.useStream,
     required this.onUseStreamChanged,
     required this.inputDevices,
+    required this.showSystemAudio,
   });
 
   @override
   Widget build(BuildContext context) {
     final labelStyle = Theme.of(context).textTheme.bodyMedium;
-
+    final restrictToPcm =
+        showSystemAudio && config.windowsConfig.captureSystemAudio;
     Widget row(String label, Widget control, {bool expand = false}) {
       return Row(
         children: [
@@ -370,6 +385,33 @@ class _RecordConfigControls extends StatelessWidget {
           'Stream',
           Checkbox(value: useStream, onChanged: (v) => onUseStreamChanged(v!)),
         ),
+        if (showSystemAudio)
+          row(
+            'Record system audio',
+            Checkbox(
+              value: config.windowsConfig.captureSystemAudio,
+              onChanged: (v) {
+                final enabled = v ?? false;
+                var next = config.copyWith(
+                  windowsConfig: WindowsRecordConfig(
+                    captureSystemAudio: enabled,
+                    micGain: config.windowsConfig.micGain,
+                    systemAudioGain: config.windowsConfig.systemAudioGain,
+                  ),
+                );
+
+                if (enabled) {
+                  final allowed = useStream
+                      ? [AudioEncoder.pcm16bits]
+                      : [AudioEncoder.wav, AudioEncoder.pcm16bits];
+                  if (!allowed.contains(next.encoder)) {
+                    next = next.copyWith(encoder: allowed.first);
+                  }
+                }
+                onConfigChanged(next);
+              },
+            ),
+          ),
         if (inputDevices.isNotEmpty)
           row(
             'Device',
@@ -397,6 +439,14 @@ class _RecordConfigControls extends StatelessWidget {
             value: config.encoder,
             underline: const SizedBox.shrink(),
             items: AudioEncoder.values
+                .where(
+                  (e) =>
+                      !restrictToPcm ||
+                      (useStream
+                          ? e == AudioEncoder.pcm16bits
+                          : e == AudioEncoder.wav ||
+                                e == AudioEncoder.pcm16bits),
+                )
                 .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                 .toList(),
             onChanged: (v) => onConfigChanged(config.copyWith(encoder: v!)),
