@@ -3,6 +3,7 @@
 * feat: Handle audio route changes (`RecordConfig.audioRouteChange`) when the input device in use goes away.
 * fix: `stop()` while paused leaves parecord running.
 * fix: Report why parecord or ffmpeg exited, from its last stderr lines (#638).
+* fix: `stop()` waits for parecord to exit, and kills it if it hangs (#638).
 * fix: `listInputDevices()` empty on plain PulseAudio, which has no `node.name`.
 
 ## 2.1.3
