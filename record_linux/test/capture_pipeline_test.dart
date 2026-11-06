@@ -246,13 +246,16 @@ void main() {
     // signal until it continues, where a default one would kill it.
     final parecord = await writeScript(
       'parecord',
-      "trap 'exit 0' TERM\nwhile :; do sleep 0.1; done\n",
+      "trap 'exit 0' TERM\n"
+          'echo ready > "\$0.ready"\n'
+          'while :; do sleep 0.1; done\n',
     );
     final ffmpeg = await writeScript('ffmpeg', 'exec cat > /dev/null\n');
 
     final pipeline = CapturePipeline(parecordBin: parecord, ffmpegBin: ffmpeg);
     await pipeline.startFile(const RecordConfig(), '${tempDir.path}/take.wav');
     final pid = pipeline.capturePid!;
+    await waitForReady(parecord);
 
     pipeline.pause();
     await pipeline.stop().timeout(const Duration(seconds: 10));
