@@ -31,6 +31,9 @@ class LinuxRecorder {
   InputDevice? _requestedDevice;
   // Capture ended with its device: resume() needs a new one.
   bool _routeLost = false;
+
+  /// The end that is running, if one is: a later caller joins it.
+  Future<String?>? _ending;
   StreamController<RecordState>? _stateStreamCtrl;
   StreamController<RecordStop>? _stopStreamCtrl;
   void Function(RecordConfig config)? _configChangedHandler;
@@ -51,6 +54,8 @@ class LinuxRecorder {
   bool isRecording() => _state == RecordState.record;
 
   Future<void> pause() async {
+    if (_ending != null) return _ignored('pause');
+
     if (_state == RecordState.record) {
       _pipeline.pause();
       _updateState(RecordState.pause);
@@ -58,6 +63,8 @@ class LinuxRecorder {
   }
 
   Future<void> resume() async {
+    if (_ending != null) return _ignored('resume');
+
     if (_state != RecordState.pause) return;
 
     if (_routeLost) {
@@ -76,7 +83,7 @@ class LinuxRecorder {
   }
 
   Future<void> start(RecordConfig config, {required String path}) async {
-    await stop();
+    await _endForTake();
 
     _supportedOrThrow(config);
 
@@ -91,7 +98,7 @@ class LinuxRecorder {
   }
 
   Future<Stream<Uint8List>> startStream(RecordConfig config) async {
-    await stop();
+    await _endForTake();
 
     final adjusted = _adjustConfig(config);
     final stream = await _pipeline.startStream(adjusted);
@@ -102,7 +109,15 @@ class LinuxRecorder {
     return stream;
   }
 
-  Future<String?> stop() => _end(delete: false);
+  Future<String?> stop() {
+    if (_ending case final ending?) {
+      _ignored('stop');
+
+      return ending;
+    }
+
+    return _end(delete: false);
+  }
 
   Future<void> cancel() => _end(delete: true);
 
@@ -120,9 +135,46 @@ class LinuxRecorder {
     _configChangedHandler = handler;
   }
 
+  /// Ends a running take for the one that is about to start.
+  ///
+  /// It joins an end that is already running instead of starting a second
+  /// one, and asks it to hurry: nothing can be recorded until it is done.
+  Future<void> _endForTake() {
+    if (_ending case final ending?) {
+      _ignored('stop');
+      _pipeline.hurryEnds();
+
+      return ending;
+    }
+
+    return _end(delete: false, restarting: true);
+  }
+
+  /// Runs one end at a time, so a later caller can join the one in flight.
   Future<String?> _end({
     required bool delete,
+    bool restarting = false,
     RecordStopReason reason = RecordStopReason.stop,
+    String? error,
+  }) async {
+    final ending = _ending = _endTake(
+      delete: delete,
+      restarting: restarting,
+      reason: reason,
+      error: error,
+    );
+
+    try {
+      return await ending;
+    } finally {
+      if (identical(_ending, ending)) _ending = null;
+    }
+  }
+
+  Future<String?> _endTake({
+    required bool delete,
+    required bool restarting,
+    required RecordStopReason reason,
     String? error,
   }) async {
     final path = _path;
@@ -133,7 +185,7 @@ class LinuxRecorder {
     _config = null;
     _routeLost = false;
     _routeMonitor.stop();
-    await _pipeline.stop();
+    await _pipeline.stop(restarting: restarting);
 
     _path = null;
     if (delete) _deleteFile(path);
@@ -149,6 +201,11 @@ class LinuxRecorder {
     }
 
     return path;
+  }
+
+  /// Logs an [operation] that the running end makes pointless.
+  void _ignored(String operation) {
+    debugPrint('record_linux: $operation() ignored: stop is already running');
   }
 
   void _deleteFile(String? path) {
