@@ -6,7 +6,6 @@ import android.media.MediaFormat
 import android.util.Range
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.util.DeviceUtils
-import com.llfbandit.record.record.encoder.EncoderListener
 import com.llfbandit.record.record.encoder.IEncoder
 import com.llfbandit.record.record.encoder.MediaCodecEncoder
 import com.llfbandit.record.record.encoder.PassthroughEncoder
@@ -17,7 +16,7 @@ internal object FormatCodecSelector {
   fun findCodec(
     format: Format,
     config: RecordConfig,
-    listener: EncoderListener
+    onChunk: (ByteArray) -> Unit,
   ): EncoderSetup {
 
     // Clamp config to device caps.
@@ -28,7 +27,7 @@ internal object FormatCodecSelector {
 
     if (format.mimeTypeAudio == MediaFormat.MIMETYPE_AUDIO_RAW) {
       val negotiated = negotiated(clamped, mediaFormat)
-      return EncoderSetup(PassthroughEncoder(negotiated, format, mediaFormat, listener), mediaFormat, negotiated)
+      return EncoderSetup(PassthroughEncoder(negotiated, format, mediaFormat, onChunk), mediaFormat, negotiated)
     }
 
     val codecs = MediaCodecList(MediaCodecList.REGULAR_CODECS)
@@ -40,7 +39,7 @@ internal object FormatCodecSelector {
         val caps = info.getCapabilitiesForType(format.mimeTypeAudio)
         if (caps != null && adjustToCapabilities(caps, mediaFormat)) {
           val negotiated = negotiated(clamped, mediaFormat)
-          return EncoderSetup(MediaCodecEncoder(negotiated, format, mediaFormat, listener, info.name), mediaFormat, negotiated)
+          return EncoderSetup(MediaCodecEncoder(negotiated, format, mediaFormat, onChunk, info.name), mediaFormat, negotiated)
         }
       } catch (_: IllegalArgumentException) {
         // type not supported by this codec

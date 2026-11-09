@@ -1,7 +1,7 @@
 package com.llfbandit.record.record.recorder.engine
 
 import android.media.AudioDeviceInfo
-import com.llfbandit.record.record.encoder.EncoderListener
+import android.os.Handler
 import com.llfbandit.record.record.encoder.IEncoder
 import com.llfbandit.record.record.format.Format
 import com.llfbandit.record.record.model.RecordConfig
@@ -10,245 +10,208 @@ import com.llfbandit.record.record.recorder.PCMReader
 import com.llfbandit.record.record.recorder.PcmSource
 import com.llfbandit.record.record.recorder.PcmSourceFactory
 import com.llfbandit.record.record.util.Utils
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.LinkedBlockingQueue
 
-/** [CaptureEngine] that records with AudioRecord + an [IEncoder] on a background loop. */
+/** [CaptureEngine] that records with AudioRecord + an [IEncoder]; everything runs on the caller's thread. */
 class PcmCaptureEngine(
   private val config: RecordConfig,
   private val onEvent: (source: CaptureEngine, event: CaptureEvent) -> Unit,
   private val removals: DeviceRemovals,
+  // The control thread: reads are scheduled on it, and routing callbacks land on it.
+  private val handler: Handler,
+  private val hasInputDevices: () -> Boolean,
   private val createSource: PcmSourceFactory = ::PCMReader,
-) : CaptureEngine, EncoderListener {
+) : CaptureEngine {
   companion object {
-    // The hardware needs a moment to switch to the device that replaces the lost one.
-    private const val MAX_REROUTE_ATTEMPTS = 3
-    private const val REROUTE_RETRY_DELAY_MS = 150L
+    // Well under the source's buffer, so a busy control thread loses no audio.
+    internal const val READ_PERIOD_MS = 20L
   }
 
-  // Every thread posts here, because only the loop may touch the reader.
-  private sealed interface Msg {
-    data object Pause : Msg
-    data object Resume : Msg
-    data object RouteChanged : Msg
-    class DevicesRemoved(val deviceIds: List<Int>) : Msg
-    class CaptureOn(val device: AudioDeviceInfo?, val done: (Bound) -> Unit) : Msg
-    class Stop(val delete: Boolean, val done: (Throwable?) -> Unit) : Msg
-    class EncoderFailed(val cause: Throwable) : Msg
-  }
-
-  private val inbox = LinkedBlockingQueue<Msg>()
-
-  // The loop sets it to null; the control thread reads it for the amplitude.
-  @Volatile private var reader: PcmSource? = null
+  // Null before start, after stop and after a failure.
+  private var reader: PcmSource? = null
   private var encoder: IEncoder? = null
-  private var thread: Thread? = null
-  // The loop sets it on a failure; the control thread reads it to refuse requests.
-  @Volatile private var failed = false
   private var unwatchRemovals: AutoCloseable? = null
+  private val route = RouteTracker()
+  private val readTick = Runnable { readAvailable() }
+  private var paused = false
+  // The reader can't read again until it is rebuilt.
+  private var needsRebuild = false
+  private val capturing get() = !paused && !needsRebuild
 
-  override val amplitude: Double get() = reader?.getAmplitude() ?: DEFAULT_AMPLITUDE_DB
-
-  override fun captureOn(device: AudioDeviceInfo?): Bound {
-    // Only the loop touches the reader, so the answer comes from there.
-    val answer = CompletableFuture<Bound>()
-    if (!post(Msg.CaptureOn(device) { answer.complete(it) })) return Bound.NoInput
-    // No timeout: a late answer would still move capture behind the caller's back.
-    return answer.get()
-  }
+  override val amplitude: Double
+    get() = reader?.takeIf { capturing }?.getAmplitude() ?: DEFAULT_AMPLITUDE_DB
 
   override fun start(): RecordConfig {
     val negotiated: RecordConfig
     try {
       Format.checkStreamSupport(config)
-      val (enc, mediaFormat, settled) = Format.createEncoder(config, this)
+      val (enc, mediaFormat, settled) = Format.createEncoder(config) { onEvent(this, CaptureEvent.Chunk(it)) }
       negotiated = settled
-      // Assigned first so a reader failure still releases the container it opened.
+      // Assigned first so a reader failure still stops the encoder.
       encoder = enc
       val r = createSource(negotiated, mediaFormat)
       reader = r
-      if (!r.start()) throw Exception("PCM reader failed to start.")
-      // Track moves, so an unplug of the device capture just left still counts as a loss.
-      r.watchRoute { inbox.put(Msg.RouteChanged) }
-      // Only an unplug is a loss: a route change alone may be a newly plugged device.
-      unwatchRemovals = removals.watch { inbox.put(Msg.DevicesRemoved(it)) }
+      // A slow codec start would overrun AudioRecord's buffer.
       enc.startEncoding()
+      if (!startCapture(r)) throw Exception("PCM reader failed to start.")
+      // Track moves, so an unplug of the device capture just left still counts as a loss.
+      r.watchRoute(handler) { reader?.let { route.moved(it.routedDevice) } }
+      // Only an unplug is a loss: a route change alone may be a newly plugged device.
+      unwatchRemovals = removals.watch { if (route.lost(it)) reportRouteLost() }
     } catch (e: Exception) {
       // The throw already carries the cause.
-      release {}
+      release()
       throw e
     }
 
-    thread = Thread(::pump, "record-capture-${config.path ?: "stream"}").apply {
-      isDaemon = true
-      start()
-    }
+    scheduleRead()
     return negotiated
   }
 
-  override fun pause(): Boolean = post(Msg.Pause)
-
-  override fun resume(): Boolean = post(Msg.Resume)
-
-  override fun stop(delete: Boolean): Throwable? {
-    val t = thread
-    thread = null
-
-    val answer = CompletableFuture<Throwable?>()
-    val done: (Throwable?) -> Unit = { answer.complete(it) }
-    // Never started: only the encoder's container is left.
-    if (t == null) release { error -> answer(delete, error, done) }
-    // The loop owns the teardown, so it answers.
-    else inbox.put(Msg.Stop(delete, done))
-    // No timeout: the file isn't final until the loop answers.
-    return answer.get()
-  }
-
-  override fun onEncoderFailure(ex: Exception) {
-    inbox.put(Msg.EncoderFailed(ex))
-  }
-
-  override fun onEncoderStream(bytes: ByteArray) = onEvent(this, CaptureEvent.Chunk(bytes))
-
-  private fun post(msg: Msg): Boolean {
-    val t = thread ?: return false
-    // A failed or exited loop answers nothing, so pause and resume must not look like they worked.
-    if (failed || !t.isAlive) return false
-    inbox.put(msg)
+  override fun pause(): Boolean {
+    val r = reader ?: return false
+    handler.removeCallbacks(readTick)
+    // Audio captured since the last tick would be lost once AudioRecord stops.
+    when (val e = readRemaining(flush = false)) {
+      null -> {}
+      // Resume rebuilds it.
+      is AudioDeadObjectException -> needsRebuild = true
+      else -> throw fail(e)
+    }
+    paused = true
+    // A running AudioRecord keeps recording, which resume would encode as if nothing happened.
+    if (!needsRebuild) r.stop()
     return true
   }
 
-  private fun pump() {
-    val reader = checkNotNull(reader)
-    val encoder = checkNotNull(encoder)
-    var paused = false
-    // The reader can't read again until it is rebuilt, so the loop must stop calling read().
-    var needsRebuild = false
-    // Keeps reportRouteLost from repeating until a captureOn or pause answers it.
-    var routePending = false
-    val route = RouteTracker().apply { reset(reader.routedDeviceId) }
-    var failure: Throwable
-
-    fun reportRouteLost() {
-      if (routePending) return
-      routePending = true
-      onEvent(this, CaptureEvent.RouteLost)
+  override fun resume(device: AudioDeviceInfo?): Bound {
+    val r = reader ?: throw IllegalStateException("Capture cannot resume.")
+    if (!route.isLost && !needsRebuild) {
+      if (startCapture(r)) {
+        paused = false
+        scheduleRead()
+        return Bound.Resumed
+      }
+      // The device can vanish while stopped, and no routing callback fires when it does.
+      needsRebuild = true
     }
+    return captureOn(device)
+  }
 
-    // The device is unknown until Android has picked one, so read it again here.
-    fun startCapture(): Boolean {
-      val started = try {
-        reader.start()
-      } catch (_: Exception) {
-        false
-      }
-      if (started) route.reset(reader.routedDeviceId)
-      return started
+  override fun captureOn(device: AudioDeviceInfo?): Bound.Move {
+    val r = reader ?: return Bound.NoInput
+    return try {
+      moveCapture(r, device)
+    } catch (e: Exception) {
+      Bound.Failed(fail(e))
     }
+  }
 
-    fun captureOn(device: AudioDeviceInfo?): Bound {
-      if (needsRebuild) {
-        if (!recreate(reader, device)) return Bound.NoInput
-      } else {
-        // A live AudioRecord can switch device without a rebuild.
-        reader.preferDevice(device)
-      }
+  override fun stop(delete: Boolean): Throwable? {
+    handler.removeCallbacks(readTick)
+    // The end of the take: what AudioRecord still holds and the unfinished chunk.
+    val readError = readRemaining(flush = true)
+    // A device gone at the very end is no failure.
+    val error = release() ?: readError?.takeUnless { it is AudioDeadObjectException }
+    if (delete) Utils.deleteFile(config.path)
+    return error
+  }
 
-      if (!startCapture()) {
-        // A reader that failed to start can't be read: wait for a rebuild instead.
-        needsRebuild = true
-        return Bound.NoInput
-      }
-
-      needsRebuild = false
-      paused = false
-      // Android may not honor the pin; until it names a device, trust it.
-      val routed = reader.routedDeviceId
-      return Bound.On(device?.takeIf { routed == null || routed == it.id })
-    }
-
-    capture@ while (true) {
-      when (val msg = if (paused || needsRebuild) inbox.take() else inbox.poll()) {
-        null -> {}
-        Msg.Pause -> {
-          paused = true
-          routePending = false
-          // A running AudioRecord keeps recording, which resume would encode as if nothing happened.
-          if (!needsRebuild) reader.stop()
-        }
-
-        Msg.Resume -> {
-          paused = false
-          // The device can vanish while stopped; no routing callback fires when it does.
-          if (!startCapture()) {
-            needsRebuild = true
-            reportRouteLost()
-          }
-        }
-
-        Msg.RouteChanged -> route.moved(reader.routedDeviceId)
-
-        is Msg.DevicesRemoved -> if (route.lost(msg.deviceIds)) reportRouteLost()
-
-        is Msg.CaptureOn -> {
-          val bound = captureOn(msg.device)
-          routePending = false
-          msg.done(bound)
-        }
-
-        is Msg.Stop -> return release { error -> answer(msg.delete, error, msg.done) }
-        is Msg.EncoderFailed -> { failure = msg.cause; break@capture }
-      }
-      if (paused || needsRebuild) continue
-
+  private fun moveCapture(r: PcmSource, device: AudioDeviceInfo?): Bound.Move {
+    // A stopped reader may be dead yet claim to start, and paused, rebuilding costs no audio.
+    if (needsRebuild || paused) {
       try {
-        val buffer = reader.read()
-        if (buffer.isNotEmpty()) encoder.encode(buffer)
-      } catch (e: AudioDeadObjectException) {
-        // The device went away without the framework re-routing us anywhere.
-        needsRebuild = true
-        reportRouteLost()
+        r.recreate(device)
       } catch (e: Exception) {
-        failure = e
-        break@capture
+        // Anything else (a revoked permission, a broken config) won't fix itself on a retry.
+        if (!hasInputDevices()) return Bound.NoInput
+        throw e
       }
+    } else {
+      // A live AudioRecord can switch device without a rebuild.
+      r.preferDevice(device)
     }
 
-    failed = true
-    // Stays alive after releasing: the stop that follows must still be answered.
-    release {}
-    onEvent(this, CaptureEvent.Failed(failure))
+    if (!startCapture(r)) {
+      // A reader that failed to start can't be read: wait for a rebuild instead.
+      needsRebuild = true
+      return Bound.NoInput
+    }
+
+    needsRebuild = false
+    paused = false
+    scheduleRead()
+    return Bound.On(boundTo(device, r.routedDevice?.id))
+  }
+
+  // The device is unknown until Android has picked one, so read it again here.
+  private fun startCapture(r: PcmSource): Boolean {
+    val started = try {
+      r.start()
+    } catch (_: Exception) {
+      false
+    }
+    if (started) route.reset(r.routedDevice)
+    return started
+  }
+
+  private fun scheduleRead() {
+    handler.removeCallbacks(readTick)
+    handler.postDelayed(readTick, READ_PERIOD_MS)
+  }
+
+  private fun readAvailable() {
+    // A read scheduled before capture halted must not touch a stopped or dead reader.
+    if (!capturing) return
+    val r = reader ?: return
+    val enc = encoder ?: return
+    try {
+      encodeAvailable(r, enc)
+    } catch (_: AudioDeadObjectException) {
+      // The device went away without the framework re-routing us anywhere.
+      needsRebuild = true
+      reportRouteLost()
+      return
+    } catch (e: Exception) {
+      onEvent(this, CaptureEvent.Failed(fail(e)))
+      return
+    }
+    scheduleRead()
+  }
+
+  private fun encodeAvailable(r: PcmSource, enc: IEncoder) {
     while (true) {
-      when (val msg = inbox.take()) {
-        is Msg.Stop -> return answer(msg.delete, failure, msg.done)
-        is Msg.CaptureOn -> msg.done(Bound.NoInput)
-        else -> {}
-      }
+      val chunk = r.read()
+      if (chunk.isEmpty()) break
+      enc.encode(chunk)
+    }
+    enc.pump()
+  }
+
+  /** Encodes what capture holds but has not handed over yet; returns a failure instead of reporting it. */
+  private fun readRemaining(flush: Boolean): Throwable? {
+    val r = reader ?: return null
+    val enc = encoder ?: return null
+    return try {
+      // A stopped or dead reader has nothing new.
+      if (capturing) encodeAvailable(r, enc)
+      if (flush) r.flush().takeIf { it.isNotEmpty() }?.let(enc::encode)
+      null
+    } catch (e: Exception) {
+      e
     }
   }
 
-  private fun recreate(reader: PcmSource, device: AudioDeviceInfo?): Boolean {
-    repeat(MAX_REROUTE_ATTEMPTS) { attempt ->
-      if (attempt > 0) {
-        try {
-          Thread.sleep(REROUTE_RETRY_DELAY_MS)
-        } catch (_: InterruptedException) {
-          return false
-        }
-      }
-
-      try {
-        reader.recreate(device)
-        return true
-      } catch (_: Exception) {
-        // The replacement device may not be there yet.
-      }
-    }
-    return false
+  private fun reportRouteLost() {
+    if (route.report()) onEvent(this, CaptureEvent.RouteLost)
   }
 
-  /** Releases both halves regardless of failure; reports the first error. */
-  private fun release(done: (Throwable?) -> Unit) {
+  private fun fail(cause: Throwable): Throwable {
+    handler.removeCallbacks(readTick)
+    release()
+    return cause
+  }
+
+  private fun release(): Throwable? {
     val r = reader
     val enc = encoder
     reader = null
@@ -263,11 +226,8 @@ class PcmCaptureEngine(
       error = e
     }
 
-    if (enc == null) done(error) else enc.stopEncoding { done(error ?: it) }
-  }
-
-  private fun answer(delete: Boolean, error: Throwable?, done: (Throwable?) -> Unit) {
-    if (delete) Utils.deleteFile(config.path)
-    done(error)
+    // Stopped even after a reader failure, so the file still gets its trailer.
+    val encoderError = enc?.stopEncoding()
+    return error ?: encoderError
   }
 }

@@ -13,12 +13,12 @@ class PassthroughEncoder(
   config: RecordConfig,
   format: Format,
   private val mediaFormat: MediaFormat,
-  listener: EncoderListener,
+  onChunk: (ByteArray) -> Unit,
 ) : IEncoder {
   private var mIsStarted = false
   private val mBufferInfo = MediaCodec.BufferInfo()
   private var mTrackIndex = -1
-  private var mContainer = format.createWriter(mediaFormat, config.path, listener::onEncoderStream)
+  private var mContainer = format.createWriter(mediaFormat, config.path, onChunk)
 
   private val mFrameSize = mediaFormat.getInteger(Format.KEY_X_FRAME_SIZE_IN_BYTES)
   private val mSampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
@@ -41,16 +41,15 @@ class PassthroughEncoder(
     mIsStarted = true
   }
 
-  override fun stopEncoding(done: (Exception?) -> Unit) {
+  override fun stopEncoding(): Exception? {
     // The container was opened in the constructor; release it even if never started.
     mIsStarted = false
-    var error: Exception? = null
-    try {
+    return try {
       mContainer.release()
+      null
     } catch (e: Exception) {
-      error = e
+      e
     }
-    done(error)
   }
 
   override fun encode(bytes: ByteArray) {

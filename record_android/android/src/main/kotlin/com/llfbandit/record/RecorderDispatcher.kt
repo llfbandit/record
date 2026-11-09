@@ -3,7 +3,7 @@ package com.llfbandit.record
 import android.os.Handler
 import android.os.HandlerThread
 
-/** The one background thread that all recorder method calls and system callbacks run on. */
+/** The one background thread that all recorder method calls, system callbacks and capture reads run on. */
 class RecorderDispatcher {
   private val thread = HandlerThread("com.llfbandit.record").apply { start() }
 

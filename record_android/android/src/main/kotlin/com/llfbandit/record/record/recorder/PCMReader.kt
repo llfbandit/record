@@ -6,6 +6,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioRouting
 import android.media.MediaFormat
+import android.os.Handler
 import android.util.Log
 import com.llfbandit.record.record.audio_manager.AudioEffectsManager
 import com.llfbandit.record.record.model.RecordConfig
@@ -23,10 +24,18 @@ class PCMReader(
 ) : PcmSource {
   companion object {
     private val TAG = PCMReader::class.java.simpleName
+
+    // The hardware needs a moment to switch to the device that replaces the lost one.
+    private const val MAX_REBUILD_ATTEMPTS = 3
+    private const val REBUILD_RETRY_DELAY_MS = 150L
   }
 
-  private val bufferSize: Int = initBufferSize()
-  private val buffer = PcmBuffer(bufferSize)
+  private val minBufferSize: Int = minBufferSize()
+  // One chunk is what each read hands over.
+  private val buffer = PcmBuffer(chunkSize())
+  // Samples of the current chunk read so far.
+  private var filled = 0
+  private val bufferSize = minBufferSize * 4
   private var reader: AudioRecord = createReader()
   private var effects = try {
     AudioEffectsManager(reader.audioSessionId).also { it.apply(config) }
@@ -35,9 +44,8 @@ class PCMReader(
     throw e
   }
   private var routingListener: AudioRouting.OnRoutingChangedListener? = null
+  private var routingHandler: Handler? = null
 
-  // Written by the capture loop, read from the control thread.
-  @Volatile
   private var amplitudeDb: Double = DEFAULT_AMPLITUDE_DB
 
   override fun start(): Boolean {
@@ -55,28 +63,37 @@ class PCMReader(
 
   @Throws(Exception::class)
   override fun read(): ByteArray {
-    val readResult = reader.read(buffer.samples, 0, buffer.samples.size)
+    val size = buffer.samples.size
+    val readResult = reader.read(buffer.samples, filled, size - filled, AudioRecord.READ_NON_BLOCKING)
     if (readResult < 0) {
       if (readResult == AudioRecord.ERROR_DEAD_OBJECT) throw AudioDeadObjectException()
       throw Exception(getReadFailureReason(readResult))
     }
 
-    if (readResult > 0) {
-      amplitudeDb = buffer.amplitudeDb(readResult)
-    }
+    filled += readResult
+    if (filled < size) return ByteArray(0)
 
-    return buffer.toByteArray(readResult)
+    filled = 0
+    amplitudeDb = buffer.amplitudeDb()
+    return buffer.toByteArray()
+  }
+
+  override fun flush(): ByteArray {
+    if (filled == 0) return ByteArray(0)
+    val bytes = buffer.toByteArray(filled)
+    filled = 0
+    return bytes
   }
 
   override fun getAmplitude(): Double = amplitudeDb
 
-  override val routedDeviceId: Int? get() = reader.routedDevice?.id
+  override val routedDevice: AudioDeviceInfo? get() = reader.routedDevice
 
-  override fun watchRoute(onChanged: () -> Unit) {
+  override fun watchRoute(handler: Handler, onChanged: () -> Unit) {
     val listener = AudioRouting.OnRoutingChangedListener { onChanged() }
     routingListener = listener
-    // Android may call [onChanged] on any thread, so no handler is needed.
-    reader.addOnRoutingChangedListener(listener, null)
+    routingHandler = handler
+    reader.addOnRoutingChangedListener(listener, handler)
   }
 
   override fun preferDevice(device: AudioDeviceInfo?) {
@@ -86,7 +103,7 @@ class PCMReader(
   /** Builds the new AudioRecord first, so a failure leaves the current one in place. */
   @Throws(Exception::class)
   override fun recreate(device: AudioDeviceInfo?) {
-    val newReader = createReader(device)
+    val newReader = createReaderRetrying(device)
     val newEffects = try {
       AudioEffectsManager(newReader.audioSessionId).also { it.apply(config) }
     } catch (e: Exception) {
@@ -99,7 +116,7 @@ class PCMReader(
     releaseReader()
     reader = newReader
     effects = newEffects
-    routingListener?.let { newReader.addOnRoutingChangedListener(it, null) }
+    routingListener?.let { newReader.addOnRoutingChangedListener(it, routingHandler) }
   }
 
   override fun release() {
@@ -107,6 +124,20 @@ class PCMReader(
     effects.release()
     releaseReader()
     routingListener = null
+    routingHandler = null
+  }
+
+  private fun createReaderRetrying(device: AudioDeviceInfo?): AudioRecord {
+    var attempt = 1
+    while (true) {
+      try {
+        return createReader(device)
+      } catch (e: Exception) {
+        // The replacement device may not be there yet.
+        if (attempt++ == MAX_REBUILD_ATTEMPTS) throw e
+        Thread.sleep(REBUILD_RETRY_DELAY_MS)
+      }
+    }
   }
 
   private fun releaseReader() {
@@ -145,24 +176,22 @@ class PCMReader(
     return reader
   }
 
-  private fun initBufferSize(): Int {
+  @Throws(Exception::class)
+  private fun minBufferSize(): Int {
     val sampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-    val channels = getChannelsConfig()
-    val audioFormat = getAudioFormat()
-    return config.streamBufferSize ?: calculateBufferSize(sampleRate, channels, audioFormat)
+    val size = AudioRecord.getMinBufferSize(sampleRate, getChannelsConfig(), getAudioFormat())
+    if (size == AudioRecord.ERROR_BAD_VALUE || size == AudioRecord.ERROR) {
+      throw Exception("Recording config is not supported by the hardware, or an invalid config was provided.")
+    }
+    return size
   }
 
-  @Throws(Exception::class)
-  private fun calculateBufferSize(sampleRate: Int, channelConfig: Int, audioFormat: Int): Int {
-    val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-
-    return when {
-      minBufferSize == AudioRecord.ERROR_BAD_VALUE || minBufferSize == AudioRecord.ERROR -> {
-        throw Exception("Recording config is not supported by the hardware, or an invalid config was provided.")
-      }
-
-      else -> minBufferSize * 2 // Double the minimum buffer size for safety margin
-    }
+  // Whole frames only: AudioRecord never reads part of one, so a partial frame would stall the chunk.
+  private fun chunkSize(): Int {
+    val size = config.streamBufferSize ?: return minBufferSize * 2
+    val frameSize = if (getChannelsConfig() == AudioFormat.CHANNEL_IN_MONO) 2 else 4
+    require(size >= frameSize) { "streamBufferSize must be at least $frameSize bytes." }
+    return size - size % frameSize
   }
 
   private fun getAudioFormat(): Int = AudioFormat.ENCODING_PCM_16BIT

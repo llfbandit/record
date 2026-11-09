@@ -43,13 +43,10 @@ class AmrFormat private constructor(
     path: String?,
     onChunk: (ByteArray) -> Unit,
   ): IContainerWriter {
-    if (path == null) {
-      throw IllegalArgumentException("Path not provided. Stream is not supported.")
-    }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
       throw IllegalAccessException("AMR requires min API version: " + Build.VERSION_CODES.O)
     }
 
-    return MuxerContainer(path, false, MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP)
+    return MuxerContainer(requirePath(path), false, MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP)
   }
 }

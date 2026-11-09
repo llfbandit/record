@@ -21,10 +21,6 @@ class WaveFormat : Format() {
     path: String?,
     onChunk: (ByteArray) -> Unit,
   ): IContainerWriter {
-    if (path == null) {
-      throw IllegalArgumentException("Path not provided. Stream is not supported.")
-    }
-
-    return WaveContainer(path, mediaFormat.getInteger(KEY_X_FRAME_SIZE_IN_BYTES))
+    return WaveContainer(requirePath(path), mediaFormat.getInteger(KEY_X_FRAME_SIZE_IN_BYTES))
   }
 }

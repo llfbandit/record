@@ -26,10 +26,6 @@ class FlacFormat : Format() {
     path: String?,
     onChunk: (ByteArray) -> Unit,
   ): IContainerWriter {
-    if (path == null) {
-      throw IllegalArgumentException("Path not provided. Stream is not supported.")
-    }
-
-    return FlacContainer(path)
+    return FlacContainer(requirePath(path))
   }
 }

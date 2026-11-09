@@ -34,12 +34,10 @@ class RecorderController(
   private val sink: RecorderSink,
 ) {
   private class Session(val engine: CaptureEngine, var config: RecordConfig) {
-    // Resume pins this device again once it returns, even after reportDevice cleared config.device.
+    // Resume pins this device again after a loss, once it returns.
     val requestedDevice = config.device
     var state = RecordState.STOP  // STOP until the engine has started
     var maxAmplitude = DEFAULT_AMPLITUDE_DB
-    // Set on a route loss, so resume reroutes capture before starting it again.
-    var routeLost = false
   }
 
   private var session: Session? = null
@@ -80,7 +78,7 @@ class RecorderController(
     val s = session ?: return
     when (s.state) {
       RecordState.STOP -> return
-      RecordState.RECORD -> if (!s.engine.pause()) return
+      RecordState.RECORD -> if (!pauseEngine(s)) return
       // Interruption-paused: still hand the session back so a focus regain cannot auto-resume.
       RecordState.PAUSE -> {}
     }
@@ -93,23 +91,29 @@ class RecorderController(
     val s = session ?: return null
     if (s.state != RecordState.PAUSE) return null
 
-    if (!s.routeLost) return takeAndResume(s)
-
-    activate(s)?.let { return it }
-    // Put capture back on the selected device if it returned, or on whatever is there now.
-    val device = s.requestedDevice?.let { environment.findDevice(it) }
-    return when (val bound = s.engine.captureOn(device)) {
+    val bound = try {
+      environment.activate(s.config)
+      // After a route loss, capture goes back on the selected device if it returned, or on whatever is there now.
+      val device = s.requestedDevice?.let { environment.findDevice(it) }
+      s.engine.resume(device)
+    } catch (e: Exception) {
+      environment.release(s.config)
+      return e
+    }
+    when (bound) {
       Bound.NoInput -> {
         environment.release(s.config)
-        NoInputDeviceException()
+        return NoInputDeviceException()
       }
-      is Bound.On -> {
-        s.routeLost = false
-        reportDevice(s, bound.device)
-        moveTo(s, RecordState.RECORD)
-        null
+      is Bound.Failed -> {
+        fail(s, bound.cause)
+        return bound.cause
       }
+      is Bound.On -> reportDevice(s, bound.device)
+      Bound.Resumed -> {}
     }
+    moveTo(s, RecordState.RECORD)
+    return null
   }
 
   fun stop(): String? = end(delete = false)
@@ -136,8 +140,7 @@ class RecorderController(
     // Ignore anything from an engine that is no longer the current one.
     if (source !== s.engine) return
 
-    session = null
-    endSession(s, reason = StopReason.ERROR, reported = cause)
+    fail(s, cause)
     sink.onError(cause)
   }
 
@@ -148,13 +151,19 @@ class RecorderController(
 
     when (s.config.audioRouteChange) {
       // Following must not restart a paused capture: the next resume moves it instead.
-      AudioRouteChange.FOLLOW -> if (s.state != RecordState.RECORD) s.routeLost = true
-      else when (val bound = s.engine.captureOn(null)) {
-        is Bound.On -> reportDevice(s, bound.device)
-        Bound.NoInput -> pauseForRouteLoss(s)
+      AudioRouteChange.FOLLOW -> if (s.state == RecordState.RECORD) {
+        when (val bound = s.engine.captureOn(null)) {
+          is Bound.On -> reportDevice(s, bound.device)
+          Bound.NoInput -> pause()
+          is Bound.Failed -> {
+            fail(s, bound.cause)
+            sink.onError(bound.cause)
+          }
+        }
       }
 
-      AudioRouteChange.PAUSE -> pauseForRouteLoss(s)
+      // Pause like a user pause, so a focus regain cannot resume capture on another device.
+      AudioRouteChange.PAUSE -> pause()
 
       AudioRouteChange.STOP -> end(delete = false, StopReason.ROUTE_CHANGE)
     }
@@ -165,7 +174,7 @@ class RecorderController(
     for (action in AudioInterruptionPolicy.react(s.config, event)) {
       when (action) {
         PolicyAction.Pause ->
-          if (s.state == RecordState.RECORD && s.engine.pause()) moveTo(s, RecordState.PAUSE)
+          if (s.state == RecordState.RECORD && pauseEngine(s)) moveTo(s, RecordState.PAUSE)
         // Nobody awaits this resume: on failure the take stays paused, or ends through onStopped.
         PolicyAction.Resume -> resume()?.let(sink::onError)
       }
@@ -180,28 +189,18 @@ class RecorderController(
     if (changed) sink.onConfigChanged(s.config)
   }
 
-  // Pause like a user pause, so a focus regain cannot resume capture on another device.
-  private fun pauseForRouteLoss(s: Session) {
-    s.routeLost = true
-    pause()
-  }
-
-  private fun activate(s: Session): Throwable? = try {
-    environment.activate(s.config)
-    null
+  /** @return false when the engine did not pause; a failed pause ends the take. */
+  private fun pauseEngine(s: Session): Boolean = try {
+    s.engine.pause()
   } catch (e: Exception) {
-    environment.release(s.config)
-    e
+    fail(s, e)
+    sink.onError(e)
+    false
   }
 
-  private fun takeAndResume(s: Session): Throwable? {
-    activate(s)?.let { return it }
-    if (!s.engine.resume()) {
-      environment.release(s.config)
-      return IllegalStateException("Capture cannot resume.")
-    }
-    moveTo(s, RecordState.RECORD)
-    return null
+  private fun fail(s: Session, cause: Throwable) {
+    session = null
+    endSession(s, reason = StopReason.ERROR, reported = cause)
   }
 
   private fun endThenDispose(delete: Boolean): String? {
@@ -242,7 +241,7 @@ class RecorderController(
       val failure = reported ?: error
       sink.onStopped(RecordStop(reason, path, failure?.let { it.message ?: it.toString() }))
     }
-    error?.takeIf { it !== reported }?.let(sink::onError)
+    error?.let(sink::onError)
   }
 
   private fun moveTo(s: Session, state: RecordState) {

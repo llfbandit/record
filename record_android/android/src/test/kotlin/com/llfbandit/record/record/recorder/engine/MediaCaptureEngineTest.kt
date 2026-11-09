@@ -1,5 +1,7 @@
 package com.llfbandit.record.record.recorder.engine
 
+import android.os.Handler
+import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.llfbandit.record.record.model.AudioEncoder
 import com.llfbandit.record.testRecordConfig
@@ -15,6 +17,8 @@ class MediaCaptureEngineTest {
     testRecordConfig(encoder = encoder),
     { _, _ -> },
     { AutoCloseable {} },
+    Handler(Looper.getMainLooper()),
+    { true },
   )
 
   @Test

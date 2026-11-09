@@ -9,6 +9,7 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
+import android.os.Handler
 
 class DeviceUtils {
   companion object {
@@ -32,15 +33,18 @@ class DeviceUtils {
     }
 
     /** Calls [onRemoved] with the ids of input devices as they are unplugged, until closed. */
-    fun watchInputRemovals(context: Context, onRemoved: (deviceIds: List<Int>) -> Unit): AutoCloseable {
+    fun watchInputRemovals(
+      context: Context,
+      handler: Handler,
+      onRemoved: (deviceIds: List<Int>) -> Unit,
+    ): AutoCloseable {
       val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
       val callback = object : AudioDeviceCallback() {
         override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
-          onRemoved(removedDevices.filter { it.isSource }.map { it.id })
+          onRemoved(filterSources(removedDevices.asList()).map { it.id })
         }
       }
-      // With no handler, Android calls [onRemoved] on the main thread.
-      audioManager.registerAudioDeviceCallback(callback, null)
+      audioManager.registerAudioDeviceCallback(callback, handler)
       return AutoCloseable { audioManager.unregisterAudioDeviceCallback(callback) }
     }
 

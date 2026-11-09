@@ -2,280 +2,211 @@ package com.llfbandit.record.record.encoder
 
 import android.media.MediaCodec
 import android.media.MediaFormat
-import android.os.Handler
-import android.os.HandlerThread
 import android.util.Log
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
 import com.llfbandit.record.record.container.toByteArray
 import com.llfbandit.record.record.format.Format
-import java.util.LinkedList
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.min
 
 class MediaCodecEncoder(
   private val config: RecordConfig,
   private val format: Format,
   private val mediaFormat: MediaFormat,
-  private val listener: EncoderListener,
+  private val onChunk: (ByteArray) -> Unit,
   private val codecName: String,
-) : IEncoder,
-  HandlerThread("MediaCodecEncoder Thread") {
-  private var mHandler: Handler? = null
-  private var mCodec: MediaCodec? = null
-  private var mContainer: IContainerWriter? = null
-  private val mQueue = LinkedList<Sample>()
-  // 16-bit PCM input.
-  private val mBytesPerSecond = 2L *
+) : IEncoder {
+  private companion object {
+    private const val TAG = "MediaCodecEncoder"
+    // Only stop waits on the codec: short waits, ~2 s in a row means it is stuck.
+    private const val DEQUEUE_TIMEOUT_US = 10_000L
+    private const val MAX_IDLE_WAITS = 200
+    // Input the codec has not taken for this long: treat it as stuck.
+    private const val MAX_PENDING_SECONDS = 2L
+  }
+
+  private var codec: MediaCodec? = null
+  private var container: IContainerWriter? = null
+  private val info = MediaCodec.BufferInfo()
+  private val bytesPerSecond = 2L *
     mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE) *
     mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-  private var mInputBufferPosition: Long = 0
-  private var mInputBufferIndex = -1
-  private var mContainerTrack = 0
-  private var mContainerSetup = false
-  private var mPendingFormat: MediaFormat? = null
-
-  // Claimed atomically, so the last thread out answers stopEncoding() exactly once.
-  private val mOnStopped = AtomicReference<((Exception?) -> Unit)?>(null)
-  @Volatile private var mStopped = false
-
-  // First failure seen on the codec thread.
-  private var mError: Exception? = null
-
-  override fun encode(bytes: ByteArray) {
-    if (mStopped) {
-      return
-    }
-
-    val s = Sample(bytes)
-    mHandler?.post {
-      mQueue.add(s)
-      if (mInputBufferIndex >= 0) {
-        processInputBuffer()
-      }
-    }
-  }
+  private var inputPosition = 0L
+  // Input waiting for a free codec buffer, so encode() never blocks the control thread.
+  private val pending = ArrayDeque<ByteArray>()
+  // Bytes of pending.first() already queued.
+  private var pendingOffset = 0
+  private var pendingBytes = 0L
+  // One big chunk alone does not mean the codec is stuck.
+  private var maxChunkBytes = 0L
+  private var containerTrack = 0
+  private var containerSetup = false
+  private var pendingFormat: MediaFormat? = null
+  // A failed codec can't take an end of stream, so stopEncoding() only releases it.
+  private var failed = false
 
   override fun startEncoding() {
-    start() // Start the thread
-    mHandler = Handler(looper)
-    mHandler?.post { initEncoding() }
-  }
-
-  override fun stopEncoding(done: (Exception?) -> Unit) {
-    if (mStopped) {
-      // Already torn down by onError(): still surface what went wrong.
-      done(mError)
-      return
-    }
-    mStopped = true
-
-    // Never started: nothing to drain or release.
-    val handler = mHandler
-    if (handler == null) {
-      done(null)
-      return
-    }
-    mOnStopped.set(done)
-
-    // A codec that is already gone cannot drain an EOS.
-    val posted = handler.post {
-      if (mCodec == null) {
-        finishStop()
-      } else if (mInputBufferIndex >= 0) {
-        processInputBuffer()
-      }
-    }
-    // The looper already quit (onError() won the race): nothing on it will answer.
-    if (!posted) finishStop()
-  }
-
-  // The EOS drained, or never will: let the thread go.
-  private fun finishStop() {
-    val done = mOnStopped.getAndSet(null) ?: return // Nobody waiting: onError() quits.
-    quitSafely()
-    done(mError)
-  }
-
-  private fun initEncoding() {
-    var codec: MediaCodec? = null
-    var container: IContainerWriter?
-
+    val c = MediaCodec.createByCodecName(codecName)
     try {
-      codec = MediaCodec.createByCodecName(codecName)
-      codec.setCallback(AudioRecorderCodecCallback(), Handler(looper))
-      codec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-      codec.start()
-
-      container = format.createWriter(mediaFormat, config.path, listener::onEncoderStream)
-
-      mCodec = codec
-      mContainer = container
+      c.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+      c.start()
+      container = format.createWriter(mediaFormat, config.path, onChunk)
     } catch (e: Exception) {
-      codec?.release()
-      onError(e)
+      c.release()
+      throw e
     }
+    codec = c
   }
 
-  private fun processInputBuffer() {
-    val codec = mCodec ?: return
+  override fun encode(bytes: ByteArray) {
+    if (bytes.isNotEmpty()) {
+      pending.addLast(bytes)
+      pendingBytes += bytes.size
+      maxChunkBytes = maxOf(maxChunkBytes, bytes.size.toLong())
+    }
+    pump()
+  }
 
+  override fun pump() {
+    val c = checkNotNull(codec) { "Encoder not started." }
     try {
-      val s = mQueue.peekFirst()
-      if (s == null) {
-        // There's no more data to encode.
-        if (mOnStopped.get() != null) {
-          // We're done, so send EOS
-          codec.queueInputBuffer(
-            mInputBufferIndex, 0, 0,
-            getPresentationTimestampUs(mInputBufferPosition),
-            MediaCodec.BUFFER_FLAG_END_OF_STREAM
-          )
-          mInputBufferIndex = -1 // Reset index after sending EOS
-        }
-        return
+      while (pending.isNotEmpty()) {
+        val index = c.dequeueInputBuffer(0)
+        if (index < 0) break
+        queuePending(c, index)
+        drain(c)
       }
-
-      val b = codec.getInputBuffer(mInputBufferIndex)!!
-      val sz = min(b.capacity(), s.remaining())
-      val ts = getPresentationTimestampUs(mInputBufferPosition)
-      b.put(s.bytes, s.position, sz)
-
-      codec.queueInputBuffer(mInputBufferIndex, 0, sz, ts, 0)
-
-      mInputBufferPosition += sz.toLong()
-      s.position += sz
-
-      if (s.isConsumed()) {
-        mQueue.pop()
-      }
-
-      // Reset the input buffer index
-      mInputBufferIndex = -1
+      drain(c)
+      check(pendingBytes <= bytesPerSecond * MAX_PENDING_SECONDS + maxChunkBytes) { "Codec stopped taking input." }
     } catch (e: Exception) {
-      onError(e)
+      failed = true
+      throw e
     }
   }
 
-  private fun processOutputBuffer(codec: MediaCodec, index: Int, info: MediaCodec.BufferInfo) {
+  // Fills the buffer from as many chunks as fit: one small chunk per buffer would starve the codec.
+  private fun queuePending(c: MediaCodec, index: Int) {
+    val buffer = checkNotNull(c.getInputBuffer(index))
+    var size = 0
+    while (pending.isNotEmpty() && buffer.hasRemaining()) {
+      val head = pending.first()
+      val count = min(buffer.remaining(), head.size - pendingOffset)
+      buffer.put(head, pendingOffset, count)
+      size += count
+      pendingOffset += count
+      if (pendingOffset == head.size) {
+        pending.removeFirst()
+        pendingOffset = 0
+      }
+    }
+    c.queueInputBuffer(index, 0, size, timestampUs(inputPosition), 0)
+    inputPosition += size
+    pendingBytes -= size
+  }
+
+  override fun stopEncoding(): Exception? {
+    var error: Exception? = null
+    val c = codec
+    codec = null
+
+    if (c != null) {
+      try {
+        if (!failed) endStream(c)
+      } catch (e: Exception) {
+        error = e
+      }
+      try {
+        c.stop()
+      } catch (e: Exception) {
+        error = error ?: e
+      } finally {
+        c.release()
+      }
+    }
+
     try {
-      val container = mContainer
+      container?.release()
+    } catch (e: Exception) {
+      error = error ?: e
+    } finally {
+      container = null
+    }
+    return error
+  }
 
-      if (container != null && info.size != 0) {
-        val isCsd = (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0
+  // Waits, unlike pump(): the file must hold every pending byte before it is finalized.
+  private fun endStream(c: MediaCodec) {
+    var idleWaits = 0
+    while (true) {
+      val index = c.dequeueInputBuffer(DEQUEUE_TIMEOUT_US)
+      if (index < 0) {
+        check(++idleWaits < MAX_IDLE_WAITS) { "Codec stopped taking input." }
+        drain(c)
+        continue
+      }
+      idleWaits = 0
+      if (pending.isEmpty()) {
+        c.queueInputBuffer(index, 0, 0, timestampUs(inputPosition), MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+        break
+      }
+      queuePending(c, index)
+      drain(c)
+    }
+    drain(c, untilEndOfStream = true)
+  }
 
-        if (isCsd) {
-          onCsdBuffer(codec, index, info, container)
-        } else {
-          val out = codec.getOutputBuffer(index)
-
-          if (out != null && mContainerSetup) {
-            container.writeSampleData(mContainerTrack, out, info)
+  private fun drain(c: MediaCodec, untilEndOfStream: Boolean = false) {
+    var idleWaits = 0
+    while (true) {
+      val index = c.dequeueOutputBuffer(info, if (untilEndOfStream) DEQUEUE_TIMEOUT_US else 0)
+      when {
+        index == MediaCodec.INFO_TRY_AGAIN_LATER -> {
+          if (!untilEndOfStream) return
+          if (++idleWaits >= MAX_IDLE_WAITS) {
+            Log.w(TAG, "End of stream never came out; the file may miss its last frames.")
+            return
           }
         }
-      }
 
-      codec.releaseOutputBuffer(index, false)
+        index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> if (!containerSetup) {
+          pendingFormat = c.outputFormat
+          trySetupContainer()
+        }
 
-      if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-        stopAndRelease()
+        index >= 0 -> {
+          idleWaits = 0
+          write(c, index)
+          if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) return
+        }
       }
-    } catch (e: Exception) {
-      onError(e)
     }
   }
 
-  private fun onCsdBuffer(
-    codec: MediaCodec,
-    index: Int,
-    info: MediaCodec.BufferInfo,
-    container: IContainerWriter
-  ) {
-    val csd = codec.getOutputBuffer(index)?.toByteArray(info)
-    container.onCsdBuffer(csd)
-    trySetupContainer()
+  private fun write(c: MediaCodec, index: Int) {
+    val container = checkNotNull(container)
+    if (info.size != 0) {
+      val out = c.getOutputBuffer(index)
+      if ((info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+        container.onCsdBuffer(out?.toByteArray(info))
+        trySetupContainer()
+      } else if (out != null && containerSetup) {
+        container.writeSampleData(containerTrack, out, info)
+      }
+    }
+    c.releaseOutputBuffer(index, false)
   }
 
   private fun trySetupContainer() {
-    if (mContainerSetup) return
-    val container = mContainer ?: return
-    val format = mPendingFormat ?: return
+    if (containerSetup) return
+    val container = container ?: return
+    val format = pendingFormat ?: return
     if (!container.isReadyForSetup(format)) return
 
-    mContainerSetup = true
-    mContainerTrack = container.addTrack(format)
+    containerSetup = true
+    containerTrack = container.addTrack(format)
     container.start()
-    Log.d("MediaCodecEncoder", "Container setup done: $format")
+    Log.d(TAG, "Container setup done: $format")
   }
 
-  private fun onError(e: Exception) {
-    // Before the flag: a reader that sees mStopped must also see why.
-    saveError(e)
-    mStopped = true
-    stopAndRelease()
-    listener.onEncoderFailure(e)
-    quitSafely()
-  }
-
-  private fun saveError(e: Exception) {
-    if (mError == null) mError = e
-  }
-
-  // Never throws: a teardown error is noted, and stopEncoding() answered last.
-  private fun stopAndRelease() {
-    try {
-      try {
-        mCodec?.stop()
-      } catch (e: Exception) {
-        saveError(e)
-      } finally {
-        mCodec?.release()
-        mCodec = null
-      }
-
-      try {
-        mContainer?.release()
-      } catch (e: Exception) {
-        saveError(e)
-      } finally {
-        mContainer = null
-      }
-    } finally {
-      finishStop()
-    }
-  }
-
-  private fun getPresentationTimestampUs(position: Long): Long {
-    return position * 1_000_000L / mBytesPerSecond
-  }
-
-  internal inner class AudioRecorderCodecCallback : MediaCodec.Callback() {
-    override fun onInputBufferAvailable(codec: MediaCodec, index: Int) {
-      mInputBufferIndex = index
-      processInputBuffer()
-    }
-
-    override fun onOutputBufferAvailable(
-      codec: MediaCodec, index: Int, info: MediaCodec.BufferInfo
-    ) {
-      processOutputBuffer(codec, index, info)
-    }
-
-    override fun onError(codec: MediaCodec, e: MediaCodec.CodecException) {
-      onError(e)
-    }
-
-    override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) {
-      if (mContainerSetup) return
-
-      mPendingFormat = format
-      trySetupContainer()
-    }
-  }
-
-  private class Sample(val bytes: ByteArray) {
-    var position: Int = 0
-    fun remaining(): Int = bytes.size - position
-    fun isConsumed(): Boolean = position >= bytes.size
-  }
+  private fun timestampUs(position: Long): Long = position * 1_000_000L / bytesPerSecond
 }

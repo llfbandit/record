@@ -53,9 +53,10 @@ class RecorderWrapper(
   private val controller: RecorderController = RecorderController(
     environment = environment,
     engineFactory = { config ->
-      val removals = DeviceRemovals { DeviceUtils.watchInputRemovals(context, it) }
-      if (config.useLegacy) MediaCaptureEngine(context, config, ::onCaptureEvent, removals)
-      else PcmCaptureEngine(config, ::onCaptureEvent, removals)
+      val removals = DeviceRemovals { DeviceUtils.watchInputRemovals(context, handler, it) }
+      val hasInputDevices = { DeviceUtils.hasInputDevices(context) }
+      if (config.useLegacy) MediaCaptureEngine(context, config, ::onCaptureEvent, removals, handler, hasInputDevices)
+      else PcmCaptureEngine(config, ::onCaptureEvent, removals, handler, hasInputDevices)
     },
     sink = object : RecorderSink {
       override fun onState(state: RecordState) = stateStreamHandler.sendStateEvent(state)
@@ -78,12 +79,11 @@ class RecorderWrapper(
     eventRecordChannel?.setStreamHandler(recordStreamHandler)
   }
 
-  // Raised from the engine's own threads.
   private fun onCaptureEvent(source: CaptureEngine, event: CaptureEvent) {
     when (event) {
       is CaptureEvent.Chunk -> recordStreamHandler.sendRecordChunkEvent(event.bytes)
-      is CaptureEvent.Failed -> handler.post { controller.onCaptureFailure(source, event.cause) }
-      is CaptureEvent.RouteLost -> handler.post { controller.onRouteLost(source) }
+      is CaptureEvent.Failed -> controller.onCaptureFailure(source, event.cause)
+      is CaptureEvent.RouteLost -> controller.onRouteLost(source)
     }
   }
 

@@ -5,12 +5,11 @@ import android.media.AudioDeviceInfo
 import android.media.AudioRouting
 import android.media.MediaRecorder
 import android.os.Build
+import android.os.Handler
 import android.util.Log
 import com.llfbandit.record.record.format.Format
 import com.llfbandit.record.record.model.RecordConfig
-import com.llfbandit.record.record.util.DeviceUtils
 import com.llfbandit.record.record.util.Utils
-import kotlin.math.log10
 
 /** [CaptureEngine] backed by the framework [MediaRecorder]; everything runs on the caller's thread. */
 class MediaCaptureEngine(
@@ -18,13 +17,14 @@ class MediaCaptureEngine(
   private val config: RecordConfig,
   private val onEvent: (source: CaptureEngine, event: CaptureEvent) -> Unit,
   private val removals: DeviceRemovals,
+  // The control thread, so every routing callback lands where the engine runs.
+  private val handler: Handler,
+  private val hasInputDevices: () -> Boolean,
 ) : CaptureEngine {
   companion object {
     private val TAG = MediaCaptureEngine::class.java.simpleName
   }
 
-  // The control thread writes it; the routing and unplug callbacks read it from other threads.
-  @Volatile
   private var recorder: MediaRecorder? = null
   private var routingListener: AudioRouting.OnRoutingChangedListener? = null
   private var unwatchRemovals: AutoCloseable? = null
@@ -39,23 +39,26 @@ class MediaCaptureEngine(
       } catch (_: RuntimeException) {
         0
       }
-      return if (peak == 0) DEFAULT_AMPLITUDE_DB else 20 * log10(peak / 32768.0)
+      return peakToDb(peak)
     }
 
   // MediaRecorder re-routes itself; it only needs the pin moved and to run.
-  override fun captureOn(device: AudioDeviceInfo?): Bound {
+  override fun captureOn(device: AudioDeviceInfo?): Bound.Move {
     val r = recorder ?: return Bound.NoInput
-    if (!DeviceUtils.hasInputDevices(context)) return Bound.NoInput
+    if (!hasInputDevices()) return Bound.NoInput
     preferDevice(r, device)
-    if (paused && !resume()) return Bound.NoInput
-    return Bound.On(boundDevice(r, device))
-  }
+    if (paused) {
+      try {
+        resumeRecorder(r)
+      } catch (e: IllegalStateException) {
+        return Bound.Failed(e)
+      }
+    }
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return Bound.On(null)
 
-  private fun boundDevice(r: MediaRecorder, device: AudioDeviceInfo?): AudioDeviceInfo? {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
-    // Android may not honor the pin; until it names a device, trust it.
-    val routed = r.routedDevice?.id
-    return device?.takeIf { routed == null || routed == it.id }
+    val routed = r.routedDevice
+    route.reset(routed)
+    return Bound.On(boundTo(device, routed?.id))
   }
 
   // MediaRecorder only takes a preferred device from API 28; below that, Android picks.
@@ -103,18 +106,17 @@ class MediaCaptureEngine(
   private fun watchRoute(r: MediaRecorder) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
 
-    route.reset(r.routedDevice?.id)
+    route.reset(r.routedDevice)
     val listener = AudioRouting.OnRoutingChangedListener {
       // Ignore callbacks that arrive after stop() released the recorder.
-      recorder?.let { route.moved(it.routedDevice?.id) }
+      recorder?.let { route.moved(it.routedDevice) }
     }
     routingListener = listener
-    // Android may call the listener on any thread; it only reads volatile state.
-    r.addOnRoutingChangedListener(listener, null)
+    r.addOnRoutingChangedListener(listener, handler)
 
     // Only an unplug is a loss: a route change alone may be a newly plugged device.
     unwatchRemovals = removals.watch { deviceIds ->
-      if (recorder != null && route.lost(deviceIds)) onEvent(this, CaptureEvent.RouteLost)
+      if (recorder != null && route.lost(deviceIds) && route.report()) onEvent(this, CaptureEvent.RouteLost)
     }
   }
 
@@ -130,16 +132,21 @@ class MediaCaptureEngine(
     }
   }
 
-  override fun resume(): Boolean {
-    val r = recorder ?: return false
-    return try {
-      r.resume()
-      paused = false
-      true
-    } catch (ex: IllegalStateException) {
-      Log.d(TAG, "resume() called before start() or after stop(): ${ex.message}")
-      false
+  override fun resume(device: AudioDeviceInfo?): Bound {
+    if (route.isLost) return captureOn(device)
+    val r = recorder ?: throw IllegalStateException("Capture cannot resume.")
+    try {
+      resumeRecorder(r)
+    } catch (e: IllegalStateException) {
+      throw IllegalStateException("Capture cannot resume.", e)
     }
+    return Bound.Resumed
+  }
+
+  @Throws(IllegalStateException::class)
+  private fun resumeRecorder(r: MediaRecorder) {
+    r.resume()
+    paused = false
   }
 
   override fun stop(delete: Boolean): Throwable? {

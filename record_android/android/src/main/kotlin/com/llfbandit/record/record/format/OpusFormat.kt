@@ -34,13 +34,10 @@ class OpusFormat : Format() {
     path: String?,
     onChunk: (ByteArray) -> Unit,
   ): IContainerWriter {
-    if (path == null) {
-      throw IllegalArgumentException("Path not provided. Stream is not supported.")
-    }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
       throw IllegalAccessException("Opus requires min API version: " + Build.VERSION_CODES.Q)
     }
 
-    return MuxerContainer(path, false, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG)
+    return MuxerContainer(requirePath(path), false, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG)
   }
 }

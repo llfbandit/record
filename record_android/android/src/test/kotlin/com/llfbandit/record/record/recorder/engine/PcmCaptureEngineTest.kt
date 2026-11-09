@@ -1,14 +1,20 @@
 package com.llfbandit.record.record.recorder.engine
 
+import android.os.Handler
+import android.os.Looper
 import com.llfbandit.record.testRecordConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.io.File
 
+@RunWith(RobolectricTestRunner::class)
 class PcmCaptureEngineTest {
   private val events = mutableListOf<CaptureEvent>()
 
@@ -17,6 +23,8 @@ class PcmCaptureEngineTest {
       testRecordConfig(path = path),
       onEvent = { _, event -> events += event },
       removals = { AutoCloseable {} },
+      handler = Handler(Looper.getMainLooper()),
+      hasInputDevices = { true },
     )
 
   private fun stop(engine: PcmCaptureEngine, delete: Boolean = false): Throwable? = engine.stop(delete)
@@ -30,7 +38,7 @@ class PcmCaptureEngineTest {
   fun `pause and resume before start are refused`() {
     val engine = engine()
     assertFalse(engine.pause())
-    assertFalse(engine.resume())
+    assertThrows(IllegalStateException::class.java) { engine.resume(null) }
     assertTrue(events.isEmpty())
   }
 

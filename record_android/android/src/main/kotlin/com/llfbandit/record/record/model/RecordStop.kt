@@ -5,6 +5,7 @@ enum class StopReason(val id: String) {
   /** The app ended it: stop(), cancel(), dispose(), or a new start(). */
   STOP("stop"),
   ROUTE_CHANGE("routeChange"),
+  // Not sent on Android; mirrors the Dart enum.
   INTERRUPTION("interruption"),
   ERROR("error"),
 }

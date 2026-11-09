@@ -1,20 +1,14 @@
 package com.llfbandit.record.record.encoder
 
 interface IEncoder {
-  /**
-   * Start the encoder process.
-   *
-   * Can only be called if the encoder process is not already started.
-   */
   fun startEncoding()
 
-  /** Releases the encoder and answers with the failure that ended it; never throws. */
-  fun stopEncoding(done: (Exception?) -> Unit)
+  /** Never throws; @return the teardown error. */
+  fun stopEncoding(): Exception?
 
-  /**
-   * Encode bytes of audio to file
-   *
-   * @param bytes - PCM input buffer
-   */
+  /** Never waits: what the codec can't take yet is kept, so [bytes] must not be reused. */
   fun encode(bytes: ByteArray)
+
+  /** Feeds kept input and writes ready output; called on every read, even without new bytes. */
+  fun pump() {}
 }

@@ -4,7 +4,6 @@ import android.media.MediaFormat
 import com.llfbandit.record.record.model.AudioEncoder
 import com.llfbandit.record.record.model.RecordConfig
 import com.llfbandit.record.record.container.IContainerWriter
-import com.llfbandit.record.record.encoder.EncoderListener
 
 class LegacyRecorder(val outputFormat: Int, val audioEncoder: Int)
 
@@ -47,6 +46,9 @@ sealed class Format {
     onChunk: (ByteArray) -> Unit,
   ): IContainerWriter
 
+  /** For file-only formats. */
+  protected fun requirePath(path: String?): String =
+    requireNotNull(path) { "Path not provided. Stream is not supported." }
 
   companion object {
     const val KEY_X_FRAME_SIZE_IN_BYTES = "x-frame-size-in-bytes"
@@ -66,10 +68,10 @@ sealed class Format {
      */
     fun createEncoder(
       config: RecordConfig,
-      listener: EncoderListener
+      onChunk: (ByteArray) -> Unit,
     ): EncoderSetup {
       val format = selectFormat(config.encoder)
-      return FormatCodecSelector.findCodec(format, config, listener)
+      return FormatCodecSelector.findCodec(format, config, onChunk)
     }
 
     fun selectFormat(encoder: AudioEncoder): Format {
