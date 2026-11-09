@@ -104,7 +104,7 @@ mixin RecordMethodChannel implements RecordMethodChannelPlatformInterface {
 
   @override
   Future<void> cancel(String recorderId) async {
-    _methodChannel.invokeMethod('cancel', {'recorderId': recorderId});
+    await _methodChannel.invokeMethod('cancel', {'recorderId': recorderId});
   }
 
   @override
