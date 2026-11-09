@@ -82,6 +82,20 @@ void main() {
     expect(await platform.isRecording('b'), isTrue);
   });
 
+  test('a paused take is still recording', () async {
+    await platform.create('a');
+    final stream = await platform.startStream('a', const RecordConfig());
+    stream.listen((_) {});
+
+    await platform.pause('a');
+
+    expect(await platform.isPaused('a'), isTrue);
+    expect(await platform.isRecording('a'), isTrue);
+
+    await platform.stop('a');
+    expect(await platform.isRecording('a'), isFalse);
+  });
+
   test('throws for an unknown recorder', () {
     expect(
       () => platform.isRecording('nope'),

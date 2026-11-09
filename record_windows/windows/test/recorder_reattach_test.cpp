@@ -136,7 +136,7 @@ namespace record_windows
 		LoseRoute();
 
 		EXPECT_TRUE(IsPaused());
-		EXPECT_FALSE(IsRecording());
+		EXPECT_TRUE(IsRecording());
 	}
 
 	// No retry on a timer: the take waits for Resume().

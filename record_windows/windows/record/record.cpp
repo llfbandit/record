@@ -371,7 +371,7 @@ namespace record_windows
 	bool Recorder::IsRecording()
 	{
 		AssertOnDispatcher();
-		return m_recordState == RecordState::record;
+		return m_recordState != RecordState::stop;
 	}
 
 	HRESULT Recorder::EndRecording(bool discard)

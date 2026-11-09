@@ -48,7 +48,7 @@ class LinuxRecorder {
 
   bool isPaused() => _state == RecordState.pause;
 
-  bool isRecording() => _state == RecordState.record;
+  bool isRecording() => _state != RecordState.stop;
 
   Future<void> pause() async {
     if (_state == RecordState.record) {
