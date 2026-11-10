@@ -77,12 +77,14 @@ class MediaRecorderDelegate extends RecorderDelegate {
     if (_mediaRecorder?.state != 'paused') return;
 
     // A removed device ends the paused track: move back to it or to the default one, or stay paused to retry.
-    if (isSourceDead(_mediaStream) && !await reattach()) {
-      throw const RecordResumeNoDeviceException();
-    }
+    final reattached = !isSourceDead(_mediaStream) || await reattach();
+    // The take may have stopped while `reattach` waited.
+    if (_mediaRecorder?.state != 'paused') return;
+    if (!reattached) throw const RecordResumeNoDeviceException();
 
     // The browser may have suspended the context: resume it before `_mediaRecorder`, or the recorder captures silence.
     await _audioCtx?.resume().toDart;
+    if (_mediaRecorder?.state != 'paused') return;
 
     // Browsers may disconnect the source during a pause, so reconnect it.
     if (_source case final source?) wireSource(source);
@@ -160,6 +162,9 @@ class MediaRecorderDelegate extends RecorderDelegate {
       mediaRecorder.onerror = _onRecorderError.toJS;
       _mediaRecorder = mediaRecorder;
 
+      // MediaRecorder reads the context, so a suspended one records silence. Not awaited: a blocked resume waits for a user gesture.
+      effectiveConfig.context.resume().toDart.ignore();
+
       _elapsedTime.start();
 
       mediaRecorder.start(200); // Will trigger dataavailable every 200ms
@@ -203,6 +208,11 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<Amplitude> getAmplitude() async {
+    // The context keeps running during a pause, so the analyser would still read the live mic.
+    if (_mediaRecorder?.state != 'recording') {
+      return Amplitude(current: kMinAmplitude, max: _maxAmplitude);
+    }
+
     try {
       final amp = _getMaxAmplitude().clamp(kMinAmplitude, kMaxAmplitude);
 

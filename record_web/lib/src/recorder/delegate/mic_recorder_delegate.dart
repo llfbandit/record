@@ -72,11 +72,13 @@ class MicRecorderDelegate extends RecorderDelegate {
     if (context == null || context.state != 'suspended') return;
 
     // A removed device ends the paused track: move back to it or to the default one, or stay paused to retry.
-    if (isSourceDead(_mediaStream) && !await reattach()) {
-      throw const RecordResumeNoDeviceException();
-    }
+    final reattached = !isSourceDead(_mediaStream) || await reattach();
+    // The take may have stopped while `reattach` waited.
+    if (_context != context) return;
+    if (!reattached) throw const RecordResumeNoDeviceException();
 
     await context.resume().toDart;
+    if (_context != context) return;
 
     // Chromium disconnects the worklet after a long pause (> 12~15 s).
     if (_source case final source?) wireSource(source);

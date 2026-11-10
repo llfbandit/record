@@ -186,6 +186,8 @@ abstract class RecorderDelegate {
         case AudioRouteChangeMode.pause:
           await pause();
         case AudioRouteChangeMode.stop:
+          // A take the app is already stopping keeps its own reason.
+          if (!await isRecording()) break;
           _stopReason = RecordStopReason.routeChange;
           await (_routeStop = stop());
         case null:

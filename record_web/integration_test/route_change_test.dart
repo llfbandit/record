@@ -478,8 +478,9 @@ class _TestDelegate extends RecorderDelegate {
   @override
   Future<bool> isPaused() => throw UnimplementedError();
 
+  // A take is running, so stop mode applies.
   @override
-  Future<bool> isRecording() => throw UnimplementedError();
+  Future<bool> isRecording() async => true;
 
   @override
   Future<void> resume() => throw UnimplementedError();
