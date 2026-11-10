@@ -123,6 +123,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
     try {
       final mediaStream = await initMediaStream(config);
+      _mediaStream = mediaStream;
 
       // MediaRecorder encodes the track as-is.
       final effectiveConfig = adjustConfig(
@@ -131,12 +132,13 @@ class MediaRecorderDelegate extends RecorderDelegate {
         canConvert: false,
         onConfigChanged: onConfigChanged,
       );
+      _audioCtx = effectiveConfig.context;
       config = effectiveConfig.config;
 
       // Try to assign dedicated mime type.
       final mimeType = getSupportedMimeType(config.encoder);
       if (mimeType == null) {
-        throw '${config.encoder} not supported.';
+        throw Exception('${config.encoder} not supported.');
       }
 
       final destination = effectiveConfig.context
@@ -156,6 +158,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
           ((web.BlobEvent event) => _onDataAvailable(event)).toJS;
       mediaRecorder.onstop = ((web.Event event) => _onStop()).toJS;
       mediaRecorder.onerror = _onRecorderError.toJS;
+      _mediaRecorder = mediaRecorder;
 
       _elapsedTime.start();
 
@@ -163,8 +166,6 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
       _setupAmplitudeAnalyser(effectiveConfig, mediaStream);
 
-      _mediaRecorder = mediaRecorder;
-      _mediaStream = mediaStream;
       _destination = destination;
       _config = config;
       requestedDevice = config.device;
@@ -174,8 +175,9 @@ class MediaRecorderDelegate extends RecorderDelegate {
       listenRouteChange(mediaStream);
 
       onStateChanged(RecordState.record);
-    } catch (error) {
-      _onError(error);
+    } catch (_) {
+      await _reset();
+      rethrow;
     }
   }
 
@@ -224,11 +226,6 @@ class MediaRecorderDelegate extends RecorderDelegate {
     source.disconnect();
     if (_analyser case final analyser?) source.connect(analyser);
     if (_destination case final destination?) source.connect(destination);
-  }
-
-  void _onError(dynamic error) {
-    _reset();
-    debugPrint(error.toString());
   }
 
   void _onRecorderError(web.Event event) {
