@@ -46,6 +46,8 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   /// On `web`: This parameter is ignored.
   ///
   /// Output path can be retrieves when [stop] method is called.
+  ///
+  /// Throws a `PlatformException` (code `record`) when recording cannot start.
   Future<void> start(RecordConfig config, {required String path}) async {
     _initStateStream();
 
@@ -56,6 +58,8 @@ class AudioRecorder with _AmplitudeMixin, _StateMixin, _StreamMixin {
   ///
   /// When stopping the record, you must rely on stream close event to get
   /// full recorded data.
+  ///
+  /// Throws like [start].
   Future<Stream<Uint8List>> startStream(RecordConfig config) {
     _initStateStream();
 

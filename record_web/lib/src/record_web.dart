@@ -59,7 +59,7 @@ class RecordPluginWebWrapper extends RecordPlatform {
     RecordConfig config, {
     required String path,
   }) {
-    return _getRecorder(recorderId).start(config, path: path);
+    return _launching(() => _getRecorder(recorderId).start(config, path: path));
   }
 
   @override
@@ -67,7 +67,7 @@ class RecordPluginWebWrapper extends RecordPlatform {
     String recorderId,
     RecordConfig config,
   ) {
-    return _getRecorder(recorderId).startStream(config);
+    return _launching(() => _getRecorder(recorderId).startStream(config));
   }
 
   @override
@@ -111,6 +111,16 @@ class RecordPluginWebWrapper extends RecordPlatform {
     void Function(RecordConfig)? handler,
   ) {
     _getRecorder(recorderId).setOnConfigChanged(handler);
+  }
+
+  Future<T> _launching<T>(Future<T> Function() start) async {
+    try {
+      return await start();
+    } on PlatformException {
+      rethrow;
+    } catch (e) {
+      throw PlatformException(code: 'record', message: e.toString());
+    }
   }
 
   Recorder _getRecorder(String recorderId) {

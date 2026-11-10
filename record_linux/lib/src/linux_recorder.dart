@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:record_platform_interface/record_platform_interface.dart';
 
 import 'capture_pipeline.dart';
@@ -31,6 +32,8 @@ class LinuxRecorder {
   InputDevice? _requestedDevice;
   // Capture ended with its device: resume() needs a new one.
   bool _routeLost = false;
+  // A parecord or ffmpeg exit while start() runs, which start() throws.
+  String? _startFailure;
   StreamController<RecordState>? _stateStreamCtrl;
   StreamController<RecordStop>? _stopStreamCtrl;
   void Function(RecordConfig config)? _configChangedHandler;
@@ -83,7 +86,7 @@ class LinuxRecorder {
     _deleteFile(path);
 
     final adjusted = _adjustConfig(config);
-    await _pipeline.startFile(adjusted, path);
+    await _launch(adjusted, () => _pipeline.startFile(adjusted, path));
 
     _path = path;
     await _beginTake(adjusted);
@@ -94,7 +97,10 @@ class LinuxRecorder {
     await stop();
 
     final adjusted = _adjustConfig(config);
-    final stream = await _pipeline.startStream(adjusted);
+    final stream = await _launch(
+      adjusted,
+      () => _pipeline.startStream(adjusted),
+    );
 
     await _beginTake(adjusted);
     _updateState(RecordState.record);
@@ -162,7 +168,10 @@ class LinuxRecorder {
 
   void _supportedOrThrow(RecordConfig config) {
     if (!supportsEncoder(config.encoder)) {
-      throw Exception('${config.encoder} is not supported.');
+      throw PlatformException(
+        code: 'record',
+        message: '${config.encoder} is not supported.',
+      );
     }
   }
 
@@ -172,6 +181,45 @@ class LinuxRecorder {
     if (!identical(adjusted, config)) _configChangedHandler?.call(adjusted);
 
     return adjusted;
+  }
+
+  /// Runs [start], and stops the pipeline again when it fails or a process
+  /// exits meanwhile.
+  Future<T> _launch<T>(RecordConfig config, Future<T> Function() start) async {
+    await _deviceOrThrow(config.device);
+
+    _startFailure = null;
+    try {
+      final result = await start();
+      if (_startFailure case final error?) {
+        throw PlatformException(code: 'record', message: error);
+      }
+      return result;
+    } catch (_) {
+      // parecord would otherwise keep the microphone, e.g. without ffmpeg.
+      await _pipeline.stop();
+      rethrow;
+    }
+  }
+
+  // parecord on a missing source exits only once start() has returned.
+  Future<void> _deviceOrThrow(InputDevice? device) async {
+    final Set<String> sources;
+    try {
+      sources = await listSources();
+    } catch (_) {
+      // Without pactl, parecord reports the failure itself.
+      return;
+    }
+
+    if (!_isAvailable(device, sources)) {
+      throw PlatformException(
+        code: 'record',
+        message: device == null
+            ? 'No input device.'
+            : 'Input device ${device.id} not found.',
+      );
+    }
   }
 
   Future<void> _beginTake(RecordConfig config) async {
@@ -221,7 +269,11 @@ class LinuxRecorder {
 
   Future<void> _onPipelineExited(String error, {required bool capture}) async {
     final config = _config;
-    if (config == null) return;
+    // The pipeline reports exits only while it runs: here, during start().
+    if (config == null) {
+      _startFailure ??= error;
+      return;
+    }
 
     try {
       // With no source left, the server ends the stream: the route monitor handles that.

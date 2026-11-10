@@ -138,7 +138,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
       // Try to assign dedicated mime type.
       final mimeType = getSupportedMimeType(config.encoder);
       if (mimeType == null) {
-        throw Exception('${config.encoder} not supported.');
+        throw '${config.encoder} not supported.';
       }
 
       final destination = effectiveConfig.context

@@ -164,7 +164,7 @@ class Recorder {
 
         final supported = await isEncoderSupported(config.encoder);
         if (!supported) {
-          throw Exception('Encoder ${config.encoder} not supported.');
+          throw 'Encoder ${config.encoder} not supported.';
         }
 
         _delegate = MediaRecorderDelegate(
@@ -187,7 +187,7 @@ class Recorder {
         );
         return _delegate!.startStream(config);
       default:
-        throw Exception('Stream not supported.');
+        throw 'Stream not supported.';
     }
   }
 

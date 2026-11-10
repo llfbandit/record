@@ -101,7 +101,8 @@ final class RecorderChannel<P: RecorderPlatform> {
         if T.self == Void.self { result(nil) } else { result(value) }
       }
     } catch let RecorderError.error(message, details) {
-      DispatchQueue.main.async { result(FlutterError(code: "record", message: message, details: details)) }
+      let text = RecorderError.error(message: message, details: details).localizedDescription
+      DispatchQueue.main.async { result(FlutterError(code: "record", message: text, details: details)) }
     } catch RecorderError.noInputDevice {
       DispatchQueue.main.async {
         result(FlutterError(code: "no_input_device", message: RecorderError.noInputDevice.localizedDescription, details: nil))

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -75,7 +76,7 @@ class RecordLinux extends RecordPlatform {
     RecordConfig config, {
     required String path,
   }) {
-    return _getRecorder(recorderId).start(config, path: path);
+    return _launching(() => _getRecorder(recorderId).start(config, path: path));
   }
 
   @override
@@ -83,7 +84,7 @@ class RecordLinux extends RecordPlatform {
     String recorderId,
     RecordConfig config,
   ) {
-    return _getRecorder(recorderId).startStream(config);
+    return _launching(() => _getRecorder(recorderId).startStream(config));
   }
 
   @override
@@ -117,6 +118,17 @@ class RecordLinux extends RecordPlatform {
     void Function(RecordConfig config)? handler,
   ) {
     _getRecorder(recorderId).setOnConfigChanged(handler);
+  }
+
+  Future<T> _launching<T>(Future<T> Function() start) async {
+    try {
+      return await start();
+    } on ProcessException catch (e) {
+      throw PlatformException(
+        code: 'record',
+        message: 'Cannot run ${e.executable}: ${e.message}',
+      );
+    }
   }
 
   LinuxRecorder _getRecorder(String recorderId) {

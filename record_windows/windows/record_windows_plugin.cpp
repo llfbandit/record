@@ -1,6 +1,7 @@
 #include "record_windows_plugin.h"
 #include "audio_device/record_audio_device.h"
 #include "record_config.h"
+#include <cstdio>
 #include <exception>
 #include <mutex>
 
@@ -14,15 +15,16 @@ namespace record_windows {
 		// The Dart side turns this code back into a RecordResumeNoDeviceException.
 		if (hr == E_RECORD_NO_INPUT_DEVICE)
 		{
-			result.Error("no_input_device", "",
-				EncodableValue("No input device to resume the recording on."));
+			result.Error("no_input_device", "No input device to resume the recording on.");
 			return;
 		}
 
 		_com_error err(hr);
 		std::string errorText = Utf8FromUtf16(err.ErrorMessage());
 
-		result.Error("Record", "", EncodableValue(errorText));
+		char code[16];
+		snprintf(code, sizeof(code), "0x%08X", static_cast<unsigned>(hr));
+		result.Error("record", errorText, EncodableValue(code));
 	}
 
 	// Answers a call that has no value.
@@ -78,7 +80,7 @@ namespace record_windows {
 			std::string encoderName;
 			if (!GetValueFromEncodableMap(args, "encoder", encoderName))
 			{
-				result.Error("Bad arguments", "Expected encoder name.");
+				result.Error("record", "Expected encoder name.");
 				return true;
 			}
 
@@ -124,7 +126,7 @@ namespace record_windows {
 		const auto args = method_call.arguments();
 		const auto* mapArgs = std::get_if<EncodableMap>(args);
 		if (!mapArgs) {
-			result->Error("Record", "Call missing parameters");
+			result->Error("record", "Call missing parameters");
 			return;
 		}
 
@@ -136,7 +138,7 @@ namespace record_windows {
 		std::string recorderId;
 		GetValueFromEncodableMap(mapArgs, "recorderId", recorderId);
 		if (recorderId.empty()) {
-			result->Error("Record", "Call missing mandatory parameter recorderId");
+			result->Error("record", "Call missing mandatory parameter recorderId");
 			return;
 		}
 
@@ -146,7 +148,7 @@ namespace record_windows {
 				result->Success(EncodableValue(NULL));
 			}
 			catch (const std::exception& e) {
-				result->Error("Record", e.what());
+				result->Error("record", e.what());
 			}			
 			return;
 		}
@@ -154,7 +156,7 @@ namespace record_windows {
 		auto recorder = GetRecorder(recorderId);
 		if (!recorder) {
 			result->Error(
-				"Record",
+				"record",
 				"Recorder has not yet been created or has already been disposed."
 			);
 			return;
