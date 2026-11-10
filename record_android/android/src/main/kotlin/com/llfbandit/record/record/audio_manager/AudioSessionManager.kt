@@ -87,12 +87,14 @@ class AudioSessionManager(
   // Volume 0, not ADJUST_MUTE: Android ignores a mute on streams like the alarm.
   private fun setMuted(mute: Boolean) {
     if (mute) {
-      muteStreams.forEach { stream ->
-        val volume = audioManager.getStreamVolume(stream)
+      // Read all first: some streams share a volume.
+      val volumes = muteStreams.associateWith { audioManager.getStreamVolume(it) }
+      volumes.forEach { (stream, volume) ->
         if (setVolume(stream, 0)) mutedVolumes[stream] = volume
       }
     } else {
-      mutedVolumes.forEach { (stream, volume) -> setVolume(stream, volume) }
+      // Fixed order: DTMF shares another stream's volume, restored after it.
+      muteStreams.forEach { stream -> mutedVolumes[stream]?.let { setVolume(stream, it) } }
       mutedVolumes.clear()
     }
   }
