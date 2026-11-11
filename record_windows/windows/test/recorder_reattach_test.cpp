@@ -498,4 +498,14 @@ namespace record_windows
 		EXPECT_HRESULT_SUCCEEDED(Resume());
 		EXPECT_EQ(ReattachOpens(), 1);
 	}
+
+	// Restarting a running source would only shift the timeline.
+	TEST_F(RecorderReattachTest, ResumeWhileRecordingDoesNothing)
+	{
+		StartTake(AudioRouteChange::follow);
+
+		EXPECT_HRESULT_SUCCEEDED(Resume());
+
+		EXPECT_EQ(Call(*m_dispatcher, [this] { return m_fake->Starts(); }), 0);
+	}
 }

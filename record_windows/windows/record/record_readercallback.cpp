@@ -45,7 +45,11 @@ namespace record_windows
 
 	HRESULT Recorder::ProcessSample(DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample)
 	{
-		if (m_clock.Rebase(llTimestamp))
+		// A sample without a duration only makes the next resume overlap it.
+		LONGLONG llDuration = 0;
+		if (FAILED(pSample->GetSampleDuration(&llDuration))) llDuration = 0;
+
+		if (m_clock.Rebase(llTimestamp, llDuration))
 		{
 			// A follow move rebases while already recording; UpdateState() skips the repeated state.
 			UpdateState(RecordState::record);

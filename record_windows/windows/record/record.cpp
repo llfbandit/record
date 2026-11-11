@@ -304,6 +304,8 @@ namespace record_windows
 		AssertOnDispatcher();
 
 		if (!m_pConfig) return S_OK;
+		// Restarting a running source would only shift the timeline.
+		if (!m_pausedByRouteLoss && !IsPaused()) return S_OK;
 
 		// A user pause resumes on its own device, or not at all.
 		if (!m_pausedByRouteLoss)

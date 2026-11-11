@@ -48,6 +48,23 @@ namespace record_windows
 		EXPECT_EQ(ts, 500);
 	}
 
+	// The first sample after the gap starts where the last one ended, not on top of it.
+	TEST(TimelineClockTest, ResumeStartsAfterTheLastSample)
+	{
+		TimelineClock clock;
+
+		LONGLONG ts = 500;
+		clock.Rebase(ts, 100);
+		ts = 600;
+		clock.Rebase(ts, 100);
+
+		clock.Resume();
+
+		ts = 10000;
+		EXPECT_TRUE(clock.Rebase(ts, 100));
+		EXPECT_EQ(ts, 200);
+	}
+
 	// A new device starts its own clock, wherever the old one was.
 	TEST(TimelineClockTest, ResumeHandlesADeviceClockGoingBackwards)
 	{
