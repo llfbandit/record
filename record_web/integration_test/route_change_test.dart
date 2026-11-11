@@ -7,6 +7,8 @@ import 'package:record_platform_interface/record_platform_interface.dart';
 import 'package:record_web/src/recorder/delegate/recorder_delegate.dart';
 import 'package:web/web.dart' as web;
 
+const _mic = InputDevice(id: 'usb-mic', label: 'USB mic');
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -74,10 +76,11 @@ void main() {
       Future<web.MediaStream> Function(RecordConfig config)? onReacquire,
     }) async {
       final stream = createStream();
-      delegate = _TestDelegate(onReacquire: onReacquire)
-        ..audioContext = context
-        ..mediaStream = stream
-        ..recordConfig = RecordConfig(audioRouteChange: mode);
+      delegate = _TestDelegate(
+        onReacquire: onReacquire,
+        context: context,
+        config: RecordConfig(audioRouteChange: mode),
+      )..mediaStream = stream;
 
       delegate.listenRouteChange(stream);
       firstTrack(stream).dispatchEvent(web.Event('ended'));
@@ -94,7 +97,7 @@ void main() {
         onReacquire: (_) async => newStream,
       );
 
-      expect(calls, ['swapped']);
+      expect(calls, isEmpty);
       expect(delegate.mediaStream, same(newStream));
     });
 
@@ -160,11 +163,14 @@ void main() {
       final previousStream = createStream();
       final previousTrack = firstTrack(previousStream);
       final newStream = createStream();
-      delegate = _TestDelegate(onReacquire: (_) async => newStream)
-        ..audioContext = context
-        ..mediaStream = previousStream
-        ..source = context.createMediaStreamSource(previousStream)
-        ..recordConfig = const RecordConfig();
+      delegate =
+          _TestDelegate(
+              onReacquire: (_) async => newStream,
+              context: context,
+              config: const RecordConfig(),
+            )
+            ..mediaStream = previousStream
+            ..source = context.createMediaStreamSource(previousStream);
 
       expect(await delegate.swapToDefaultDevice(), isTrue);
 
@@ -176,24 +182,26 @@ void main() {
 
     testWidgets('listens to the new stream', (tester) async {
       final newStream = createStream();
-      delegate = _TestDelegate(onReacquire: (_) async => newStream)
-        ..audioContext = context
-        ..recordConfig = const RecordConfig();
+      delegate = _TestDelegate(
+        onReacquire: (_) async => newStream,
+        context: context,
+        config: const RecordConfig(),
+      );
 
       await delegate.swapToDefaultDevice();
       firstTrack(newStream).dispatchEvent(web.Event('ended'));
       await settle();
 
-      expect(delegate.calls, ['swapped', 'pause']);
+      expect(delegate.calls, ['pause']);
     });
 
     testWidgets('reports the default device', (tester) async {
-      const mic = InputDevice(id: 'usb-mic', label: 'USB mic');
       final reported = <RecordConfig>[];
-      delegate = _TestDelegate(onReacquire: (_) async => createStream())
-        ..audioContext = context
-        ..recordConfig = const RecordConfig(device: mic)
-        ..onConfigChanged = reported.add;
+      delegate = _TestDelegate(
+        onReacquire: (_) async => createStream(),
+        context: context,
+        config: const RecordConfig(device: _mic),
+      )..onConfigChanged = reported.add;
 
       await delegate.swapToDefaultDevice();
 
@@ -205,15 +213,14 @@ void main() {
       tester,
     ) async {
       final newStream = createStream();
-      delegate =
-          _TestDelegate(
-              onReacquire: (_) async {
-                delegate.audioContext = null;
-                return newStream;
-              },
-            )
-            ..audioContext = context
-            ..recordConfig = const RecordConfig();
+      delegate = _TestDelegate(
+        onReacquire: (_) async {
+          delegate.audioContext = null;
+          return newStream;
+        },
+        context: context,
+        config: const RecordConfig(),
+      );
 
       expect(await delegate.swapToDefaultDevice(), isFalse);
 
@@ -223,10 +230,12 @@ void main() {
 
     testWidgets('releases the new stream when wiring throws', (tester) async {
       final newStream = createStream();
-      delegate =
-          _TestDelegate(onReacquire: (_) async => newStream, failWiring: true)
-            ..audioContext = context
-            ..recordConfig = const RecordConfig();
+      delegate = _TestDelegate(
+        onReacquire: (_) async => newStream,
+        failWiring: true,
+        context: context,
+        config: const RecordConfig(),
+      );
 
       expect(await delegate.swapToDefaultDevice(), isFalse);
 
@@ -235,15 +244,14 @@ void main() {
 
     testWidgets('runs one swap at a time', (tester) async {
       var reacquired = 0;
-      delegate =
-          _TestDelegate(
-              onReacquire: (_) async {
-                reacquired++;
-                return createStream();
-              },
-            )
-            ..audioContext = context
-            ..recordConfig = const RecordConfig();
+      delegate = _TestDelegate(
+        onReacquire: (_) async {
+          reacquired++;
+          return createStream();
+        },
+        context: context,
+        config: const RecordConfig(),
+      );
 
       final results = await Future.wait([
         delegate.swapToDefaultDevice(),
@@ -265,15 +273,13 @@ void main() {
   });
 
   group('reattach', () {
-    const mic = InputDevice(id: 'usb-mic', label: 'USB mic');
-
-    // Returns the device each getUserMedia call asked for; null is the default one.
-    List<String?> reattachWith({
+    // `asked` holds the device each getUserMedia call asked for; null is the default one.
+    ({List<String?> asked, List<RecordConfig> reported}) reattachWith({
       required RecordConfig config,
       required bool micIsBack,
-      List<RecordConfig>? reported,
     }) {
       final asked = <String?>[];
+      final reported = <RecordConfig>[];
       delegate =
           _TestDelegate(
               onReacquire: (config) async {
@@ -283,22 +289,20 @@ void main() {
                 }
                 return createStream();
               },
+              context: context,
+              config: config,
             )
-            ..audioContext = context
-            ..recordConfig = config
-            ..requestedDevice = mic
-            ..onConfigChanged = reported?.add;
-      return asked;
+            ..requestedDevice = _mic
+            ..onConfigChanged = reported.add;
+      return (asked: asked, reported: reported);
     }
 
     testWidgets('goes back to the requested device once it returned', (
       tester,
     ) async {
-      final reported = <RecordConfig>[];
-      final asked = reattachWith(
-        config: const RecordConfig(device: mic),
+      final (:asked, :reported) = reattachWith(
+        config: const RecordConfig(device: _mic),
         micIsBack: true,
-        reported: reported,
       );
 
       expect(await delegate.reattach(), isTrue);
@@ -308,11 +312,9 @@ void main() {
     });
 
     testWidgets('falls back to the default device', (tester) async {
-      final reported = <RecordConfig>[];
-      final asked = reattachWith(
-        config: const RecordConfig(device: mic),
+      final (:asked, :reported) = reattachWith(
+        config: const RecordConfig(device: _mic),
         micIsBack: false,
-        reported: reported,
       );
 
       expect(await delegate.reattach(), isTrue);
@@ -323,11 +325,9 @@ void main() {
 
     // A follow move cleared the device, and the requested one came back since.
     testWidgets('reports the requested device back', (tester) async {
-      final reported = <RecordConfig>[];
-      reattachWith(
+      final (:reported, asked: _) = reattachWith(
         config: const RecordConfig(),
         micIsBack: true,
-        reported: reported,
       );
 
       expect(await delegate.reattach(), isTrue);
@@ -337,17 +337,15 @@ void main() {
   });
 
   group('reportDevice', () {
-    const mic = InputDevice(id: 'usb-mic', label: 'USB mic');
-
     testWidgets('reports the default device when another was asked for', (
       tester,
     ) async {
       final reported = <RecordConfig>[];
+      delegate.onConfigChanged = reported.add;
 
       final moved = delegate.reportDevice(
-        const RecordConfig(device: mic),
+        const RecordConfig(device: _mic),
         null,
-        reported.add,
       );
 
       expect(moved.device, isNull);
@@ -357,9 +355,10 @@ void main() {
 
     testWidgets('reports nothing when already on that device', (tester) async {
       final reported = <RecordConfig>[];
-      const config = RecordConfig(device: mic);
+      delegate.onConfigChanged = reported.add;
+      const config = RecordConfig(device: _mic);
 
-      final moved = delegate.reportDevice(config, mic, reported.add);
+      final moved = delegate.reportDevice(config, _mic);
 
       expect(moved, same(config));
       expect(reported, isEmpty);
@@ -368,8 +367,7 @@ void main() {
     // `reportDevice` must keep the fields `adjustConfig` already changed.
     testWidgets('keeps the other fields', (tester) async {
       final moved = delegate.reportDevice(
-        const RecordConfig(device: mic, sampleRate: 16000, numChannels: 1),
-        null,
+        const RecordConfig(device: _mic, sampleRate: 16000, numChannels: 1),
         null,
       );
 
@@ -418,43 +416,27 @@ class _TestDelegate extends RecorderDelegate {
   final wired = <web.MediaStreamAudioSourceNode>[];
 
   @override
-  web.AudioContext? audioContext;
-  @override
-  web.MediaStream? mediaStream;
-  @override
-  web.MediaStreamAudioSourceNode? source;
-  @override
-  RecordConfig? recordConfig;
-  @override
   void Function(RecordConfig)? onConfigChanged;
 
-  _TestDelegate({this.onReacquire, this.failWiring = false});
+  _TestDelegate({
+    this.onReacquire,
+    this.failWiring = false,
+    web.AudioContext? context,
+    RecordConfig? config,
+  }) {
+    audioContext = context;
+    recordConfig = config;
+  }
 
   @override
   Future<web.MediaStream> reacquireMediaStream(RecordConfig config) {
-    final handler = onReacquire;
-
-    return handler == null
-        ? super.reacquireMediaStream(config)
-        : handler(config);
+    return onReacquire?.call(config) ?? super.reacquireMediaStream(config);
   }
 
   @override
   void wireSource(web.MediaStreamAudioSourceNode source) {
     if (failWiring) throw StateError('wiring failed');
     wired.add(source);
-  }
-
-  @override
-  void onSourceSwapped(
-    web.MediaStreamAudioSourceNode source,
-    web.MediaStream mediaStream,
-    RecordConfig config,
-  ) {
-    calls.add('swapped');
-    this.source = source;
-    this.mediaStream = mediaStream;
-    recordConfig = config;
   }
 
   @override

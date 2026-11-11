@@ -53,22 +53,15 @@ abstract class RecorderDelegate {
     return web.window.navigator.mediaDevices.getUserMedia(constraints).toDart;
   }
 
-  // Each delegate exposes its capture graph so a route change can replace the input.
-  web.AudioContext? get audioContext;
-  web.MediaStream? get mediaStream;
-  web.MediaStreamAudioSourceNode? get source;
-  RecordConfig? get recordConfig;
+  // The take's capture graph, here so a route change can replace the input. Null without a take.
+  web.AudioContext? audioContext;
+  web.MediaStream? mediaStream;
+  web.MediaStreamAudioSourceNode? source;
+  RecordConfig? recordConfig;
   void Function(RecordConfig)? get onConfigChanged;
 
   /// Feeds [source] to the graph.
   void wireSource(web.MediaStreamAudioSourceNode source);
-
-  /// Keeps the [source], [mediaStream] and [config] a route change moved capture to.
-  void onSourceSwapped(
-    web.MediaStreamAudioSourceNode source,
-    web.MediaStream mediaStream,
-    RecordConfig config,
-  );
 
   // The device the take asked for: `reattach` goes back to it once it returns.
   InputDevice? requestedDevice;
@@ -126,11 +119,9 @@ abstract class RecorderDelegate {
       if (audioContext != context) return false;
 
       wireSource(newSource);
-      onSourceSwapped(
-        newSource,
-        newStream,
-        reportDevice(config, device, onConfigChanged),
-      );
+      source = newSource;
+      mediaStream = newStream;
+      recordConfig = reportDevice(config, device);
       listenRouteChange(newStream);
       swapped = true;
       return true;
@@ -147,16 +138,21 @@ abstract class RecorderDelegate {
   }
 
   /// Reports the move when capture lands on another device than [config] names; null is the default one.
-  RecordConfig reportDevice(
-    RecordConfig config,
-    InputDevice? device,
-    void Function(RecordConfig)? onConfigChanged,
-  ) {
+  RecordConfig reportDevice(RecordConfig config, InputDevice? device) {
     if (config.device?.id == device?.id) return config;
 
     final moved = config.copyWith(device: (value: device));
     onConfigChanged?.call(moved);
     return moved;
+  }
+
+  /// Before a resume, moves a take whose device went away; false when the take ended meanwhile, per [isCurrent].
+  Future<bool> reattachIfDead(bool Function() isCurrent) async {
+    final reattached = !isSourceDead(mediaStream) || await reattach();
+    if (!isCurrent()) return false;
+    // Stay paused, so a later resume can retry.
+    if (!reattached) throw const RecordResumeNoDeviceException();
+    return true;
   }
 
   /// Whether every track of [mediaStream] has ended, as after its device goes away.

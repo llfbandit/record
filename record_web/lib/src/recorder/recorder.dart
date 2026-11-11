@@ -153,12 +153,7 @@ class Recorder {
       case AudioEncoder.wav:
       case AudioEncoder.pcm16bits:
         await _endTake();
-        _delegate = MicRecorderDelegate(
-          onStateChanged: _updateState,
-          onStopped: _onStopped,
-          onConfigChanged: _onConfigChanged,
-        );
-        return _delegate!.start(config, path: path);
+        return (_delegate = _micDelegate()).start(config, path: path);
       default:
         await _endTake();
 
@@ -180,12 +175,7 @@ class Recorder {
     switch (config.encoder) {
       case AudioEncoder.pcm16bits:
         await _endTake();
-        _delegate = MicRecorderDelegate(
-          onStateChanged: _updateState,
-          onStopped: _onStopped,
-          onConfigChanged: _onConfigChanged,
-        );
-        return _delegate!.startStream(config);
+        return (_delegate = _micDelegate()).startStream(config);
       default:
         throw 'Stream not supported.';
     }
@@ -245,10 +235,17 @@ class Recorder {
   void _onStopped(RecordStop stop) {
     _updateState(RecordState.stop);
 
-    final ctrl = _stopStreamCtrl;
-    if (ctrl == null || !ctrl.hasListener || ctrl.isClosed) return;
-    ctrl.add(
+    _emit(
+      _stopStreamCtrl,
       _cancelling ? RecordStop(reason: stop.reason, error: stop.error) : stop,
+    );
+  }
+
+  MicRecorderDelegate _micDelegate() {
+    return MicRecorderDelegate(
+      onStateChanged: _updateState,
+      onStopped: _onStopped,
+      onConfigChanged: _onConfigChanged,
     );
   }
 
@@ -260,13 +257,11 @@ class Recorder {
     await delegate?.dispose();
   }
 
-  void _updateState(RecordState state) {
-    final ctrl = _stateStreamCtrl;
-    if (ctrl == null) return;
+  void _updateState(RecordState state) => _emit(_stateStreamCtrl, state);
 
-    if (ctrl.hasListener && !ctrl.isClosed) {
-      ctrl.add(state);
-    }
+  void _emit<T>(StreamController<T>? ctrl, T event) {
+    if (ctrl == null || !ctrl.hasListener || ctrl.isClosed) return;
+    ctrl.add(event);
   }
 }
 

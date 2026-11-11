@@ -19,15 +19,10 @@ class MicRecorderDelegate extends RecorderDelegate {
   @override
   final void Function(RecordConfig)? onConfigChanged;
 
-  // Media stream get from getUserMedia
-  web.MediaStream? _mediaStream;
-  web.AudioContext? _context;
   web.AudioWorkletNode? _workletNode;
-  web.MediaStreamAudioSourceNode? _source;
 
   StreamController<Uint8List>? _recordStreamCtrl;
   Encoder? _encoder;
-  RecordConfig? _config;
   // Amplitude
   double _maxAmplitude = kMinAmplitude;
   double _amplitude = kMinAmplitude;
@@ -48,18 +43,18 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<bool> isPaused() async {
-    return _context?.state == 'suspended';
+    return audioContext?.state == 'suspended';
   }
 
   @override
   Future<bool> isRecording() async {
-    final context = _context;
+    final context = audioContext;
     return context != null && context.state != 'closed';
   }
 
   @override
   Future<void> pause() async {
-    final context = _context;
+    final context = audioContext;
     if (context != null && context.state == 'running') {
       await context.suspend().toDart;
       onStateChanged(RecordState.pause);
@@ -68,45 +63,18 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   @override
   Future<void> resume() async {
-    final context = _context;
+    final context = audioContext;
     if (context == null || context.state != 'suspended') return;
 
-    // A removed device ends the paused track: move back to it or to the default one, or stay paused to retry.
-    final reattached = !isSourceDead(_mediaStream) || await reattach();
-    // The take may have stopped while `reattach` waited.
-    if (_context != context) return;
-    if (!reattached) throw const RecordResumeNoDeviceException();
+    if (!await reattachIfDead(() => audioContext == context)) return;
 
     await context.resume().toDart;
-    if (_context != context) return;
+    if (audioContext != context) return;
 
     // Chromium disconnects the worklet after a long pause (> 12~15 s).
-    if (_source case final source?) wireSource(source);
+    if (source case final source?) wireSource(source);
 
     onStateChanged(RecordState.record);
-  }
-
-  @override
-  web.AudioContext? get audioContext => _context;
-
-  @override
-  web.MediaStream? get mediaStream => _mediaStream;
-
-  @override
-  web.MediaStreamAudioSourceNode? get source => _source;
-
-  @override
-  RecordConfig? get recordConfig => _config;
-
-  @override
-  void onSourceSwapped(
-    web.MediaStreamAudioSourceNode source,
-    web.MediaStream mediaStream,
-    RecordConfig config,
-  ) {
-    _source = source;
-    _mediaStream = mediaStream;
-    _config = config;
   }
 
   @override
@@ -136,7 +104,7 @@ class MicRecorderDelegate extends RecorderDelegate {
   Future<String?> stop() async {
     if (takeRouteStop() case final stopped?) return stopped;
 
-    final wasRecording = _context != null;
+    final wasRecording = audioContext != null;
     await _reset(resetEncoder: false);
 
     final blob = _encoder?.finish();
@@ -152,11 +120,11 @@ class MicRecorderDelegate extends RecorderDelegate {
   }
 
   Future<void> _start(RecordConfig config, {bool isStream = false}) async {
-    final mediaStream = await initMediaStream(config);
+    final stream = await initMediaStream(config);
 
     // The worklet resamples and remixes to the requested format.
     final effectiveConfig = adjustConfig(
-      mediaStream,
+      stream,
       config,
       canConvert: true,
       onConfigChanged: onConfigChanged,
@@ -164,7 +132,7 @@ class MicRecorderDelegate extends RecorderDelegate {
     final context = effectiveConfig.context;
     config = effectiveConfig.config;
 
-    final source = context.createMediaStreamSource(mediaStream);
+    final source = context.createMediaStreamSource(stream);
 
     final workletNode = await _createWorkletNode(context, config);
 
@@ -190,15 +158,15 @@ class MicRecorderDelegate extends RecorderDelegate {
       )).toJS;
     }
 
-    _source = source;
+    this.source = source;
     _workletNode = workletNode;
-    _context = context;
-    _mediaStream = mediaStream;
-    _config = config;
+    audioContext = context;
+    mediaStream = stream;
+    recordConfig = config;
     requestedDevice = config.device;
 
     wireSource(source);
-    listenRouteChange(mediaStream);
+    listenRouteChange(stream);
 
     onStateChanged(RecordState.record);
   }
@@ -206,7 +174,7 @@ class MicRecorderDelegate extends RecorderDelegate {
   /// Feeds [source] to the worklet; connecting twice is a no-op.
   @override
   void wireSource(web.MediaStreamAudioSourceNode source) {
-    final context = _context;
+    final context = audioContext;
     final workletNode = _workletNode;
     if (context == null || workletNode == null) return;
 
@@ -278,12 +246,12 @@ class MicRecorderDelegate extends RecorderDelegate {
 
   Future<void> _reset({bool resetEncoder = true}) async {
     // Clear the fields before awaiting `resetContext`, so an in-flight swap sees the take ended.
-    final context = _context;
-    final mediaStream = _mediaStream;
-    _mediaStream = null;
-    _context = null;
-    _config = null;
-    await resetContext(context, mediaStream);
+    final context = audioContext;
+    final stream = mediaStream;
+    mediaStream = null;
+    audioContext = null;
+    recordConfig = null;
+    await resetContext(context, stream);
 
     if (resetEncoder) {
       _encoder?.cleanup();

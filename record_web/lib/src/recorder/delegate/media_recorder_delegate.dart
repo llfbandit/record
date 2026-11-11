@@ -14,8 +14,6 @@ import 'package:record_web/src/recorder/recorder.dart';
 class MediaRecorderDelegate extends RecorderDelegate {
   // Media recorder object
   web.MediaRecorder? _mediaRecorder;
-  // Media stream get from getUserMedia
-  web.MediaStream? _mediaStream;
   // Audio data
   List<web.Blob> _chunks = [];
   // Completer to get data & stop events before `stop()` method ends
@@ -27,12 +25,9 @@ class MediaRecorderDelegate extends RecorderDelegate {
 
   // Amplitude
   double _maxAmplitude = kMinAmplitude;
-  web.AudioContext? _audioCtx;
   web.AnalyserNode? _analyser;
-  web.MediaStreamAudioSourceNode? _source;
   // MediaRecorder reads this node, so a new input swaps in without recreating it.
   web.MediaStreamAudioDestinationNode? _destination;
-  RecordConfig? _config;
 
   final OnStateChanged onStateChanged;
   final OnStopped onStopped;
@@ -76,18 +71,16 @@ class MediaRecorderDelegate extends RecorderDelegate {
   Future<void> resume() async {
     if (_mediaRecorder?.state != 'paused') return;
 
-    // A removed device ends the paused track: move back to it or to the default one, or stay paused to retry.
-    final reattached = !isSourceDead(_mediaStream) || await reattach();
-    // The take may have stopped while `reattach` waited.
-    if (_mediaRecorder?.state != 'paused') return;
-    if (!reattached) throw const RecordResumeNoDeviceException();
+    // The take may stop while `reattachIfDead` waits.
+    bool stillPaused() => _mediaRecorder?.state == 'paused';
+    if (!await reattachIfDead(stillPaused)) return;
 
     // The browser may have suspended the context: resume it before `_mediaRecorder`, or the recorder captures silence.
-    await _audioCtx?.resume().toDart;
-    if (_mediaRecorder?.state != 'paused') return;
+    await audioContext?.resume().toDart;
+    if (!stillPaused()) return;
 
     // Browsers may disconnect the source during a pause, so reconnect it.
-    if (_source case final source?) wireSource(source);
+    if (source case final source?) wireSource(source);
 
     _mediaRecorder?.resume();
     _elapsedTime.start();
@@ -96,45 +89,23 @@ class MediaRecorderDelegate extends RecorderDelegate {
   }
 
   @override
-  web.AudioContext? get audioContext => _audioCtx;
-
-  @override
-  web.MediaStream? get mediaStream => _mediaStream;
-
-  @override
-  web.MediaStreamAudioSourceNode? get source => _source;
-
-  @override
-  RecordConfig? get recordConfig => _config;
-
-  @override
-  void onSourceSwapped(
-    web.MediaStreamAudioSourceNode source,
-    web.MediaStream mediaStream,
-    RecordConfig config,
-  ) {
-    _source = source;
-    _mediaStream = mediaStream;
-    _config = config;
-  }
-
-  @override
   Future<void> start(RecordConfig config, {required String path}) async {
     _mediaRecorder?.stop();
     await _reset();
 
     try {
-      final mediaStream = await initMediaStream(config);
-      _mediaStream = mediaStream;
+      final stream = await initMediaStream(config);
+      mediaStream = stream;
 
       // MediaRecorder encodes the track as-is.
       final effectiveConfig = adjustConfig(
-        mediaStream,
+        stream,
         config,
         canConvert: false,
         onConfigChanged: onConfigChanged,
       );
-      _audioCtx = effectiveConfig.context;
+      final context = effectiveConfig.context;
+      audioContext = context;
       config = effectiveConfig.config;
 
       // Try to assign dedicated mime type.
@@ -143,8 +114,7 @@ class MediaRecorderDelegate extends RecorderDelegate {
         throw '${config.encoder} not supported.';
       }
 
-      final destination = effectiveConfig.context
-          .createMediaStreamDestination();
+      final destination = context.createMediaStreamDestination();
       // The default 2 channels would upmix a mono mic, and later sources mix down to this count.
       destination.channelCount = config.numChannels;
 
@@ -163,21 +133,22 @@ class MediaRecorderDelegate extends RecorderDelegate {
       _mediaRecorder = mediaRecorder;
 
       // MediaRecorder reads the context, so a suspended one records silence. Not awaited: a blocked resume waits for a user gesture.
-      effectiveConfig.context.resume().toDart.ignore();
+      context.resume().toDart.ignore();
 
       _elapsedTime.start();
 
       mediaRecorder.start(200); // Will trigger dataavailable every 200ms
 
-      _setupAmplitudeAnalyser(effectiveConfig, mediaStream);
-
+      final source = context.createMediaStreamSource(stream);
+      _analyser = _createAnalyser(context);
       _destination = destination;
-      _config = config;
+      this.source = source;
+      recordConfig = config;
       requestedDevice = config.device;
 
-      if (_source case final source?) wireSource(source);
+      wireSource(source);
 
-      listenRouteChange(mediaStream);
+      listenRouteChange(stream);
 
       onStateChanged(RecordState.record);
     } catch (_) {
@@ -311,38 +282,28 @@ class MediaRecorderDelegate extends RecorderDelegate {
     _maxAmplitude = kMinAmplitude;
 
     // Clear the fields before awaiting `resetContext`, so an in-flight swap sees the take ended.
-    final audioCtx = _audioCtx;
-    final mediaStream = _mediaStream;
-    _mediaStream = null;
-    _audioCtx = null;
+    final audioCtx = audioContext;
+    final stream = mediaStream;
+    mediaStream = null;
+    audioContext = null;
 
-    _source?.disconnect();
-    _source = null;
+    source?.disconnect();
+    source = null;
 
     _destination = null;
     _analyser = null;
-    _config = null;
+    recordConfig = null;
 
     _chunks = [];
 
-    await resetContext(audioCtx, mediaStream);
+    await resetContext(audioCtx, stream);
   }
 
-  void _setupAmplitudeAnalyser(
-    AdjustedConfig effectiveConfig,
-    web.MediaStream stream,
-  ) {
-    final audioCtx = effectiveConfig.context;
-
-    final source = audioCtx.createMediaStreamSource(stream);
-
+  web.AnalyserNode _createAnalyser(web.AudioContext audioCtx) {
     final analyser = audioCtx.createAnalyser();
     analyser.fftSize = 1024;
     analyser.smoothingTimeConstant = 0.3; // Default 0.8 is way too high
-
-    _audioCtx = audioCtx;
-    _source = source;
-    _analyser = analyser;
+    return analyser;
   }
 
   double _getMaxAmplitude() {
