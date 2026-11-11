@@ -135,10 +135,6 @@ class MediaRecorderDelegate extends RecorderDelegate {
       // MediaRecorder reads the context, so a suspended one records silence. Not awaited: a blocked resume waits for a user gesture.
       context.resume().toDart.ignore();
 
-      _elapsedTime.start();
-
-      mediaRecorder.start(200); // Will trigger dataavailable every 200ms
-
       final source = context.createMediaStreamSource(stream);
       _analyser = _createAnalyser(context);
       _destination = destination;
@@ -149,6 +145,9 @@ class MediaRecorderDelegate extends RecorderDelegate {
       wireSource(source);
 
       listenRouteChange(stream);
+
+      _elapsedTime.start();
+      mediaRecorder.start(200); // Will trigger dataavailable every 200ms
 
       onStateChanged(RecordState.record);
     } catch (_) {
