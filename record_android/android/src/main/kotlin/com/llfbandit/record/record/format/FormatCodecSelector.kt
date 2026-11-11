@@ -5,7 +5,7 @@ import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.util.Range
 import com.llfbandit.record.record.model.RecordConfig
-import com.llfbandit.record.record.util.DeviceUtils
+import com.llfbandit.record.record.util.InputDevices
 import com.llfbandit.record.record.encoder.IEncoder
 import com.llfbandit.record.record.encoder.MediaCodecEncoder
 import com.llfbandit.record.record.encoder.PassthroughEncoder
@@ -86,7 +86,7 @@ internal object FormatCodecSelector {
   }
 
   private fun adjustToDeviceCapabilities(config: RecordConfig): RecordConfig {
-    val device = config.device ?: DeviceUtils.getDefaultInputDevice() ?: return config
+    val device = config.device ?: InputDevices.default() ?: return config
 
     // PCMReader only supports mono or stereo; ignore any device channel counts above 2.
     val deviceChannelCounts = device.channelCounts.filter { c -> c <= 2 }.toIntArray()

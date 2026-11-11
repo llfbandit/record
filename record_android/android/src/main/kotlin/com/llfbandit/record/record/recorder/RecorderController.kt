@@ -13,7 +13,7 @@ import com.llfbandit.record.record.model.StopReason
 import com.llfbandit.record.record.recorder.engine.Bound
 import com.llfbandit.record.record.recorder.engine.CaptureEngine
 import com.llfbandit.record.record.recorder.engine.DEFAULT_AMPLITUDE_DB
-import com.llfbandit.record.record.util.DeviceUtils
+import com.llfbandit.record.record.util.DeviceMapping
 
 /** User-visible output from the recording. */
 interface RecorderSink {
@@ -184,7 +184,7 @@ class RecorderController(
   /** Tells Dart which device capture is on after a reroute; null is the default one. */
   private fun reportDevice(s: Session, device: AudioDeviceInfo?) {
     // A re-plug keeps the Dart id, so Dart hears nothing; the config still takes the new device.
-    val changed = device?.let(DeviceUtils::deviceId) != s.config.device?.let(DeviceUtils::deviceId)
+    val changed = device?.let(DeviceMapping::deviceId) != s.config.device?.let(DeviceMapping::deviceId)
     s.config = s.config.copy(device = device)
     if (changed) sink.onConfigChanged(s.config)
   }

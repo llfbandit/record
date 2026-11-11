@@ -5,7 +5,7 @@ import android.media.AudioDeviceInfo
 import android.os.Handler
 import com.llfbandit.record.record.bluetooth.BluetoothManager
 import com.llfbandit.record.record.model.RecordConfig
-import com.llfbandit.record.record.util.DeviceUtils
+import com.llfbandit.record.record.util.InputDevices
 
 /** [AudioEnvironment] backed by the platform `AudioManager`. */
 class AndroidAudioEnvironment(
@@ -32,5 +32,5 @@ class AndroidAudioEnvironment(
 
   override fun dispose() = bluetooth.stop()
 
-  override fun findDevice(device: AudioDeviceInfo) = DeviceUtils.findInputDevice(context, device)
+  override fun findDevice(device: AudioDeviceInfo) = InputDevices.find(context, device)
 }

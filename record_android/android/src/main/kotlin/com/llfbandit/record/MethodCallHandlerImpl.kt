@@ -4,7 +4,8 @@ import android.content.Context
 import com.llfbandit.record.permission.PermissionManager
 import com.llfbandit.record.record.format.AudioFormats
 import com.llfbandit.record.record.model.RecordConfig
-import com.llfbandit.record.record.util.DeviceUtils
+import com.llfbandit.record.record.util.DeviceMapping
+import com.llfbandit.record.record.util.InputDevices
 import com.llfbandit.record.record.util.MainThread
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -28,7 +29,7 @@ class MethodCallHandlerImpl(
     // Stateless, or UI-bound (permission dialogs must run on the platform thread).
     when (call.method) {
       "hasPermission" -> { hasPermission(call, result); return }
-      "listInputDevices" -> { result.success(DeviceUtils.listInputDevicesAsMap(appContext)); return }
+      "listInputDevices" -> { result.success(InputDevices.list(appContext).map(DeviceMapping::toMap)); return }
       "isEncoderSupported" -> { isEncoderSupported(call, result); return }
     }
 

@@ -10,7 +10,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
-import com.llfbandit.record.record.util.DeviceUtils
+import com.llfbandit.record.record.util.InputDevices
 
 /** Both carry a headset mic; LE Audio only exists from API 31. */
 internal fun isBluetoothHeadset(type: Int): Boolean =
@@ -44,7 +44,7 @@ class BluetoothReceiver(
     audioDeviceCallback = object : AudioDeviceCallback() {
       override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
         val hadBluetoothSco = devices.any { isBluetoothHeadset(it.type) }
-        devices.addAll(DeviceUtils.filterSources(addedDevices.asList()))
+        devices.addAll(InputDevices.filterSources(addedDevices.asList()))
 
         // The removal stopped SCO, and nothing else starts it again for the next take or a resume.
         val hasBluetoothSco = devices.any { isBluetoothHeadset(it.type) }
@@ -54,7 +54,7 @@ class BluetoothReceiver(
       }
 
       override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
-        devices.removeAll(DeviceUtils.filterSources(removedDevices.asList()).toSet())
+        devices.removeAll(InputDevices.filterSources(removedDevices.asList()).toSet())
 
         val hasBluetoothSco = devices.any { isBluetoothHeadset(it.type) }
         if (!hasBluetoothSco && audioManager.isBluetoothScoAvailableOffCall) {
@@ -67,7 +67,7 @@ class BluetoothReceiver(
 
     // Handle devices that were already connected before the callback was registered.
     devices.addAll(
-      DeviceUtils.filterSources(
+      InputDevices.filterSources(
         audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS).asList()
       )
     )

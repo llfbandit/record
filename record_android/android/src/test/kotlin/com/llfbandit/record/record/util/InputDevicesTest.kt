@@ -13,10 +13,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
-/** Checks how DeviceUtils finds a device again after a re-plug. */
+/** Checks how a device is found again after a re-plug. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
-class DeviceUtilsTest {
+class InputDevicesTest {
   private val context: Context = ApplicationProvider.getApplicationContext()
   private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
@@ -49,18 +49,18 @@ class DeviceUtilsTest {
   @Test
   fun `a re-plugged device keeps its Dart id`() {
     val replugged = testAudioDevice(id = 12, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "24:29:34:AB:85:F1")
-    assertEquals(DeviceUtils.deviceId(buds), DeviceUtils.deviceId(replugged))
+    assertEquals(DeviceMapping.deviceId(buds), DeviceMapping.deviceId(replugged))
   }
 
   @Test
   fun `a device without an address is known by Android's id`() {
-    assertEquals("12", DeviceUtils.deviceId(testAudioDevice(id = 12, AudioDeviceInfo.TYPE_USB_DEVICE)))
+    assertEquals("12", DeviceMapping.deviceId(testAudioDevice(id = 12, AudioDeviceInfo.TYPE_USB_DEVICE)))
   }
 
   @Test
   fun `a saved device is found again after a re-plug`() {
     plugIn(testAudioDevice(id = 12, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "24:29:34:AB:85:F1"))
-    assertEquals(12, fromDart(DeviceUtils.deviceId(buds))?.id)
+    assertEquals(12, fromDart(DeviceMapping.deviceId(buds))?.id)
   }
 
   @Test
@@ -75,10 +75,10 @@ class DeviceUtilsTest {
     assertNull(fromDart("${AudioDeviceInfo.TYPE_BLUETOOTH_SCO}:60:38:0E:B8:70:02"))
   }
 
-  private fun fromDart(id: String) = DeviceUtils.deviceInfoFromMap(context, mapOf("id" to id))
+  private fun fromDart(id: String) = DeviceMapping.fromMap(InputDevices.list(context), mapOf("id" to id))
 
   private fun plugIn(vararg devices: AudioDeviceInfo) =
     shadowOf(audioManager).setInputDevices(devices.toList())
 
-  private fun find(device: AudioDeviceInfo) = DeviceUtils.findInputDevice(context, device)
+  private fun find(device: AudioDeviceInfo) = InputDevices.find(context, device)
 }

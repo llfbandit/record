@@ -17,7 +17,7 @@ import com.llfbandit.record.record.recorder.engine.MediaCaptureEngine
 import com.llfbandit.record.record.recorder.engine.PcmCaptureEngine
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
 import com.llfbandit.record.record.stream.RecorderStateStreamHandler
-import com.llfbandit.record.record.util.DeviceUtils
+import com.llfbandit.record.record.util.InputDevices
 import com.llfbandit.record.record.util.MainThread
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
@@ -53,8 +53,8 @@ class RecorderWrapper(
   private val controller: RecorderController = RecorderController(
     environment = environment,
     engineFactory = { config ->
-      val removals = DeviceRemovals { DeviceUtils.watchInputRemovals(context, handler, it) }
-      val hasInputDevices = { DeviceUtils.hasInputDevices(context) }
+      val removals = DeviceRemovals { InputDevices.watchRemovals(context, handler, it) }
+      val hasInputDevices = { InputDevices.hasAny(context) }
       if (config.useLegacy) MediaCaptureEngine(context, config, ::onCaptureEvent, removals, handler, hasInputDevices)
       else PcmCaptureEngine(config, ::onCaptureEvent, removals, handler, hasInputDevices)
     },

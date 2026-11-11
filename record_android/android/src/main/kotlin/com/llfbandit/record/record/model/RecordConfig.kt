@@ -5,7 +5,8 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.MediaRecorder
 import android.os.Build
-import com.llfbandit.record.record.util.DeviceUtils
+import com.llfbandit.record.record.util.DeviceMapping
+import com.llfbandit.record.record.util.InputDevices
 import io.flutter.plugin.common.MethodCall
 
 data class RecordConfig(
@@ -36,7 +37,7 @@ data class RecordConfig(
     "numChannels" to numChannels,
     "bitRate" to bitRate,
     // Report the device in use, not the requested one; null means the default device.
-    "device" to device?.let { DeviceUtils.deviceInfoToMap(it) },
+    "device" to device?.let { DeviceMapping.toMap(it) },
   )
 
   fun isModified(other: RecordConfig): Boolean =
@@ -50,7 +51,7 @@ data class RecordConfig(
         .associate { (k, v) -> k.toString() to v }
       val map = call.argument("androidConfig") as Map<*, *>?
       val requestedDevice = call.argument<Map<String, String>>("device")
-      val device = DeviceUtils.deviceInfoFromMap(context, requestedDevice)
+      val device = DeviceMapping.fromMap(InputDevices.list(context), requestedDevice)
 
       val audioSource: Int = when (map?.get("audioSource")) {
         "defaultSource" -> MediaRecorder.AudioSource.DEFAULT
