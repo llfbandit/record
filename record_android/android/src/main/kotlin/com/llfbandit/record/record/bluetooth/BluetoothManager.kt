@@ -2,10 +2,13 @@ package com.llfbandit.record.record.bluetooth
 
 import android.content.Context
 import android.os.Handler
+import android.util.Log
 import com.llfbandit.record.record.model.RecordConfig
 
 class BluetoothManager(private val context: Context, private val handler: Handler) {
   companion object {
+    private val TAG = BluetoothManager::class.java.simpleName
+
     // Pre-31 SCO connects are answered by a broadcast that never comes if the link fails.
     private const val SCO_CONNECT_TIMEOUT_MS = 2_500L
   }
@@ -43,7 +46,13 @@ class BluetoothManager(private val context: Context, private val handler: Handle
       // Armed first: register() may answer synchronously and cancel it right away.
       handler.postDelayed(onTimeout, SCO_CONNECT_TIMEOUT_MS)
       receiver = BluetoothReceiver(context, handler)
-      receiver!!.register { notifyOnce() }
+      try {
+        receiver!!.register { notifyOnce() }
+      } catch (e: Exception) {
+        // Bluetooth is optional: the take starts on another mic instead of failing.
+        Log.w(TAG, "Cannot start Bluetooth: ${e.message}")
+        stop()
+      }
     } else {
       onDone()
     }

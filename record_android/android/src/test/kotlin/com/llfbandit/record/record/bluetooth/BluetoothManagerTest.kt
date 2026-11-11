@@ -1,7 +1,10 @@
 package com.llfbandit.record.record.bluetooth
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Handler
@@ -98,6 +101,23 @@ class BluetoothManagerTest {
 
     broadcast(AudioManager.SCO_AUDIO_STATE_CONNECTED)
 
+    assertEquals(1, readyCount)
+  }
+
+  @Test
+  fun `a start that throws answers at once, and only once`() {
+    val failing = object : ContextWrapper(context) {
+      override fun registerReceiver(
+        receiver: BroadcastReceiver?, filter: IntentFilter?, permission: String?, scheduler: Handler?,
+      ): Intent? = throw SecurityException("refused")
+    }
+    manager = BluetoothManager(failing, Handler(Looper.getMainLooper()))
+    withHeadset()
+
+    start()
+
+    assertEquals(1, readyCount)
+    idlePastTimeout()
     assertEquals(1, readyCount)
   }
 
