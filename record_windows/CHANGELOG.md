@@ -3,6 +3,7 @@
 * feat: Report the end of each take (`onStopped`): why it ended, and its file.
 * refactor: Rebuild recorder as capture engine, sink and controller.
 * fix: `stop()` and `cancel()` before the first sample failed with "Catastrophic failure" (E_UNEXPECTED).
+* fix: End the take with an error when the next read cannot be queued, instead of hanging in record.
 
 ## 2.3.0
 * refactor: redirect recorder control onto one background thread.

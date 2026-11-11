@@ -60,7 +60,19 @@ namespace record_windows
 			return hr;
 		}
 
-		HRESULT RequestSample() override { return m_open ? S_OK : E_NOT_VALID_STATE; }
+		HRESULT RequestSample() override
+		{
+			if (!m_open) return E_NOT_VALID_STATE;
+
+			if (m_requestFailures > 0)
+			{
+				m_requestFailures--;
+				return E_FAIL;
+			}
+
+			return S_OK;
+		}
+
 		HRESULT Pause() override { return m_open ? S_OK : E_NOT_VALID_STATE; }
 
 		HRESULT Start() override
@@ -80,6 +92,8 @@ namespace record_windows
 		void FailOpens(int count) { m_openFailures = count; }
 		// Fails the next `count` Start() calls.
 		void FailStarts(int count) { m_startFailures = count; }
+		// Fails the next `count` RequestSample() calls.
+		void FailRequests(int count) { m_requestFailures = count; }
 		// Sets what Windows reports as the default input device; empty means none.
 		void SetDefaultDeviceId(std::string deviceId) { m_defaultDeviceId = std::move(deviceId); }
 
@@ -91,6 +105,7 @@ namespace record_windows
 		bool m_open = false;
 		int  m_openFailures = 0;
 		int  m_startFailures = 0;
+		int  m_requestFailures = 0;
 		std::string m_defaultDeviceId = "default-device";
 		std::vector<std::string> m_openedDeviceIds;
 	};

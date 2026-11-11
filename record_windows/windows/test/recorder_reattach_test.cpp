@@ -37,8 +37,9 @@ namespace record_windows
 			callbacks.onStopped = [this](const RecordStop& stop) { m_stops.push_back(stop); };
 
 			m_recorder = std::make_unique<Recorder>(m_dispatcher, std::move(callbacks),
-				[this](std::shared_ptr<RecorderDispatcher>, ICaptureEngine::SampleHandler)
+				[this](std::shared_ptr<RecorderDispatcher>, ICaptureEngine::SampleHandler onSample)
 					-> std::unique_ptr<ICaptureEngine> {
+					m_onSample = std::move(onSample);
 					auto engine = std::make_unique<FakeCaptureEngine>();
 					m_fake = engine.get();
 					return engine;
@@ -53,6 +54,12 @@ namespace record_windows
 
 			// Only what happens after the start counts.
 			Call(*m_dispatcher, [this] { m_reportedDeviceIds.clear(); return 0; });
+		}
+
+		// What the reader delivers when a read completes without data.
+		void DeliverEmptyRead()
+		{
+			Call(*m_dispatcher, [this] { m_onSample(S_OK, 0, 0, nullptr); return 0; });
 		}
 
 		std::vector<RecordStop> Stops() { return Call(*m_dispatcher, [this] { return m_stops; }); }
@@ -123,6 +130,7 @@ namespace record_windows
 		std::shared_ptr<RecorderDispatcher> m_dispatcher;
 		std::unique_ptr<Recorder> m_recorder;
 		FakeCaptureEngine* m_fake = nullptr;
+		ICaptureEngine::SampleHandler m_onSample;
 		std::vector<std::string> m_reportedDeviceIds;
 		std::vector<RecordStop> m_stops;
 	};
@@ -452,6 +460,20 @@ namespace record_windows
 
 		EXPECT_EQ(Resume(), E_FAIL);
 		EXPECT_EQ(ReattachOpens(), 0);
+	}
+
+	// No read queued means no callback back: the take must end, not hang in record.
+	TEST_F(RecorderReattachTest, AFailedReadRequestEndsTheTake)
+	{
+		StartTake(AudioRouteChange::follow);
+		Call(*m_dispatcher, [this] { m_fake->FailRequests(1); return 0; });
+
+		DeliverEmptyRead();
+
+		EXPECT_FALSE(IsRecording());
+		auto stops = Stops();
+		ASSERT_EQ(stops.size(), 1u);
+		EXPECT_EQ(stops[0].reason, StopReason::error);
 	}
 
 	// Windows reports one unplug twice (unplugged, then not present).

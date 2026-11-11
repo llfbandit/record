@@ -16,6 +16,12 @@ namespace record_windows
 			hr = ProcessSample(dwStreamIndex, llTimestamp, pSample);
 		}
 
+		// With no read queued, no callback comes back: the take would stall without an error.
+		if (SUCCEEDED(hr))
+		{
+			hr = m_engine->RequestSample();
+		}
+
 		if (FAILED(hr))
 		{
 			// Asking for another sample would only stall: end the take instead.
@@ -34,11 +40,7 @@ namespace record_windows
 				snprintf(error, sizeof(error), "Capture failed (0x%08X).", static_cast<unsigned>(hr));
 				End(StopReason::error, false, error);
 			}
-
-			return;
 		}
-
-		m_engine->RequestSample();
 	}
 
 	HRESULT Recorder::ProcessSample(DWORD dwStreamIndex, LONGLONG llTimestamp, IMFSample* pSample)
