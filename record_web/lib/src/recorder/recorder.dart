@@ -149,25 +149,19 @@ class Recorder {
   }
 
   Future<void> start(RecordConfig config, {required String path}) async {
+    await _endTake();
+
     switch (config.encoder) {
       case AudioEncoder.wav:
       case AudioEncoder.pcm16bits:
-        await _endTake();
         return (_delegate = _micDelegate()).start(config, path: path);
       default:
-        await _endTake();
-
         final supported = await isEncoderSupported(config.encoder);
         if (!supported) {
           throw 'Encoder ${config.encoder} not supported.';
         }
 
-        _delegate = MediaRecorderDelegate(
-          onStateChanged: _updateState,
-          onStopped: _onStopped,
-          onConfigChanged: _onConfigChanged,
-        );
-        return _delegate!.start(config, path: path);
+        return (_delegate = _mediaDelegate()).start(config, path: path);
     }
   }
 
@@ -243,6 +237,14 @@ class Recorder {
 
   MicRecorderDelegate _micDelegate() {
     return MicRecorderDelegate(
+      onStateChanged: _updateState,
+      onStopped: _onStopped,
+      onConfigChanged: _onConfigChanged,
+    );
+  }
+
+  MediaRecorderDelegate _mediaDelegate() {
+    return MediaRecorderDelegate(
       onStateChanged: _updateState,
       onStopped: _onStopped,
       onConfigChanged: _onConfigChanged,

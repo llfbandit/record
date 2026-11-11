@@ -120,55 +120,60 @@ class MicRecorderDelegate extends RecorderDelegate {
   }
 
   Future<void> _start(RecordConfig config, {bool isStream = false}) async {
-    final stream = await initMediaStream(config);
+    try {
+      final stream = await initMediaStream(config);
+      mediaStream = stream;
 
-    // The worklet resamples and remixes to the requested format.
-    final effectiveConfig = adjustConfig(
-      stream,
-      config,
-      canConvert: true,
-      onConfigChanged: onConfigChanged,
-    );
-    final context = effectiveConfig.context;
-    config = effectiveConfig.config;
+      // The worklet resamples and remixes to the requested format.
+      final effectiveConfig = adjustConfig(
+        stream,
+        config,
+        canConvert: true,
+        onConfigChanged: onConfigChanged,
+      );
+      final context = effectiveConfig.context;
+      audioContext = context;
+      config = effectiveConfig.config;
 
-    final source = context.createMediaStreamSource(stream);
+      final streamSource = context.createMediaStreamSource(stream);
+      source = streamSource;
 
-    final workletNode = await _createWorkletNode(context, config);
+      final workletNode = await _createWorkletNode(context, config);
+      _workletNode = workletNode;
 
-    if (!isStream) {
-      _encoder?.cleanup();
+      if (!isStream) {
+        _encoder?.cleanup();
 
-      if (config.encoder == AudioEncoder.wav) {
-        _encoder = WavEncoder(
-          sampleRate: config.sampleRate.toInt(),
-          numChannels: config.numChannels,
-        );
-      } else if (config.encoder == AudioEncoder.pcm16bits) {
-        _encoder = PcmEncoder();
+        if (config.encoder == AudioEncoder.wav) {
+          _encoder = WavEncoder(
+            sampleRate: config.sampleRate.toInt(),
+            numChannels: config.numChannels,
+          );
+        } else if (config.encoder == AudioEncoder.pcm16bits) {
+          _encoder = PcmEncoder();
+        }
       }
+
+      if (isStream) {
+        workletNode.port.onmessage =
+            ((web.MessageEvent event) => _onMessageStream(event)).toJS;
+      } else {
+        workletNode.port.onmessage = ((web.MessageEvent event) => _onMessage(
+          event,
+        )).toJS;
+      }
+
+      recordConfig = config;
+      requestedDevice = config.device;
+
+      wireSource(streamSource);
+      listenRouteChange(stream);
+
+      onStateChanged(RecordState.record);
+    } catch (_) {
+      await _reset();
+      rethrow;
     }
-
-    if (isStream) {
-      workletNode.port.onmessage =
-          ((web.MessageEvent event) => _onMessageStream(event)).toJS;
-    } else {
-      workletNode.port.onmessage = ((web.MessageEvent event) => _onMessage(
-        event,
-      )).toJS;
-    }
-
-    this.source = source;
-    _workletNode = workletNode;
-    audioContext = context;
-    mediaStream = stream;
-    recordConfig = config;
-    requestedDevice = config.device;
-
-    wireSource(source);
-    listenRouteChange(stream);
-
-    onStateChanged(RecordState.record);
   }
 
   /// Feeds [source] to the worklet; connecting twice is a no-op.
@@ -251,7 +256,15 @@ class MicRecorderDelegate extends RecorderDelegate {
     mediaStream = null;
     audioContext = null;
     recordConfig = null;
+
+    source?.disconnect();
+    source = null;
+    final workletNode = _workletNode;
+    _workletNode = null;
+
     await resetContext(context, stream);
+    // Cleared after the close, so buffers already posted still reach the encoder.
+    workletNode?.port.onmessage = null;
 
     if (resetEncoder) {
       _encoder?.cleanup();
